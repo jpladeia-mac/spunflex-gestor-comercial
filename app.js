@@ -8,6 +8,10 @@ const VALID_CREDENTIALS_HASH = {
 };
 
 async function sha256Hex(text) {
+  if (!window.crypto?.subtle) {
+    return null;
+  }
+
   const buffer = new TextEncoder().encode(text);
   const digest = await crypto.subtle.digest("SHA-256", buffer);
   return Array.from(new Uint8Array(digest))
@@ -47,12 +51,14 @@ const modalTitle = document.querySelector("#modal-title");
 const modalImage = document.querySelector("#modal-image");
 const sidebarToggle = document.querySelector("#toggle-sidebar");
 const fullscreenToggle = document.querySelector("#toggle-fullscreen");
+const sidebarScrim = document.querySelector("#sidebar-scrim");
 const loginContainer = document.querySelector("#login-container");
 const loginForm = document.querySelector("#login-form");
 const loginError = document.querySelector("#login-error");
 const appShell = document.querySelector("#app-shell");
 
 const defaultRevenueTarget = totalSales(2025).revenue * 1.15;
+let appBooted = false;
 
 init();
 
@@ -61,8 +67,13 @@ function isUserLoggedIn() {
 }
 
 async function login(username, password) {
+  const normalizedUser = username.trim().toLowerCase();
+  if (!window.crypto?.subtle) {
+    return normalizedUser === "spunflex" && password === "2026";
+  }
+
   const [uHash, pHash] = await Promise.all([
-    sha256Hex(username.trim().toLowerCase()),
+    sha256Hex(normalizedUser),
     sha256Hex(password)
   ]);
   if (uHash === VALID_CREDENTIALS_HASH.username && pHash === VALID_CREDENTIALS_HASH.password) {
@@ -104,11 +115,24 @@ function init() {
 }
 
 function bootApp() {
+  if (appBooted) {
+    applyStoredSidebarState();
+    updateFullscreenButton();
+    startClock();
+    updateGreeting();
+    render();
+    return;
+  }
+
+  appBooted = true;
   applyStoredSidebarState();
   document.addEventListener("click", handleClick);
   document.addEventListener("input", handleInput);
+  document.addEventListener("keydown", handleKeydown);
   document.addEventListener("fullscreenchange", updateFullscreenButton);
+  window.addEventListener("resize", handleResize);
   sidebarToggle.addEventListener("click", toggleSidebar);
+  sidebarScrim.addEventListener("click", closeMobileSidebar);
   fullscreenToggle.addEventListener("click", toggleFullscreen);
   document.querySelector("#export-json").addEventListener("click", exportJson);
   document.querySelector("#logout-button").addEventListener("click", handleLogout);
@@ -204,7 +228,6 @@ async function handleLogin(event) {
       loginError.classList.add("hidden");
       showApp();
       bootApp();
-      loginForm.removeEventListener("submit", handleLogin);
       showToast("Bem-vindo de volta!", "Dados carregados com sucesso.", "success");
     } else {
       loginError.classList.remove("hidden");
@@ -222,6 +245,7 @@ function handleClick(event) {
   const nav = event.target.closest(".nav-button");
   if (nav) {
     setView(nav.dataset.view);
+    closeMobileSidebar();
     return;
   }
 
@@ -298,9 +322,25 @@ function handleInput(event) {
   }
 }
 
+function handleKeydown(event) {
+  if (event.key === "Escape") {
+    closeMobileSidebar();
+  }
+}
+
 function setView(view) {
   state.view = view;
   render();
+}
+
+function isMobileLayout() {
+  return window.matchMedia("(max-width: 1024px)").matches;
+}
+
+function handleResize() {
+  if (!isMobileLayout()) {
+    closeMobileSidebar();
+  }
 }
 
 function applyStoredSidebarState() {
@@ -310,6 +350,13 @@ function applyStoredSidebarState() {
 }
 
 function toggleSidebar() {
+  if (isMobileLayout()) {
+    const open = !document.body.classList.contains("sidebar-open");
+    document.body.classList.toggle("sidebar-open", open);
+    updateSidebarButton(open ? false : document.body.classList.contains("sidebar-collapsed"));
+    return;
+  }
+
   const collapsed = !document.body.classList.contains("sidebar-collapsed");
   document.body.classList.toggle("sidebar-collapsed", collapsed);
   localStorage.setItem("spunflex.sidebarCollapsed", String(collapsed));
@@ -317,8 +364,19 @@ function toggleSidebar() {
 }
 
 function updateSidebarButton(collapsed) {
-  sidebarToggle.setAttribute("aria-label", collapsed ? "Expandir menu" : "Recolher menu");
-  sidebarToggle.setAttribute("title", collapsed ? "Expandir menu" : "Recolher menu");
+  const mobile = isMobileLayout();
+  const mobileOpen = document.body.classList.contains("sidebar-open");
+  const label = mobile
+    ? (mobileOpen ? "Fechar menu" : "Abrir menu")
+    : (collapsed ? "Expandir menu" : "Recolher menu");
+  sidebarToggle.setAttribute("aria-label", label);
+  sidebarToggle.setAttribute("title", label);
+}
+
+function closeMobileSidebar() {
+  if (!document.body.classList.contains("sidebar-open")) return;
+  document.body.classList.remove("sidebar-open");
+  updateSidebarButton(document.body.classList.contains("sidebar-collapsed"));
 }
 
 function toggleFullscreen() {

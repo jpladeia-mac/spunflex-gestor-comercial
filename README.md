@@ -31,3 +31,28 @@ A personalização usa referências do site oficial da Spunflex:
 - Favicon: `assets/spunflex-favicon.png`
 - Cores principais: `#10B7DC`, `#30355A`, `#54595F`, `#FFFFFF` e `#F6F6F6`
 - Fontes: Anton para títulos e Montserrat para interface
+
+## Acesso
+
+Login de demonstração para o app estático:
+
+- Usuário: `spunflex`
+- Senha: `2026`
+
+Para publicação pública na internet, use autenticação do servidor/hosting além desta tela de login do front-end.
+
+## Publicação
+
+O projeto está preparado para hospedagem estática.
+
+### GitHub Pages
+
+O arquivo `.github/workflows/pages.yml` publica automaticamente a branch `main` no GitHub Pages quando houver push.
+
+Link esperado depois da publicação:
+
+`https://jpladeia-mac.github.io/spunflex-gestor-comercial/`
+
+### Netlify
+
+O arquivo `netlify.toml` permite publicar a pasta raiz diretamente no Netlify.
