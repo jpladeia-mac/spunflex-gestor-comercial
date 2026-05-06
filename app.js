@@ -58,7 +58,8 @@ const state = {
   metric: "revenue",
   repSort: "revenue",
   repQuery: "",
-  entryMetric: "totalValue"
+  entryMetric: "totalValue",
+  lastCreatedAccess: null
 };
 
 const app = document.querySelector("#app");
@@ -74,9 +75,12 @@ const loginContainer = document.querySelector("#login-container");
 const loginForm = document.querySelector("#login-form");
 const loginError = document.querySelector("#login-error");
 const appShell = document.querySelector("#app-shell");
+const activationCodeInput = document.querySelector("#activation-code");
+const activationCodeButton = document.querySelector("#activate-access-code");
 
 const defaultRevenueTarget = totalSales(2025).revenue * 1.15;
 let appBooted = false;
+let loginControlsBooted = false;
 
 init();
 
@@ -136,14 +140,13 @@ function showApp() {
 
 function init() {
   ensureUserStore();
+  setupLoginControls();
 
   // Verificar autenticação
   if (!isUserLoggedIn()) {
     loginContainer.classList.remove("hidden");
     appShell.classList.add("hidden");
 
-    loginForm.addEventListener("submit", handleLogin);
-    setupPasswordToggle();
     document.querySelector("#login-user").focus();
     return;
   }
@@ -179,6 +182,14 @@ function bootApp() {
   startClock();
   updateGreeting();
   render();
+}
+
+function setupLoginControls() {
+  if (loginControlsBooted) return;
+  loginControlsBooted = true;
+  loginForm.addEventListener("submit", handleLogin);
+  activationCodeButton?.addEventListener("click", handleActivationCode);
+  setupPasswordToggle();
 }
 
 function setupPasswordToggle() {
@@ -350,6 +361,80 @@ function generatePasswordValue() {
   return password;
 }
 
+function encodeActivationPayload(payload) {
+  const json = JSON.stringify(payload);
+  return btoa(unescape(encodeURIComponent(json)));
+}
+
+function decodeActivationPayload(code) {
+  const json = decodeURIComponent(escape(atob(code.trim())));
+  return JSON.parse(json);
+}
+
+function createActivationCode(user) {
+  return encodeActivationPayload({
+    app: "spunflex-gestor-comercial",
+    version: 1,
+    user
+  });
+}
+
+function importUserFromActivationCode(code) {
+  const payload = decodeActivationPayload(code);
+  if (payload.app !== "spunflex-gestor-comercial" || payload.version !== 1 || !payload.user?.username) {
+    throw new Error("invalid-code");
+  }
+
+  const imported = {
+    ...payload.user,
+    active: payload.user.active !== false,
+    permissions: Array.isArray(payload.user.permissions) ? payload.user.permissions : [],
+    importedAt: new Date().toISOString()
+  };
+  const users = getUsers();
+  const exists = users.some((user) => normalizeUsername(user.username) === normalizeUsername(imported.username));
+  const updated = exists
+    ? users.map((user) => normalizeUsername(user.username) === normalizeUsername(imported.username) ? { ...user, ...imported } : user)
+    : [...users, imported];
+  saveUsers(updated);
+  recordAccess(imported.username, "ativacao", "Usuario ativado por codigo");
+  return imported;
+}
+
+function handleActivationCode() {
+  const code = activationCodeInput?.value.trim();
+  if (!code) {
+    showToast("Código vazio", "Cole o codigo de ativacao gerado pelo administrador.", "warning");
+    return;
+  }
+
+  try {
+    const user = importUserFromActivationCode(code);
+    activationCodeInput.value = "";
+    document.querySelector("#login-user").value = user.username;
+    document.querySelector("#login-password").focus();
+    showToast("Acesso ativado", "Agora entre com o login e senha recebidos.", "success");
+  } catch {
+    showToast("Código inválido", "Confira se o codigo foi copiado completo.", "error");
+  }
+}
+
+function copyText(text) {
+  if (!text) return;
+  navigator.clipboard?.writeText(text)
+    .then(() => showToast("Copiado", "Informacao enviada para a area de transferencia.", "success", 1800))
+    .catch(() => showToast("Copie manualmente", "Selecione o texto exibido e copie.", "warning"));
+}
+
+function createdAccessText() {
+  if (!state.lastCreatedAccess) return "";
+  return [
+    `Login: ${state.lastCreatedAccess.username}`,
+    `Senha: ${state.lastCreatedAccess.password}`,
+    `Codigo de ativacao: ${state.lastCreatedAccess.activationCode}`
+  ].join("\n");
+}
+
 async function createAdminUser() {
   if (!isAdmin()) return;
 
@@ -388,10 +473,17 @@ async function createAdminUser() {
     accessCount: 0
   };
 
+  const activationCode = createActivationCode(newUser);
+  state.lastCreatedAccess = {
+    username,
+    password,
+    displayName,
+    activationCode
+  };
   saveUsers([...users, newUser]);
   recordAccess(getCurrentUser().username, "admin", `Usuario criado: ${username}`);
   render();
-  showToast("Usuario criado", `Acesso de ${displayName} foi liberado.`, "success");
+  showToast("Usuario criado", `Acesso de ${displayName} foi liberado e o codigo foi gerado.`, "success");
 }
 
 function updateUserPermission(userId, page, allowed) {
@@ -617,6 +709,15 @@ function handleClick(event) {
   const createUser = event.target.closest("#create-admin-user");
   if (createUser) {
     createAdminUser();
+    return;
+  }
+
+  const copyAccess = event.target.closest("[data-copy-created-access]");
+  if (copyAccess) {
+    const text = copyAccess.dataset.copyCreatedAccess === "code"
+      ? state.lastCreatedAccess?.activationCode
+      : createdAccessText();
+    copyText(text);
     return;
   }
 
@@ -1274,6 +1375,7 @@ function renderAdmin() {
           </fieldset>
           <button class="primary-button" id="create-admin-user" type="button">Criar acesso</button>
         </div>
+        ${createdAccessPanel()}
       </article>
 
       <article class="panel span-7 admin-users-panel">
@@ -1296,6 +1398,37 @@ function renderAdmin() {
         </div>
         ${accessLogsTable(logs)}
       </article>
+    </div>
+  `;
+}
+
+function createdAccessPanel() {
+  if (!state.lastCreatedAccess) {
+    return `
+      <div class="admin-notice">
+        <strong>Validade do login</strong>
+        <span>Neste site estatico, o usuario fica salvo neste navegador. Para liberar em outro computador, envie o login, senha e codigo de ativacao gerado apos o cadastro.</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="created-access-card">
+      <div>
+        <span>Acesso criado</span>
+        <strong>${escapeHtml(state.lastCreatedAccess.displayName)}</strong>
+      </div>
+      <dl>
+        <div><dt>Login</dt><dd>${escapeHtml(state.lastCreatedAccess.username)}</dd></div>
+        <div><dt>Senha</dt><dd>${escapeHtml(state.lastCreatedAccess.password)}</dd></div>
+      </dl>
+      <label>Código de ativação
+        <textarea readonly>${escapeHtml(state.lastCreatedAccess.activationCode)}</textarea>
+      </label>
+      <div class="created-access-actions">
+        <button class="ghost-button" type="button" data-copy-created-access="credentials">Copiar tudo</button>
+        <button class="primary-button" type="button" data-copy-created-access="code">Copiar código</button>
+      </div>
     </div>
   `;
 }
