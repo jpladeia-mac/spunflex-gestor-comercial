@@ -61,8 +61,29 @@ window.SpunflexData = {
         "Média informada: 18.707 kg/dia e R$ 353.246/dia.",
         "Preço médio informado em abril: R$ 18,88/kg."
       ]
+    },
+    {
+      id: "src-faturamento-maio-ate-05",
+      file: "faturamento até 05:05.jpeg",
+      title: "Faturamento maio/2026 até 05/05",
+      type: "Tabela de faturamento parcial",
+      reviewed: true,
+      extracted: [
+        "Filtro de data: 01/05/2026 a 05/05/2026.",
+        "Total faturado parcial: R$ 501.050,03.",
+        "Peso faturado parcial: 26.160,35 kg."
+      ]
     }
   ],
+  currentMayBilling2026: {
+    startDate: "2026-05-01",
+    endDate: "2026-05-05",
+    weightKg: 26160.35,
+    quantity: 583891.25,
+    revenue: 501050.03,
+    avgPrice: 19.1535,
+    sourceId: "src-faturamento-maio-ate-05"
+  },
   monthlySales: [
     { year: 2023, month: 1, weightKg: 120178, revenue: 1890629 },
     { year: 2023, month: 2, weightKg: 106717, revenue: 1660497 },
@@ -187,6 +208,10 @@ window.SpunflexData = {
     {
       title: "Fechamentos oficiais preservados",
       detail: "No ranking de representantes, as linhas arredondadas somam R$ 7.033.510, enquanto o total da fonte é R$ 7.033.509. Nas entradas diárias, alguns componentes arredondados também variam 1 kg; o rodapé usa o fechamento exibido na imagem."
+    },
+    {
+      title: "Maio/2026 entrou como parcial",
+      detail: "A imagem de faturamento até 05/05/2026 soma R$ 501.050,03 e 26.160,35 kg. O sistema mantém esse dado separado do histórico mensal fechado para não distorcer projeções anuais."
     }
   ]
 };

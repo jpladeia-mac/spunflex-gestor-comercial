@@ -1295,13 +1295,13 @@ function renderGoals() {
   const targetKg = 450000;
   const businessDays = 20;
   const aprilSales = salesRecord(2026, 4);
+  const mayActual = data.currentMayBilling2026;
   const repTotals = totalRepresentatives();
   const companyAvgPrice = aprilSales.revenue / aprilSales.weightKg;
   const rankingAvgPrice = repTotals.revenue / repTotals.weightKg;
   const companyRevenueTarget = targetKg * companyAvgPrice;
   const rankingRevenueTarget = targetKg * rankingAvgPrice;
   const aprilCompanyGrowth = change(targetKg, aprilSales.weightKg);
-  const aprilRankingGrowth = change(targetKg, repTotals.weightKg);
   const plan = mayGoalPlan(targetKg);
   const projectedRevenue = plan.reduce((sum, row) => sum + row.targetRevenue, 0);
 
@@ -1315,9 +1315,9 @@ function renderGoals() {
   return `
     <div class="section-grid">
       ${kpiCard("Meta maio", "450 t", `${formatKg(targetKg)} para executar`, "green")}
-      ${kpiCard("Ritmo diário", `${formatTon(targetKg / businessDays)}/dia`, `${businessDays} dias úteis comerciais`, "blue")}
-      ${kpiCard("Faturamento alvo", formatBRL(companyRevenueTarget), `Usando R$/kg geral de abril: ${formatBRL(companyAvgPrice)}`, "amber")}
-      ${kpiCard("Crescimento necessário", formatPercent(aprilCompanyGrowth), "vs peso faturado geral de abril", "red")}
+      ${kpiCard("Realizado até 05/05", formatBRL(mayActual.revenue), `${formatKg(mayActual.weightKg, 2)} faturados`, "blue")}
+      ${kpiCard("Progresso em volume", formatPercent(mayActual.weightKg / targetKg), `R$/kg parcial: ${formatBRL(mayActual.revenue / mayActual.weightKg)}`, "amber")}
+      ${kpiCard("Saldo para meta", formatTon(targetKg - mayActual.weightKg), `${formatPercent(aprilCompanyGrowth)} vs peso faturado geral de abril`, "red")}
 
       <article class="panel span-12 management-hero">
         <div class="panel-header">
@@ -1329,7 +1329,7 @@ function renderGoals() {
         </div>
         <div class="management-grid">
           ${managementCard("Base de divisão", `A meta foi rateada pela participação de cada representante/canal nos ${formatKg(repTotals.weightKg)} do ranking de abril.`, "Use como ponto de partida para negociação da carteira.")}
-          ${managementCard("Esforço comercial", `450t representa ${formatPercent(aprilRankingGrowth)} sobre o volume do ranking de abril.`, "Cada representante precisa crescer na mesma proporção se o mix for mantido.")}
+          ${managementCard("Realizado parcial", `De 01/05 a 05/05 foram faturados ${formatBRL(mayActual.revenue)} e ${formatKg(mayActual.weightKg, 2)}.`, "Acompanhar diariamente para recuperar o saldo de volume.")}
           ${managementCard("Projeção conservadora", `Pelo R$/kg do ranking de abril, o plano projeta ${formatBRL(rankingRevenueTarget)}.`, "A diferença para o alvo geral vem do mix e preço médio por base.")}
           ${managementCard("Meta diretoria", `Mantendo o preço médio geral de abril, o alvo financeiro fica em ${formatBRL(companyRevenueTarget)}.`, "Acompanhar R$/kg para não bater tonelada perdendo valor.")}
         </div>
@@ -1353,6 +1353,7 @@ function renderGoals() {
           </div>
         </div>
         <div class="stat-stack">
+          <div><span>Faturamento parcial maio</span><strong>${formatBRL(mayActual.revenue)}</strong><small>Fonte: 01/05/2026 a 05/05/2026</small></div>
           <div><span>Meta semanal média</span><strong>${formatTon(targetKg / 4)}</strong><small>Referência simples para quatro semanas de maio</small></div>
           <div><span>Meta diária</span><strong>${formatTon(targetKg / businessDays)}</strong><small>Ritmo mínimo para cumprir 450t</small></div>
           <div><span>Faturamento simulado por representante</span><strong>${formatBRL(projectedRevenue, 0)}</strong><small>Soma por R$/kg individual de abril</small></div>
