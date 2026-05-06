@@ -1051,6 +1051,10 @@ function renderOverview() {
   const total2025 = totalSales(2025);
   const aprilSales = salesRecord(2026, 4);
   const aprilEntries = data.monthlyEntries2026.find((row) => row.month === 4);
+  const mayBilling = data.currentMayBilling2026;
+  const mayOrders = data.currentMayOrders2026;
+  const mayTargetKg = 450000;
+  const mayRevenueTarget = mayTargetKg * (aprilSales.revenue / aprilSales.weightKg);
   const repTotals = totalRepresentatives();
   const forecast = (ytd.revenue / throughMonth) * 12;
   const forecastGrowth = change(forecast, total2025.revenue);
@@ -1074,6 +1078,27 @@ function renderOverview() {
       valueLabel: formatBRL(row.revenue),
       color: row.month === 4 ? "amber" : ""
     }));
+
+  const mayOperationRows = [
+    {
+      label: "Faturamento acumulado",
+      value: mayBilling.revenue,
+      valueLabel: `${formatBRL(mayBilling.revenue)} | ${formatKg(mayBilling.weightKg, 2)}`,
+      color: "blue"
+    },
+    {
+      label: "Pedidos captados em 05/05",
+      value: mayOrders.merchandiseValue,
+      valueLabel: `${formatBRL(mayOrders.merchandiseValue)} | ${formatKg(mayOrders.weightKg, 2)}`,
+      color: "amber"
+    },
+    {
+      label: "Saldo financeiro estimado",
+      value: Math.max(mayRevenueTarget - mayBilling.revenue, 0),
+      valueLabel: formatBRL(Math.max(mayRevenueTarget - mayBilling.revenue, 0)),
+      color: "red"
+    }
+  ];
 
   const strategicRows = [
     {
@@ -1119,6 +1144,32 @@ function renderOverview() {
       ${kpiCard("Projeção 2026", formatBRL(forecast), `${formatPercent(forecastGrowth)} vs fechamento de 2025`, "blue")}
       ${kpiCard("Preço médio 2026", formatBRL(avgPrice2026), `${formatBRL(aprilAvgPrice)}/kg em abril`, "amber")}
       ${kpiCard("Concentração Top 5", formatPercent(concentration.top5Share), `${concentration.top1.name} lidera com ${formatPercent(concentration.top1Share)}`, "red")}
+
+      <article class="panel span-12 current-month-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Maio em andamento</h2>
+            <p>Faturamento acumulado até 05/05 e entrada de pedidos captada em 05/05, sem misturar DataEmissao com carteira de pedidos.</p>
+          </div>
+          <span class="status-pill blue">Mês atual</span>
+        </div>
+        <div class="management-grid">
+          ${managementCard("Faturamento até 05/05", `${formatBRL(mayBilling.revenue)} em ${formatKg(mayBilling.weightKg, 2)} faturados.`, `Progresso da meta de 450t: ${formatPercent(mayBilling.weightKg / mayTargetKg)}.`)}
+          ${managementCard("Pedidos em 05/05", `${formatBRL(mayOrders.merchandiseValue)} em ${formatKg(mayOrders.weightKg, 2)} cadastrados.`, `Preço médio dos pedidos: ${formatBRL(mayOrders.merchandiseValue / mayOrders.weightKg)}/kg.`)}
+          ${managementCard("Eficiência operacional", `Pedidos do dia equivalem a ${formatPercent(mayOrders.merchandiseValue / mayBilling.revenue)} do faturamento acumulado.`, "Acompanhar conversão pedido -> entrega -> faturamento.")}
+          ${managementCard("Ritmo necessário", `Saldo de ${formatTon(mayTargetKg - mayBilling.weightKg)} para cumprir a meta de maio.`, "Prioridade: reforçar carteira e acelerar faturamento diário.")}
+        </div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Eficiência vendas x faturamento</h2>
+            <p>Leitura executiva do mês atual: volume realizado, carteira captada e saldo de execução.</p>
+          </div>
+        </div>
+        ${barList(mayOperationRows)}
+      </article>
 
       <article class="panel span-12 management-hero">
         <div class="panel-header">

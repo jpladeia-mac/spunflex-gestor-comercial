@@ -73,6 +73,18 @@ window.SpunflexData = {
         "Total faturado parcial: R$ 501.050,03.",
         "Peso faturado parcial: 26.160,35 kg."
       ]
+    },
+    {
+      id: "src-pedidos-maio-05",
+      file: "entrada de pedidos em 05:05.jpeg",
+      title: "Entrada de pedidos - 05/05/2026",
+      type: "Tabela de pedidos",
+      reviewed: true,
+      extracted: [
+        "DataPedido exibida nas linhas: 05/05/2026.",
+        "Total de pedidos no rodapé: R$ 73.188,14.",
+        "Peso total no rodapé: 3.474,02 kg."
+      ]
     }
   ],
   currentMayBilling2026: {
@@ -83,6 +95,14 @@ window.SpunflexData = {
     revenue: 501050.03,
     avgPrice: 19.1535,
     sourceId: "src-faturamento-maio-ate-05"
+  },
+  currentMayOrders2026: {
+    date: "2026-05-05",
+    weightKg: 3474.02,
+    merchandiseValue: 73188.14,
+    avgPrice: 21.066,
+    status: "Pedidos cadastrados em 05/05/2026",
+    sourceId: "src-pedidos-maio-05"
   },
   monthlySales: [
     { year: 2023, month: 1, weightKg: 120178, revenue: 1890629 },
@@ -212,6 +232,10 @@ window.SpunflexData = {
     {
       title: "Maio/2026 entrou como parcial",
       detail: "A imagem de faturamento até 05/05/2026 soma R$ 501.050,03 e 26.160,35 kg. O sistema mantém esse dado separado do histórico mensal fechado para não distorcer projeções anuais."
+    },
+    {
+      title: "Pedidos de maio separados do faturamento",
+      detail: "A imagem de entrada de pedidos em 05/05/2026 soma R$ 73.188,14 e 3.474,02 kg. O sistema trata esse dado como carteira captada do dia, separado do faturamento por DataEmissao."
     }
   ]
 };
