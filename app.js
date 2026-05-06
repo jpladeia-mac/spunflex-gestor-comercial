@@ -137,6 +137,7 @@ function showApp() {
   loginContainer.classList.add("hidden");
   appShell.classList.remove("hidden");
   updateNavigationAccess();
+  updateCurrentUserBadge();
 }
 
 function init() {
@@ -163,6 +164,7 @@ function bootApp() {
     updateFullscreenButton();
     startClock();
     updateGreeting();
+    updateCurrentUserBadge();
     render();
     return;
   }
@@ -181,6 +183,7 @@ function bootApp() {
   updateFullscreenButton();
   startClock();
   updateGreeting();
+  updateCurrentUserBadge();
   render();
 }
 
@@ -687,6 +690,24 @@ function updateGreeting() {
   if (hour >= 5 && hour < 12) greeting = "Bom dia";
   else if (hour >= 12 && hour < 18) greeting = "Boa tarde";
   el.textContent = greeting;
+}
+
+function updateCurrentUserBadge() {
+  const nameEl = document.querySelector("#current-user-name");
+  const initialsEl = document.querySelector("#current-user-initials");
+  if (!nameEl || !initialsEl) return;
+
+  const user = getCurrentUser();
+  const displayName = user?.displayName || user?.username || "Usuário";
+  nameEl.textContent = displayName;
+  initialsEl.textContent = initialsFromName(displayName);
+}
+
+function initialsFromName(name) {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "--";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
 function showToast(title, message, type = "info", duration = 3600) {

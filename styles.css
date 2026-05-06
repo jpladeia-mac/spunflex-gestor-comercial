@@ -837,6 +837,61 @@ h3 {
   margin-top: 1px;
 }
 
+.topbar-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 170px;
+  max-width: 240px;
+  padding: 6px 12px 6px 7px;
+  border: 1px solid rgba(16, 183, 220, 0.22);
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+.topbar-user > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--brand-cyan);
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.topbar-user div {
+  min-width: 0;
+}
+
+.topbar-user small,
+.topbar-user strong {
+  display: block;
+}
+
+.topbar-user small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.topbar-user strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .primary-button,
 .ghost-button,
 .chip-button,
@@ -2246,6 +2301,10 @@ tfoot td {
     padding: 5px 10px 5px 8px;
   }
 
+  .topbar-user {
+    min-width: 150px;
+  }
+
   .topbar-clock small {
     display: none;
   }
@@ -2309,6 +2368,12 @@ tfoot td {
   .topbar-actions .primary-button svg {
     width: 18px;
     height: 18px;
+  }
+
+  .topbar-user {
+    min-width: 0;
+    max-width: calc(100vw - 84px);
+    flex: 1 1 190px;
   }
 
   .content {
@@ -2439,6 +2504,10 @@ tfoot td {
 
   .topbar-clock {
     display: none;
+  }
+
+  .topbar-user {
+    flex-basis: calc(100vw - 78px);
   }
 
   .source-card img { aspect-ratio: 16 / 10; }
