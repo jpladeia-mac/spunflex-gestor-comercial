@@ -176,7 +176,6 @@ function bootApp() {
   sidebarToggle.addEventListener("click", toggleSidebar);
   sidebarScrim.addEventListener("click", closeMobileSidebar);
   fullscreenToggle.addEventListener("click", toggleFullscreen);
-  document.querySelector("#export-json").addEventListener("click", exportJson);
   document.querySelector("#logout-button").addEventListener("click", handleLogout);
   updateFullscreenButton();
   startClock();
@@ -685,13 +684,6 @@ function handleClick(event) {
     } else {
       showToast("Valor inválido", "Informe um número positivo.", "error");
     }
-    return;
-  }
-
-  const exportCsvButton = event.target.closest("[data-export-csv]");
-  if (exportCsvButton) {
-    exportFinanceCsv();
-    showToast("Exportação concluída", "Arquivo spunflex-faturamento.csv gerado.", "success");
     return;
   }
 
@@ -1295,7 +1287,6 @@ function renderFinance() {
             <h2>Histórico financeiro de faturamento</h2>
             <p>Valores comerciais por mês e ano conforme tabela histórica.</p>
           </div>
-          <button class="ghost-button" type="button" data-export-csv>Exportar CSV</button>
         </div>
         ${financeTable()}
       </article>
@@ -2176,37 +2167,6 @@ function closeModal() {
   modalImage.src = "";
 }
 
-function exportJson() {
-  downloadFile("spunflex-dados.json", JSON.stringify(data, null, 2), "application/json");
-  showToast("Exportação concluída", "Arquivo spunflex-dados.json gerado.", "success");
-}
-
-function exportFinanceCsv() {
-  const years = [2023, 2024, 2025, 2026];
-  const header = ["Mes", ...years].join(";");
-  const rows = months.map((month) => {
-    const cells = years.map((year) => {
-      const record = salesRecord(year, month.id);
-      return record ? decimalForCsv(record.revenue) : "";
-    });
-    return [month.name, ...cells].join(";");
-  });
-
-  downloadFile("spunflex-faturamento.csv", [header, ...rows].join("\n"), "text/csv;charset=utf-8");
-}
-
-function downloadFile(filename, content, type) {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
 function comparisonCell(value) {
   const className = value >= 0 ? "comparison-positive" : "comparison-negative";
   return `<span class="${className}">${formatPercent(value)}</span>`;
@@ -2298,10 +2258,6 @@ function normalize(value) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
-}
-
-function decimalForCsv(value) {
-  return String(value).replace(".", ",");
 }
 
 function escapeHtml(value) {

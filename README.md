@@ -17,7 +17,7 @@ Sistema web local criado a partir das 5 imagens desta pasta. Ele roda sem depend
 - `index.html`: estrutura do app.
 - `styles.css`: layout e visual.
 - `data.js`: dados transcritos das imagens, com notas de auditoria.
-- `app.js`: filtros, tabelas, metas, gráficos e exportações.
+- `app.js`: filtros, tabelas, metas, gráficos e controle de acesso.
 
 ## Observações de dados
 
