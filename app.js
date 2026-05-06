@@ -7,6 +7,24 @@ const VALID_CREDENTIALS_HASH = {
   password: "158a323a7ba44870f23d96f1516dd70aa48e9a72db4ebb026b0a89e212a208ab"
 };
 
+const STORAGE_KEYS = {
+  authenticated: "spunflex_authenticated",
+  currentUser: "spunflex.currentUser",
+  users: "spunflex.users.v1",
+  accessLogs: "spunflex.accessLogs.v1"
+};
+
+const VIEW_DEFINITIONS = [
+  { id: "overview", label: "Dashboard" },
+  { id: "sales", label: "Vendas" },
+  { id: "representatives", label: "Representantes" },
+  { id: "goals", label: "Metas" },
+  { id: "entries", label: "Entradas" },
+  { id: "finance", label: "Financeiro" },
+  { id: "sources", label: "Fontes" },
+  { id: "admin", label: "Admin" }
+];
+
 async function sha256Hex(text) {
   if (!window.crypto?.subtle) {
     return null;
@@ -63,28 +81,46 @@ let appBooted = false;
 init();
 
 function isUserLoggedIn() {
-  return sessionStorage.getItem("spunflex_authenticated") === "true";
+  return sessionStorage.getItem(STORAGE_KEYS.authenticated) === "true" && Boolean(getCurrentUser());
 }
 
 async function login(username, password) {
   const normalizedUser = username.trim().toLowerCase();
-  if (!window.crypto?.subtle) {
-    return normalizedUser === "spunflex" && password === "2026";
+  const users = getUsers();
+  const found = users.find((user) => normalizeUsername(user.username) === normalizedUser && user.active !== false);
+
+  if (!found) {
+    recordAccess(normalizedUser || "sem usuario", "negado", "Usuario inexistente ou inativo");
+    return null;
   }
 
-  const [uHash, pHash] = await Promise.all([
-    sha256Hex(normalizedUser),
-    sha256Hex(password)
-  ]);
-  if (uHash === VALID_CREDENTIALS_HASH.username && pHash === VALID_CREDENTIALS_HASH.password) {
-    sessionStorage.setItem("spunflex_authenticated", "true");
-    return true;
+  if (await passwordMatches(password, found.passwordHash)) {
+    const updatedUsers = users.map((user) => {
+      if (user.id !== found.id) return user;
+      return {
+        ...user,
+        lastLoginAt: new Date().toISOString(),
+        accessCount: Number(user.accessCount || 0) + 1
+      };
+    });
+    saveUsers(updatedUsers);
+    const currentUser = sessionUserFrom(updatedUsers.find((user) => user.id === found.id));
+    setCurrentUser(currentUser);
+    recordAccess(currentUser.username, "permitido", "Login efetuado");
+    return currentUser;
   }
-  return false;
+
+  recordAccess(normalizedUser, "negado", "Senha invalida");
+  return null;
 }
 
 function logout() {
-  sessionStorage.removeItem("spunflex_authenticated");
+  const currentUser = getCurrentUser();
+  if (currentUser) {
+    recordAccess(currentUser.username, "saida", "Sessao encerrada");
+  }
+  sessionStorage.removeItem(STORAGE_KEYS.authenticated);
+  sessionStorage.removeItem(STORAGE_KEYS.currentUser);
   loginContainer.classList.remove("hidden");
   appShell.classList.add("hidden");
   loginForm.reset();
@@ -95,9 +131,12 @@ function logout() {
 function showApp() {
   loginContainer.classList.add("hidden");
   appShell.classList.remove("hidden");
+  updateNavigationAccess();
 }
 
 function init() {
+  ensureUserStore();
+
   // Verificar autenticação
   if (!isUserLoggedIn()) {
     loginContainer.classList.remove("hidden");
@@ -153,6 +192,255 @@ function setupPasswordToggle() {
     toggle.setAttribute("title", showing ? "Mostrar senha" : "Ocultar senha");
     input.focus();
   });
+}
+
+function ensureUserStore() {
+  const users = getUsers();
+  if (!users.length) {
+    saveUsers([defaultAdminUser()]);
+    return;
+  }
+
+  const hasAdmin = users.some((user) => user.role === "admin");
+  if (!hasAdmin) {
+    saveUsers([defaultAdminUser(), ...users]);
+  }
+}
+
+function defaultAdminUser() {
+  const now = new Date().toISOString();
+  return {
+    id: "admin-spunflex",
+    username: "spunflex",
+    displayName: "Administrador Spunflex",
+    role: "admin",
+    active: true,
+    passwordHash: VALID_CREDENTIALS_HASH.password,
+    permissions: VIEW_DEFINITIONS.map((view) => view.id),
+    createdAt: now,
+    lastLoginAt: null,
+    accessCount: 0
+  };
+}
+
+function getUsers() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEYS.users) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((user) => ({
+      ...user,
+      permissions: Array.isArray(user.permissions) ? user.permissions : [],
+      active: user.active !== false
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function saveUsers(users) {
+  localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
+}
+
+function getCurrentUser() {
+  try {
+    return JSON.parse(sessionStorage.getItem(STORAGE_KEYS.currentUser) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function setCurrentUser(user) {
+  sessionStorage.setItem(STORAGE_KEYS.authenticated, "true");
+  sessionStorage.setItem(STORAGE_KEYS.currentUser, JSON.stringify(user));
+}
+
+function sessionUserFrom(user) {
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName || user.username,
+    role: user.role || "user",
+    permissions: user.role === "admin" ? VIEW_DEFINITIONS.map((view) => view.id) : user.permissions || []
+  };
+}
+
+function isAdmin(user = getCurrentUser()) {
+  return user?.role === "admin";
+}
+
+function hasPermission(view, user = getCurrentUser()) {
+  if (!user) return false;
+  if (isAdmin(user)) return true;
+  return (user.permissions || []).includes(view);
+}
+
+function firstAllowedView(user = getCurrentUser()) {
+  const first = VIEW_DEFINITIONS.find((view) => view.id !== "admin" && hasPermission(view.id, user));
+  return first ? first.id : null;
+}
+
+function updateNavigationAccess() {
+  const user = getCurrentUser();
+  navButtons.forEach((button) => {
+    const allowed = hasPermission(button.dataset.view, user);
+    button.classList.toggle("nav-hidden", !allowed);
+    button.disabled = !allowed;
+    button.setAttribute("aria-hidden", allowed ? "false" : "true");
+  });
+}
+
+async function hashPasswordForStorage(password) {
+  const hash = await sha256Hex(password);
+  return hash || `plain:${password}`;
+}
+
+async function passwordMatches(password, storedHash) {
+  if (storedHash?.startsWith("plain:")) {
+    return storedHash.slice(6) === password;
+  }
+
+  const hash = await sha256Hex(password);
+  if (hash) return hash === storedHash;
+
+  return storedHash === VALID_CREDENTIALS_HASH.password && password === "2026";
+}
+
+function getAccessLogs() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEYS.accessLogs) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveAccessLogs(logs) {
+  localStorage.setItem(STORAGE_KEYS.accessLogs, JSON.stringify(logs.slice(0, 250)));
+}
+
+function recordAccess(username, status, detail) {
+  const logs = getAccessLogs();
+  logs.unshift({
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    username,
+    status,
+    detail,
+    timestamp: new Date().toISOString(),
+    device: navigator.userAgent
+  });
+  saveAccessLogs(logs);
+}
+
+function normalizeUsername(value) {
+  return value.trim().toLowerCase();
+}
+
+function generatePasswordValue() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$%";
+  let password = "";
+  const values = new Uint32Array(12);
+  if (window.crypto?.getRandomValues) {
+    window.crypto.getRandomValues(values);
+    password = Array.from(values, (value) => chars[value % chars.length]).join("");
+  } else {
+    for (let i = 0; i < 12; i += 1) {
+      password += chars[Math.floor(Math.random() * chars.length)];
+    }
+  }
+  return password;
+}
+
+async function createAdminUser() {
+  if (!isAdmin()) return;
+
+  const displayName = document.querySelector("#admin-display-name")?.value.trim();
+  const username = normalizeUsername(document.querySelector("#admin-username")?.value || "");
+  const password = document.querySelector("#admin-password")?.value || "";
+  const role = document.querySelector("#admin-role")?.value || "user";
+  const permissions = [...document.querySelectorAll("[name='new-user-permission']:checked")].map((input) => input.value);
+
+  if (!displayName || !username || password.length < 6) {
+    showToast("Dados incompletos", "Informe nome, login e uma senha com pelo menos 6 caracteres.", "error");
+    return;
+  }
+
+  const users = getUsers();
+  if (users.some((user) => normalizeUsername(user.username) === username)) {
+    showToast("Login ja existe", "Escolha outro nome de usuario.", "error");
+    return;
+  }
+
+  if (role !== "admin" && !permissions.length) {
+    showToast("Sem permissao", "Autorize pelo menos uma pagina para este usuario.", "error");
+    return;
+  }
+
+  const newUser = {
+    id: `user-${Date.now()}`,
+    username,
+    displayName,
+    role,
+    active: true,
+    passwordHash: await hashPasswordForStorage(password),
+    permissions: role === "admin" ? VIEW_DEFINITIONS.map((view) => view.id) : permissions,
+    createdAt: new Date().toISOString(),
+    lastLoginAt: null,
+    accessCount: 0
+  };
+
+  saveUsers([...users, newUser]);
+  recordAccess(getCurrentUser().username, "admin", `Usuario criado: ${username}`);
+  render();
+  showToast("Usuario criado", `Acesso de ${displayName} foi liberado.`, "success");
+}
+
+function updateUserPermission(userId, page, allowed) {
+  if (!isAdmin()) return;
+  const users = getUsers();
+  const updated = users.map((user) => {
+    if (user.id !== userId || user.role === "admin") return user;
+    const permissions = new Set(user.permissions || []);
+    if (allowed) permissions.add(page);
+    else permissions.delete(page);
+    return { ...user, permissions: [...permissions] };
+  });
+  saveUsers(updated);
+  const user = updated.find((item) => item.id === userId);
+  recordAccess(getCurrentUser().username, "admin", `Permissao atualizada: ${user?.username || userId}`);
+  showToast("Permissao salva", "Autorizacao de pagina atualizada.", "success", 1800);
+}
+
+function updateUserActive(userId, active) {
+  if (!isAdmin()) return;
+  const currentUser = getCurrentUser();
+  if (userId === currentUser?.id) {
+    showToast("Acao bloqueada", "Voce nao pode desativar o proprio usuario.", "warning");
+    render();
+    return;
+  }
+
+  const users = getUsers();
+  const updated = users.map((user) => user.id === userId ? { ...user, active } : user);
+  saveUsers(updated);
+  const user = updated.find((item) => item.id === userId);
+  recordAccess(currentUser.username, "admin", `${active ? "Ativado" : "Desativado"}: ${user?.username || userId}`);
+  showToast("Status salvo", `Usuario ${active ? "ativado" : "desativado"}.`, "success", 1800);
+}
+
+function deleteAdminUser(userId) {
+  if (!isAdmin()) return;
+  const currentUser = getCurrentUser();
+  const users = getUsers();
+  const target = users.find((user) => user.id === userId);
+  if (!target || target.role === "admin" || target.id === currentUser?.id) {
+    showToast("Acao bloqueada", "Administradores e usuario atual nao podem ser excluidos aqui.", "warning");
+    return;
+  }
+
+  saveUsers(users.filter((user) => user.id !== userId));
+  recordAccess(currentUser.username, "admin", `Usuario excluido: ${target.username}`);
+  render();
+  showToast("Usuario excluido", `${target.displayName || target.username} removido do painel.`, "success");
 }
 
 function startClock() {
@@ -312,6 +600,41 @@ function handleClick(event) {
   if (exportCsvButton) {
     exportFinanceCsv();
     showToast("Exportação concluída", "Arquivo spunflex-faturamento.csv gerado.", "success");
+    return;
+  }
+
+  const generatePassword = event.target.closest("#generate-user-password");
+  if (generatePassword) {
+    const input = document.querySelector("#admin-password");
+    if (input) {
+      input.value = generatePasswordValue();
+      input.focus();
+      input.select();
+    }
+    return;
+  }
+
+  const createUser = event.target.closest("#create-admin-user");
+  if (createUser) {
+    createAdminUser();
+    return;
+  }
+
+  const permissionToggle = event.target.closest("[data-user-permission]");
+  if (permissionToggle) {
+    updateUserPermission(permissionToggle.dataset.userPermission, permissionToggle.dataset.page, permissionToggle.checked);
+    return;
+  }
+
+  const activeToggle = event.target.closest("[data-toggle-user-active]");
+  if (activeToggle) {
+    updateUserActive(activeToggle.dataset.toggleUserActive, activeToggle.checked);
+    return;
+  }
+
+  const deleteUser = event.target.closest("[data-delete-user]");
+  if (deleteUser) {
+    deleteAdminUser(deleteUser.dataset.deleteUser);
   }
 }
 
@@ -329,6 +652,10 @@ function handleKeydown(event) {
 }
 
 function setView(view) {
+  if (!hasPermission(view)) {
+    showToast("Acesso restrito", "Seu usuario nao esta autorizado para esta pagina.", "warning");
+    return;
+  }
   state.view = view;
   render();
 }
@@ -395,6 +722,18 @@ function updateFullscreenButton() {
 }
 
 function render() {
+  const currentUser = getCurrentUser();
+  if (!hasPermission(state.view, currentUser)) {
+    const fallbackView = firstAllowedView(currentUser);
+    if (!fallbackView) {
+      viewTitle.textContent = "Acesso restrito";
+      updateNavigationAccess();
+      app.innerHTML = renderAccessDenied();
+      return;
+    }
+    state.view = fallbackView;
+  }
+
   const titles = {
     overview: "Dashboard Estratégico",
     sales: "Vendas",
@@ -402,10 +741,12 @@ function render() {
     goals: "Metas",
     entries: "Entradas",
     finance: "Financeiro",
-    sources: "Fontes"
+    sources: "Fontes",
+    admin: "Administração"
   };
 
   viewTitle.textContent = titles[state.view];
+  updateNavigationAccess();
   navButtons.forEach((button) => button.classList.toggle("active", button.dataset.view === state.view));
 
   const views = {
@@ -415,11 +756,12 @@ function render() {
     goals: renderGoals,
     entries: renderEntries,
     finance: renderFinance,
-    sources: renderSources
+    sources: renderSources,
+    admin: renderAdmin
   };
 
   showLoadingBar(true);
-  app.innerHTML = views[state.view]();
+  app.innerHTML = views[state.view] ? views[state.view]() : renderAccessDenied();
   app.style.animation = "none";
   // force reflow to restart the entry animation on each render
   void app.offsetWidth;
@@ -877,6 +1219,177 @@ function renderSources() {
       <div class="span-12 source-grid">
         ${data.sources.map(sourceCard).join("")}
       </div>
+    </div>
+  `;
+}
+
+function renderAdmin() {
+  if (!isAdmin()) return renderAccessDenied();
+
+  const users = getUsers();
+  const logs = getAccessLogs();
+  const today = new Date().toISOString().slice(0, 10);
+  const todayLogs = logs.filter((log) => log.timestamp.slice(0, 10) === today);
+  const deniedToday = todayLogs.filter((log) => log.status === "negado").length;
+
+  return `
+    <div class="section-grid">
+      ${kpiCard("Usuários cadastrados", String(users.length), `${users.filter((user) => user.active !== false).length} ativos`, "blue")}
+      ${kpiCard("Acessos hoje", String(todayLogs.filter((log) => log.status === "permitido").length), "Logins autorizados neste navegador", "green")}
+      ${kpiCard("Tentativas negadas", String(deniedToday), "Falhas de senha ou usuario", deniedToday ? "red" : "amber")}
+      ${kpiCard("Páginas controladas", String(VIEW_DEFINITIONS.length), "Permissão individual por aba", "green")}
+
+      <article class="panel span-5 admin-form-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Novo usuário</h2>
+            <p>Gere login, senha e autorize quais páginas o usuário poderá acessar.</p>
+          </div>
+          <span class="status-pill blue">Admin</span>
+        </div>
+        <div class="admin-form">
+          <label>Nome
+            <input id="admin-display-name" type="text" placeholder="Ex.: Comercial Interno">
+          </label>
+          <label>Login
+            <input id="admin-username" type="text" placeholder="ex.: comercial01" autocomplete="off">
+          </label>
+          <label>Senha
+            <div class="admin-password-row">
+              <input id="admin-password" type="text" placeholder="Clique em gerar ou digite">
+              <button class="ghost-button" id="generate-user-password" type="button">Gerar</button>
+            </div>
+          </label>
+          <label>Perfil
+            <select id="admin-role">
+              <option value="user">Usuário</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </label>
+          <fieldset class="permission-grid">
+            <legend>Autorizações de páginas</legend>
+            ${VIEW_DEFINITIONS.filter((view) => view.id !== "admin").map((view) => `
+              <label><input type="checkbox" name="new-user-permission" value="${view.id}" checked> ${view.label}</label>
+            `).join("")}
+          </fieldset>
+          <button class="primary-button" id="create-admin-user" type="button">Criar acesso</button>
+        </div>
+      </article>
+
+      <article class="panel span-7 admin-users-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Usuários e permissões</h2>
+            <p>Marque as páginas liberadas. Administradores sempre acessam tudo.</p>
+          </div>
+        </div>
+        ${adminUsersTable(users)}
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Histórico de acessos</h2>
+            <p>Registro local de login, saída e tentativas negadas neste navegador.</p>
+          </div>
+          <span class="status-pill">${logs.length} registros</span>
+        </div>
+        ${accessLogsTable(logs)}
+      </article>
+    </div>
+  `;
+}
+
+function renderAccessDenied() {
+  return `
+    <div class="section-grid">
+      <article class="panel span-12">
+        <div class="empty-state">
+          <strong>Acesso nao autorizado</strong>
+          <span>Solicite ao administrador a liberacao desta pagina.</span>
+        </div>
+      </article>
+    </div>
+  `;
+}
+
+function adminUsersTable(users) {
+  const currentUser = getCurrentUser();
+  const pageViews = VIEW_DEFINITIONS.filter((view) => view.id !== "admin");
+  const rows = users.map((user) => {
+    const admin = user.role === "admin";
+    return `
+      <tr>
+        <td>
+          <strong>${escapeHtml(user.displayName || user.username)}</strong>
+          <small>${escapeHtml(user.username)}</small>
+        </td>
+        <td><span class="status-pill ${admin ? "blue" : ""}">${admin ? "Admin" : "Usuário"}</span></td>
+        <td>
+          <label class="switch-label">
+            <input type="checkbox" data-toggle-user-active="${user.id}" ${user.active !== false ? "checked" : ""} ${user.id === currentUser?.id ? "disabled" : ""}>
+            Ativo
+          </label>
+        </td>
+        ${pageViews.map((view) => `
+          <td>
+            <input type="checkbox" data-user-permission="${user.id}" data-page="${view.id}" ${admin || (user.permissions || []).includes(view.id) ? "checked" : ""} ${admin ? "disabled" : ""} aria-label="${view.label}">
+          </td>
+        `).join("")}
+        <td>${user.lastLoginAt ? formatDateTime(user.lastLoginAt) : "-"}</td>
+        <td>
+          <button class="ghost-button danger-ghost table-action" type="button" data-delete-user="${user.id}" ${user.id === currentUser?.id || admin ? "disabled" : ""}>Excluir</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  return `
+    <div class="data-table-wrap admin-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Usuário</th>
+            <th>Perfil</th>
+            <th>Status</th>
+            ${pageViews.map((view) => `<th>${view.label}</th>`).join("")}
+            <th>Último acesso</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function accessLogsTable(logs) {
+  if (!logs.length) {
+    return `<div class="empty-state">Nenhum acesso registrado ainda.</div>`;
+  }
+
+  const rows = logs.slice(0, 80).map((log) => `
+    <tr>
+      <td>${formatDateTime(log.timestamp)}</td>
+      <td>${escapeHtml(log.username)}</td>
+      <td><span class="status-pill ${log.status === "negado" ? "red" : log.status === "saida" ? "amber" : "blue"}">${escapeHtml(log.status)}</span></td>
+      <td>${escapeHtml(log.detail)}</td>
+    </tr>
+  `).join("");
+
+  return `
+    <div class="data-table-wrap access-log-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Data/Hora</th>
+            <th>Usuário</th>
+            <th>Status</th>
+            <th>Detalhe</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
     </div>
   `;
 }
@@ -1629,6 +2142,16 @@ function formatDay(date) {
   return new Date(`${date}T00:00:00`).toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit"
+  });
+}
+
+function formatDateTime(value) {
+  return new Date(value).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
   });
 }
 
