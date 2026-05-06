@@ -59,7 +59,8 @@ const state = {
   repSort: "revenue",
   repQuery: "",
   entryMetric: "totalValue",
-  lastCreatedAccess: null
+  lastCreatedAccess: null,
+  editingUserId: null
 };
 
 const app = document.querySelector("#app");
@@ -325,20 +326,69 @@ function getAccessLogs() {
 }
 
 function saveAccessLogs(logs) {
-  localStorage.setItem(STORAGE_KEYS.accessLogs, JSON.stringify(logs.slice(0, 250)));
+  localStorage.setItem(STORAGE_KEYS.accessLogs, JSON.stringify(logs.slice(0, 1000)));
 }
 
 function recordAccess(username, status, detail) {
   const logs = getAccessLogs();
+  const context = getClientSecurityContext();
   logs.unshift({
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     username,
     status,
     detail,
     timestamp: new Date().toISOString(),
-    device: navigator.userAgent
+    device: context.userAgent,
+    ...context
   });
   saveAccessLogs(logs);
+}
+
+function getClientSecurityContext() {
+  const userAgent = navigator.userAgent || "Indisponivel";
+  const platform = navigator.userAgentData?.platform || navigator.platform || "Indisponivel";
+  return {
+    deviceType: detectDeviceType(userAgent),
+    browser: detectBrowser(userAgent),
+    os: detectOperatingSystem(userAgent, platform),
+    platform,
+    screen: `${window.screen?.width || 0}x${window.screen?.height || 0}`,
+    viewport: `${window.innerWidth || 0}x${window.innerHeight || 0}`,
+    language: navigator.language || "Indisponivel",
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Indisponivel",
+    path: window.location.pathname || "/",
+    referrer: document.referrer || "Acesso direto",
+    online: navigator.onLine ? "online" : "offline",
+    userAgent
+  };
+}
+
+function detectDeviceType(userAgent) {
+  if (/ipad|tablet|playbook|silk/i.test(userAgent)) return "Tablet";
+  if (/mobi|android|iphone|ipod|blackberry|phone/i.test(userAgent)) return "Celular";
+  return "Computador";
+}
+
+function detectBrowser(userAgent) {
+  if (/Edg\//.test(userAgent)) return "Microsoft Edge";
+  if (/OPR\//.test(userAgent)) return "Opera";
+  if (/Chrome\//.test(userAgent) && !/Chromium/.test(userAgent)) return "Google Chrome";
+  if (/Safari\//.test(userAgent) && !/Chrome\//.test(userAgent)) return "Safari";
+  if (/Firefox\//.test(userAgent)) return "Firefox";
+  return "Desconhecido";
+}
+
+function detectOperatingSystem(userAgent, platform) {
+  if (/Windows/i.test(userAgent) || /Win/i.test(platform)) return "Windows";
+  if (/Android/i.test(userAgent)) return "Android";
+  if (/iPhone|iPad|iPod/i.test(userAgent)) return "iOS/iPadOS";
+  if (/Mac OS|MacIntel|MacPPC/i.test(userAgent) || /Mac/i.test(platform)) return "macOS";
+  if (/Linux/i.test(userAgent) || /Linux/i.test(platform)) return "Linux";
+  return "Desconhecido";
+}
+
+function deviceTypeFromLegacy(userAgent = "") {
+  return detectDeviceType(userAgent);
 }
 
 function normalizeUsername(value) {
@@ -516,6 +566,84 @@ function updateUserActive(userId, active) {
   const user = updated.find((item) => item.id === userId);
   recordAccess(currentUser.username, "admin", `${active ? "Ativado" : "Desativado"}: ${user?.username || userId}`);
   showToast("Status salvo", `Usuario ${active ? "ativado" : "desativado"}.`, "success", 1800);
+}
+
+async function updateAdminUser() {
+  if (!isAdmin()) return;
+
+  const userId = state.editingUserId;
+  const users = getUsers();
+  const target = users.find((user) => user.id === userId);
+  const currentUser = getCurrentUser();
+  if (!target) {
+    showToast("Usuario nao encontrado", "Recarregue a pagina e tente novamente.", "error");
+    return;
+  }
+
+  const displayName = document.querySelector("#edit-display-name")?.value.trim();
+  const username = normalizeUsername(document.querySelector("#edit-username")?.value || "");
+  const role = document.querySelector("#edit-role")?.value || "user";
+  const password = document.querySelector("#edit-password")?.value || "";
+  const active = document.querySelector("#edit-active")?.checked ?? true;
+  const permissions = [...document.querySelectorAll("[name='edit-user-permission']:checked")].map((input) => input.value);
+
+  if (!displayName || !username) {
+    showToast("Dados incompletos", "Informe nome e login.", "error");
+    return;
+  }
+
+  if (password && password.length < 6) {
+    showToast("Senha curta", "Use pelo menos 6 caracteres para a nova senha.", "error");
+    return;
+  }
+
+  if (users.some((user) => user.id !== userId && normalizeUsername(user.username) === username)) {
+    showToast("Login ja existe", "Escolha outro nome de usuario.", "error");
+    return;
+  }
+
+  if (role !== "admin" && !permissions.length) {
+    showToast("Sem permissao", "Autorize pelo menos uma pagina para este usuario.", "error");
+    return;
+  }
+
+  if (target.id === currentUser?.id && (!active || role !== "admin")) {
+    showToast("Acao bloqueada", "Voce nao pode retirar o proprio acesso admin.", "warning");
+    return;
+  }
+
+  const updatedUser = {
+    ...target,
+    username,
+    displayName,
+    role,
+    active,
+    permissions: role === "admin" ? VIEW_DEFINITIONS.map((view) => view.id) : permissions,
+    updatedAt: new Date().toISOString(),
+    updatedBy: currentUser?.username || "admin"
+  };
+
+  if (password) {
+    updatedUser.passwordHash = await hashPasswordForStorage(password);
+    state.lastCreatedAccess = {
+      username,
+      password,
+      displayName,
+      activationCode: createActivationCode(updatedUser),
+      mode: "updated"
+    };
+  }
+
+  saveUsers(users.map((user) => user.id === userId ? updatedUser : user));
+
+  if (updatedUser.id === currentUser?.id) {
+    setCurrentUser(sessionUserFrom(updatedUser));
+  }
+
+  recordAccess(currentUser?.username || "admin", "admin", `Usuario editado: ${username}${password ? " | senha redefinida" : ""}`);
+  state.editingUserId = null;
+  render();
+  showToast("Usuario atualizado", password ? "Nova senha e codigo de ativacao foram gerados." : "Cadastro e permissoes foram salvos.", "success");
 }
 
 function deleteAdminUser(userId) {
@@ -713,6 +841,37 @@ function handleClick(event) {
     return;
   }
 
+  const editUser = event.target.closest("[data-edit-user]");
+  if (editUser) {
+    state.editingUserId = editUser.dataset.editUser;
+    render();
+    return;
+  }
+
+  const cancelEditUser = event.target.closest("[data-cancel-edit-user]");
+  if (cancelEditUser) {
+    state.editingUserId = null;
+    render();
+    return;
+  }
+
+  const generateEditPassword = event.target.closest("#generate-edit-password");
+  if (generateEditPassword) {
+    const input = document.querySelector("#edit-password");
+    if (input) {
+      input.value = generatePasswordValue();
+      input.focus();
+      input.select();
+    }
+    return;
+  }
+
+  const saveEditUser = event.target.closest("#save-edit-user");
+  if (saveEditUser) {
+    updateAdminUser();
+    return;
+  }
+
   const permissionToggle = event.target.closest("[data-user-permission]");
   if (permissionToggle) {
     updateUserPermission(permissionToggle.dataset.userPermission, permissionToggle.dataset.page, permissionToggle.checked);
@@ -749,6 +908,8 @@ function setView(view) {
     showToast("Acesso restrito", "Seu usuario nao esta autorizado para esta pagina.", "warning");
     return;
   }
+  const label = VIEW_DEFINITIONS.find((item) => item.id === view)?.label || view;
+  recordAccess(getCurrentUser()?.username || "sem usuario", "pagina", `Acessou pagina: ${label}`);
   state.view = view;
   render();
 }
@@ -1323,13 +1484,29 @@ function renderAdmin() {
   const today = new Date().toISOString().slice(0, 10);
   const todayLogs = logs.filter((log) => log.timestamp.slice(0, 10) === today);
   const deniedToday = todayLogs.filter((log) => log.status === "negado").length;
+  const todayDevices = new Set(todayLogs.map((log) => log.deviceType || deviceTypeFromLegacy(log.device))).size;
 
   return `
     <div class="section-grid">
       ${kpiCard("Usuários cadastrados", String(users.length), `${users.filter((user) => user.active !== false).length} ativos`, "blue")}
       ${kpiCard("Acessos hoje", String(todayLogs.filter((log) => log.status === "permitido").length), "Logins autorizados neste navegador", "green")}
       ${kpiCard("Tentativas negadas", String(deniedToday), "Falhas de senha ou usuario", deniedToday ? "red" : "amber")}
-      ${kpiCard("Páginas controladas", String(VIEW_DEFINITIONS.length), "Permissão individual por aba", "green")}
+      ${kpiCard("Dispositivos hoje", String(todayDevices), "Computador, celular ou tablet identificados", "green")}
+
+      <article class="panel span-12 cyber-brief-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Auditoria de segurança</h2>
+            <p>Registro operacional de autenticação, navegação, alterações administrativas e contexto do dispositivo.</p>
+          </div>
+          <span class="status-pill amber">Sem backend</span>
+        </div>
+        <div class="cyber-brief-grid">
+          ${managementCard("O que fica registrado", "Login, saída, tentativa negada, ativação por código, edição de usuário, alteração de permissões e página acessada.", "Retenção local: últimos 1.000 eventos neste navegador.")}
+          ${managementCard("Contexto técnico", "Tipo de dispositivo, navegador, sistema operacional, tela, janela, idioma, fuso horário, rota e origem de acesso.", "Use para investigar uso indevido e comportamento fora do padrão.")}
+          ${managementCard("Limite do GitHub Pages", "IP público, geolocalização real e auditoria centralizada exigem servidor ou autenticação dedicada.", "Próximo nível: backend com banco, logs imutáveis e MFA.")}
+        </div>
+      </article>
 
       <article class="panel span-5 admin-form-panel">
         <div class="panel-header">
@@ -1373,11 +1550,13 @@ function renderAdmin() {
         <div class="panel-header">
           <div>
             <h2>Usuários e permissões</h2>
-            <p>Marque as páginas liberadas. Administradores sempre acessam tudo.</p>
+            <p>Edite cadastro, redefina senha e acompanhe autorizacoes por pagina.</p>
           </div>
         </div>
         ${adminUsersTable(users)}
       </article>
+
+      ${editUserPanel(users)}
 
       <article class="panel span-12">
         <div class="panel-header">
@@ -1406,7 +1585,7 @@ function createdAccessPanel() {
   return `
     <div class="created-access-card">
       <div>
-        <span>Acesso criado</span>
+        <span>${state.lastCreatedAccess.mode === "updated" ? "Acesso atualizado" : "Acesso criado"}</span>
         <strong>${escapeHtml(state.lastCreatedAccess.displayName)}</strong>
       </div>
       <dl>
@@ -1421,6 +1600,58 @@ function createdAccessPanel() {
         <button class="primary-button" type="button" data-copy-created-access="code">Copiar código</button>
       </div>
     </div>
+  `;
+}
+
+function editUserPanel(users) {
+  const user = users.find((item) => item.id === state.editingUserId);
+  if (!user) return "";
+
+  const admin = user.role === "admin";
+  return `
+    <article class="panel span-12 edit-user-panel">
+      <div class="panel-header">
+        <div>
+          <h2>Editar usuário</h2>
+          <p>Atualize cadastro, perfil, autorizacoes e gere uma nova senha quando necessario.</p>
+        </div>
+        <span class="status-pill ${admin ? "blue" : ""}">${admin ? "Admin" : "Usuário"}</span>
+      </div>
+      <div class="admin-form edit-user-form">
+        <label>Nome
+          <input id="edit-display-name" type="text" value="${escapeHtml(user.displayName || user.username)}">
+        </label>
+        <label>Login
+          <input id="edit-username" type="text" value="${escapeHtml(user.username)}">
+        </label>
+        <label>Perfil
+          <select id="edit-role">
+            <option value="user" ${user.role !== "admin" ? "selected" : ""}>Usuário</option>
+            <option value="admin" ${user.role === "admin" ? "selected" : ""}>Administrador</option>
+          </select>
+        </label>
+        <label class="switch-label edit-active-label">
+          <input id="edit-active" type="checkbox" ${user.active !== false ? "checked" : ""}>
+          Usuário ativo
+        </label>
+        <label>Nova senha
+          <div class="admin-password-row">
+            <input id="edit-password" type="text" placeholder="Deixe vazio para manter a senha atual">
+            <button class="ghost-button" id="generate-edit-password" type="button">Gerar</button>
+          </div>
+        </label>
+        <fieldset class="permission-grid edit-permission-grid">
+          <legend>Autorizações de páginas</legend>
+          ${VIEW_DEFINITIONS.filter((view) => view.id !== "admin").map((view) => `
+            <label><input type="checkbox" name="edit-user-permission" value="${view.id}" ${admin || (user.permissions || []).includes(view.id) ? "checked" : ""}> ${view.label}</label>
+          `).join("")}
+        </fieldset>
+        <div class="edit-user-actions">
+          <button class="primary-button" id="save-edit-user" type="button">Salvar alterações</button>
+          <button class="ghost-button" type="button" data-cancel-edit-user>Cancelar</button>
+        </div>
+      </div>
+    </article>
   `;
 }
 
@@ -1462,7 +1693,10 @@ function adminUsersTable(users) {
         `).join("")}
         <td>${user.lastLoginAt ? formatDateTime(user.lastLoginAt) : "-"}</td>
         <td>
-          <button class="ghost-button danger-ghost table-action" type="button" data-delete-user="${user.id}" ${user.id === currentUser?.id || admin ? "disabled" : ""}>Excluir</button>
+          <div class="table-actions">
+            <button class="ghost-button table-action" type="button" data-edit-user="${user.id}">Editar</button>
+            <button class="ghost-button danger-ghost table-action" type="button" data-delete-user="${user.id}" ${user.id === currentUser?.id || admin ? "disabled" : ""}>Excluir</button>
+          </div>
         </td>
       </tr>
     `;
@@ -1498,6 +1732,18 @@ function accessLogsTable(logs) {
       <td>${escapeHtml(log.username)}</td>
       <td><span class="status-pill ${log.status === "negado" ? "red" : log.status === "saida" ? "amber" : "blue"}">${escapeHtml(log.status)}</span></td>
       <td>${escapeHtml(log.detail)}</td>
+      <td>
+        <strong>${escapeHtml(log.deviceType || deviceTypeFromLegacy(log.device))}</strong>
+        <small>${escapeHtml(log.browser || "Navegador nao identificado")} | ${escapeHtml(log.os || "SO nao identificado")}</small>
+      </td>
+      <td>
+        <small>Tela: ${escapeHtml(log.screen || "-")} | Janela: ${escapeHtml(log.viewport || "-")}</small>
+        <small>Idioma: ${escapeHtml(log.language || "-")} | Fuso: ${escapeHtml(log.timezone || "-")}</small>
+      </td>
+      <td>
+        <small>${escapeHtml(log.path || "-")}</small>
+        <small>${escapeHtml(log.referrer || "Acesso direto")}</small>
+      </td>
     </tr>
   `).join("");
 
@@ -1510,6 +1756,9 @@ function accessLogsTable(logs) {
             <th>Usuário</th>
             <th>Status</th>
             <th>Detalhe</th>
+            <th>Dispositivo</th>
+            <th>Ambiente</th>
+            <th>Origem</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
