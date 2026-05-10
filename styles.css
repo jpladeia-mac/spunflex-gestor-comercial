@@ -1549,6 +1549,18 @@ h3 {
     linear-gradient(180deg, #ffffff 0%, #F4FBFD 100%);
 }
 
+.current-tracker {
+  border-color: rgba(16, 183, 220, 0.32);
+  background:
+    radial-gradient(700px 220px at 100% -20%, rgba(16, 183, 220, 0.14), transparent 60%),
+    linear-gradient(180deg, #ffffff 0%, #F0FAFD 100%);
+  box-shadow: 0 18px 38px rgba(16, 183, 220, 0.10);
+}
+
+.current-tracker > .panel-header h2 {
+  font-size: 1.15rem;
+}
+
 .management-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

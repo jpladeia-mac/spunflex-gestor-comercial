@@ -1075,9 +1075,24 @@ function renderOverview() {
     .map((row) => ({
       label: monthName(row.month, "short"),
       value: row.revenue,
-      valueLabel: formatBRL(row.revenue),
-      color: row.month === 4 ? "amber" : ""
+      valueLabel: row.partial ? `${formatBRL(row.revenue)} (parcial)` : formatBRL(row.revenue),
+      color: row.month === 4 ? "amber" : (row.partial ? "blue" : "")
     }));
+
+  // Current-month tracking (parcial)
+  const mayEndDate = new Date(mayBilling.endDate + "T12:00:00");
+  const monthStart = new Date(mayBilling.startDate + "T12:00:00");
+  const monthEnd = new Date(mayEndDate.getFullYear(), mayEndDate.getMonth() + 1, 0);
+  const daysInMonth = monthEnd.getDate();
+  const daysElapsed = Math.max(1, Math.round((mayEndDate - monthStart) / 86400000) + 1);
+  const monthProgressPct = daysElapsed / daysInMonth;
+  const linearProjectionRevenue = (mayBilling.revenue / daysElapsed) * daysInMonth;
+  const linearProjectionKg = (mayBilling.weightKg / daysElapsed) * daysInMonth;
+  const aprilRef = aprilSales.revenue;
+  const projectionVsApril = change(linearProjectionRevenue, aprilRef);
+  const mayTargetRevenue = mayRevenueTarget;
+  const mayTargetProgress = mayBilling.weightKg / mayTargetKg;
+  const mayEndLabel = mayEndDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
   const mayOperationRows = [
     {
@@ -1140,6 +1155,22 @@ function renderOverview() {
 
   return `
     <div class="section-grid">
+      <article class="panel span-12 current-tracker">
+        <div class="panel-header">
+          <div>
+            <h2>Mês atual · Maio em andamento</h2>
+            <p>Faturamento parcial até ${mayEndLabel} · ${daysElapsed} de ${daysInMonth} dias corridos (${formatPercent(monthProgressPct)} do mês).</p>
+          </div>
+          <span class="status-pill blue">Atualizado em ${mayEndLabel}</span>
+        </div>
+        <div class="section-grid" style="gap:14px">
+          ${kpiCard("Faturamento maio (parcial)", formatBRL(mayBilling.revenue), `Preço médio R$ ${(mayBilling.revenue / mayBilling.weightKg).toFixed(2)}/kg`, "green")}
+          ${kpiCard("Peso maio (parcial)", formatKg(mayBilling.weightKg, 2), `${formatPercent(mayTargetProgress)} da meta de 450 t`, "blue")}
+          ${kpiCard("Projeção linear maio", formatBRL(linearProjectionRevenue), `${formatPercent(projectionVsApril)} vs abril (${formatBRL(aprilRef, 0)})`, "amber")}
+          ${kpiCard("Saldo p/ meta de R$", formatBRL(Math.max(mayTargetRevenue - mayBilling.revenue, 0)), `Meta sugerida ${formatBRL(mayTargetRevenue, 0)} (450t · preço de abril)`, "red")}
+        </div>
+      </article>
+
       ${kpiCard("Faturamento jan-abr", formatBRL(ytd.revenue), `${formatPercent(ytdGrowth)} vs jan-abr/2025`, "green")}
       ${kpiCard("Projeção 2026", formatBRL(forecast), `${formatPercent(forecastGrowth)} vs fechamento de 2025`, "blue")}
       ${kpiCard("Preço médio 2026", formatBRL(avgPrice2026), `${formatBRL(aprilAvgPrice)}/kg em abril`, "amber")}
@@ -1149,17 +1180,19 @@ function renderOverview() {
         <div class="panel-header">
           <div>
             <h2>Maio em andamento</h2>
-            <p>Faturamento acumulado até 05/05 e entrada de pedidos captada em 05/05, sem misturar DataEmissao com carteira de pedidos.</p>
+            <p>Faturamento acumulado até 06/05 e entrada de pedidos captada em 05/05, sem misturar DataEmissao com carteira de pedidos.</p>
           </div>
           <span class="status-pill blue">Mês atual</span>
         </div>
         <div class="management-grid">
-          ${managementCard("Faturamento até 05/05", `${formatBRL(mayBilling.revenue)} em ${formatKg(mayBilling.weightKg, 2)} faturados.`, `Progresso da meta de 450t: ${formatPercent(mayBilling.weightKg / mayTargetKg)}.`)}
+          ${managementCard("Faturamento até 06/05", `${formatBRL(mayBilling.revenue)} em ${formatKg(mayBilling.weightKg, 2)} faturados.`, `Progresso da meta de 450t: ${formatPercent(mayBilling.weightKg / mayTargetKg)}.`)}
           ${managementCard("Pedidos em 05/05", `${formatBRL(mayOrders.merchandiseValue)} em ${formatKg(mayOrders.weightKg, 2)} cadastrados.`, `Preço médio dos pedidos: ${formatBRL(mayOrders.merchandiseValue / mayOrders.weightKg)}/kg.`)}
           ${managementCard("Eficiência operacional", `Pedidos do dia equivalem a ${formatPercent(mayOrders.merchandiseValue / mayBilling.revenue)} do faturamento acumulado.`, "Acompanhar conversão pedido -> entrega -> faturamento.")}
           ${managementCard("Ritmo necessário", `Saldo de ${formatTon(mayTargetKg - mayBilling.weightKg)} para cumprir a meta de maio.`, "Prioridade: reforçar carteira e acelerar faturamento diário.")}
         </div>
       </article>
+
+      ${renderMayInvoicesPanel()}
 
       <article class="panel span-12">
         <div class="panel-header">
@@ -1252,14 +1285,159 @@ function renderOverview() {
   `;
 }
 
+function renderMayInvoicesPanel() {
+  const may = data.mayInvoices2026;
+  if (!may || !may.invoices?.length) return "";
+
+  const dailyRows = may.daily.map((day) => {
+    const dt = new Date(day.date + "T12:00:00");
+    const label = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    return `
+      <tr>
+        <td>${label}</td>
+        <td>${day.invoiceCount}</td>
+        <td>${day.lineCount}</td>
+        <td>${formatKg(day.weightKg, 2)}</td>
+        <td>${formatBRL(day.revenue)}</td>
+        <td>${formatBRL(day.avgPrice)}/kg</td>
+      </tr>
+    `;
+  }).join("");
+
+  const invoiceRows = [...may.invoices]
+    .sort((a, b) => (a.date === b.date ? Number(a.number) - Number(b.number) : a.date.localeCompare(b.date)))
+    .map((inv) => {
+      const dt = new Date(inv.date + "T12:00:00");
+      const label = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+      const machines = inv.machines.join(" + ");
+      return `
+        <tr>
+          <td><strong>${inv.number}</strong></td>
+          <td>${label}</td>
+          <td>${inv.client}<br><small style="color:var(--muted)">${inv.city}/${inv.state}</small></td>
+          <td>${inv.representative}</td>
+          <td>${machines}</td>
+          <td>${formatKg(inv.weightKg, 2)}</td>
+          <td>${formatBRL(inv.revenue)}</td>
+        </tr>
+      `;
+    }).join("");
+
+  const repRows = [...may.representatives]
+    .sort((a, b) => b.revenue - a.revenue)
+    .map((rep) => {
+      const share = rep.revenue / may.totals.revenue;
+      const widthPct = Math.max(2, Math.round(share * 100));
+      return `
+        <div class="bar-row">
+          <div class="bar-label">${rep.name}<br><small style="color:var(--muted)">${rep.invoiceCount} NF${rep.invoiceCount > 1 ? "s" : ""}</small></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${widthPct}%"></div></div>
+          <div class="bar-value">${formatBRL(rep.revenue)}<br><small style="color:var(--muted)">${formatKg(rep.weightKg, 2)}</small></div>
+        </div>
+      `;
+    }).join("");
+
+  const startLabel = new Date(may.period.startDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const endLabel = new Date(may.period.endDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+
+  return `
+    <article class="panel span-12">
+      <div class="panel-header">
+        <div>
+          <h2>Notas fiscais ${startLabel} a ${endLabel}</h2>
+          <p>Detalhamento das ${may.totals.invoiceCount} NFs emitidas no período (${may.totals.lineCount} itens). Fonte: planilha "NF Vendas por Finalidade".</p>
+        </div>
+        <span class="status-pill">${formatBRL(may.totals.revenue)} · ${formatKg(may.totals.weightKg, 2)}</span>
+      </div>
+
+      <div class="section-grid" style="gap: 16px;">
+        ${kpiCard("Faturamento 05-06/05", formatBRL(may.totals.revenue), `Preço médio R$ ${may.totals.avgPrice.toFixed(2)}/kg`, "green")}
+        ${kpiCard("Peso 05-06/05", formatKg(may.totals.weightKg, 2), `${may.totals.lineCount} linhas em ${may.totals.invoiceCount} NFs`, "blue")}
+        ${kpiCard("NFs em 05/05", `${may.daily[0].invoiceCount}`, `${formatBRL(may.daily[0].revenue)} | ${formatKg(may.daily[0].weightKg, 2)}`, "amber")}
+        ${kpiCard("NFs em 06/05", `${may.daily[1].invoiceCount}`, `${formatBRL(may.daily[1].revenue)} | ${formatKg(may.daily[1].weightKg, 2)}`, "red")}
+
+        <article class="panel span-7">
+          <div class="panel-header">
+            <div>
+              <h2>Notas fiscais</h2>
+              <p>Cada nota com cliente, representante, máquinas e valores.</p>
+            </div>
+          </div>
+          <div class="data-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="text-align:left">NF</th>
+                  <th style="text-align:left">Data</th>
+                  <th style="text-align:left">Cliente</th>
+                  <th style="text-align:left">Representante</th>
+                  <th style="text-align:left">Máquina</th>
+                  <th>Peso</th>
+                  <th>Valor</th>
+                </tr>
+              </thead>
+              <tbody>${invoiceRows}</tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel span-5">
+          <div class="panel-header">
+            <div>
+              <h2>Por representante</h2>
+              <p>Participação no faturamento dos dois dias.</p>
+            </div>
+          </div>
+          <div class="bar-list">${repRows}</div>
+        </article>
+
+        <article class="panel span-12">
+          <div class="panel-header">
+            <div>
+              <h2>Resumo diário</h2>
+              <p>Volume e ticket médio por dia.</p>
+            </div>
+          </div>
+          <div class="data-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="text-align:left">Dia</th>
+                  <th>NFs</th>
+                  <th>Itens</th>
+                  <th>Peso</th>
+                  <th>Faturamento</th>
+                  <th>Preço médio</th>
+                </tr>
+              </thead>
+              <tbody>${dailyRows}</tbody>
+              <tfoot>
+                <tr>
+                  <td style="text-align:left"><strong>Total</strong></td>
+                  <td>${may.totals.invoiceCount}</td>
+                  <td>${may.totals.lineCount}</td>
+                  <td>${formatKg(may.totals.weightKg, 2)}</td>
+                  <td>${formatBRL(may.totals.revenue)}</td>
+                  <td>${formatBRL(may.totals.avgPrice)}/kg</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </article>
+      </div>
+    </article>
+  `;
+}
+
 function renderSales() {
   const metricLabel = state.metric === "revenue" ? "Faturamento" : "Peso";
   const rows = months.map((month) => {
     const record = salesRecord(state.year, month.id);
+    const baseLabel = record ? formatMetric(record[state.metric], state.metric) : "Sem dado";
     return {
       label: month.short,
       value: record ? record[state.metric] : 0,
-      valueLabel: record ? formatMetric(record[state.metric], state.metric) : "Sem dado",
+      valueLabel: record?.partial ? `${baseLabel} (parcial)` : baseLabel,
       color: state.metric === "revenue" ? "" : "blue"
     };
   });
@@ -1480,16 +1658,21 @@ function renderEntries() {
 function renderFinance() {
   const throughMonth = latestMonth(2026);
   const ytd = totalSales(2026, throughMonth);
+  const ytdWithPartial = totalSales(2026, 12, { includePartial: true });
   const total2025 = totalSales(2025);
   const forecast = (ytd.revenue / throughMonth) * 12;
   const target = getRevenueTarget();
+  const mayPartial = salesRecord(2026, 5);
+  const partialThroughLabel = mayPartial?.partialThrough
+    ? new Date(mayPartial.partialThrough + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
+    : "";
 
   return `
     <div class="section-grid">
       ${kpiCard("Faturamento 2023", formatBRL(totalSales(2023).revenue, 0), `${formatKg(totalSales(2023).weightKg)} vendidos`, "blue")}
       ${kpiCard("Faturamento 2024", formatBRL(totalSales(2024).revenue, 0), `${formatPercent(change(totalSales(2024).revenue, totalSales(2023).revenue))} vs 2023`, "green")}
       ${kpiCard("Faturamento 2025", formatBRL(total2025.revenue, 0), `${formatPercent(change(total2025.revenue, totalSales(2024).revenue))} vs 2024`, "amber")}
-      ${kpiCard("Parcial 2026", formatBRL(ytd.revenue), `Projeção linear ${formatBRL(forecast)}`, "red")}
+      ${kpiCard("Parcial 2026", formatBRL(ytdWithPartial.revenue), `Projeção linear ${formatBRL(forecast)}${mayPartial ? ` · inclui maio parcial até ${partialThroughLabel}` : ""}`, "red")}
 
       <article class="panel span-5">
         <div class="panel-header">
@@ -1896,10 +2079,15 @@ function kpiCard(label, value, note, tone = "green") {
 }
 
 function yearSummary(year) {
-  const total = totalSales(year);
-  const availableMonths = data.monthlySales.filter((row) => row.year === year).length;
-  const avgRevenue = total.revenue / availableMonths;
-  const avgWeight = total.weightKg / availableMonths;
+  const total = totalSales(year, 12, { includePartial: true });
+  const closedMonths = data.monthlySales.filter((row) => row.year === year && !row.partial).length;
+  const partialMonths = data.monthlySales.filter((row) => row.year === year && row.partial).length;
+  const monthsForAvg = closedMonths || data.monthlySales.filter((row) => row.year === year).length;
+  const avgRevenue = total.revenue / monthsForAvg;
+  const avgWeight = total.weightKg / monthsForAvg;
+  const monthsLabel = partialMonths
+    ? `${closedMonths} fechados + ${partialMonths} parcial`
+    : `${closedMonths}`;
 
   return `
     <div class="stat-strip">
@@ -1908,7 +2096,7 @@ function yearSummary(year) {
       <div><span>Média mensal</span><strong>${formatBRL(avgRevenue, year === 2026 ? 2 : 0)}</strong></div>
     </div>
     <div class="stat-strip" style="margin-top:10px">
-      <div><span>Meses na base</span><strong>${availableMonths}</strong></div>
+      <div><span>Meses na base</span><strong>${monthsLabel}</strong></div>
       <div><span>Kg/mês</span><strong>${formatKg(avgWeight)}</strong></div>
       <div><span>R$/kg</span><strong>${formatBRL(total.revenue / total.weightKg)}</strong></div>
     </div>
@@ -1956,12 +2144,20 @@ function pivotTable(metric) {
   const rows = months.map((month) => {
     const cells = years.map((year) => {
       const record = salesRecord(year, month.id);
-      return `<td>${record ? formatMetric(record[metric], metric, year) : "-"}</td>`;
+      if (!record) return `<td>-</td>`;
+      const value = formatMetric(record[metric], metric, year);
+      if (record.partial) {
+        const through = record.partialThrough
+          ? new Date(record.partialThrough + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
+          : "";
+        return `<td><span style="color:var(--amber);font-weight:700">${value}</span><br><small style="color:var(--muted)">parcial até ${through}</small></td>`;
+      }
+      return `<td>${value}</td>`;
     }).join("");
     return `<tr><td>${month.name}</td>${cells}</tr>`;
   }).join("");
 
-  const footer = years.map((year) => `<td>${formatMetric(totalSales(year)[metric], metric, year)}</td>`).join("");
+  const footer = years.map((year) => `<td>${formatMetric(totalSales(year, 12, { includePartial: true })[metric], metric, year)}</td>`).join("");
 
   return `
     <div class="data-table-wrap">
@@ -2201,7 +2397,15 @@ function financeTable() {
   const rows = months.map((month) => {
     const cells = years.map((year) => {
       const record = salesRecord(year, month.id);
-      return `<td>${record ? formatBRL(record.revenue, year === 2026 ? 2 : 0) : "-"}</td>`;
+      if (!record) return `<td>-</td>`;
+      const value = formatBRL(record.revenue, year === 2026 ? 2 : 0);
+      if (record.partial) {
+        const through = record.partialThrough
+          ? new Date(record.partialThrough + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
+          : "";
+        return `<td><span style="color:var(--amber);font-weight:700">${value}</span><br><small style="color:var(--muted)">parcial até ${through}</small></td>`;
+      }
+      return `<td>${value}</td>`;
     }).join("");
     return `<tr><td>${month.name}</td>${cells}</tr>`;
   }).join("");
@@ -2219,7 +2423,7 @@ function financeTable() {
         <tfoot>
           <tr>
             <td>Total</td>
-            ${years.map((year) => `<td>${formatBRL(totalSales(year).revenue, year === 2026 ? 2 : 0)}</td>`).join("")}
+            ${years.map((year) => `<td>${formatBRL(totalSales(year, 12, { includePartial: true }).revenue, year === 2026 ? 2 : 0)}</td>`).join("")}
           </tr>
         </tfoot>
       </table>
@@ -2451,9 +2655,9 @@ function totalDailyEntries() {
   });
 }
 
-function totalSales(year, throughMonth = 12) {
+function totalSales(year, throughMonth = 12, { includePartial = false } = {}) {
   return data.monthlySales
-    .filter((row) => row.year === year && row.month <= throughMonth)
+    .filter((row) => row.year === year && row.month <= throughMonth && (includePartial || !row.partial))
     .reduce((acc, row) => {
       acc.weightKg += row.weightKg;
       acc.revenue += row.revenue;
@@ -2466,7 +2670,9 @@ function salesRecord(year, month) {
 }
 
 function latestMonth(year) {
-  return Math.max(...data.monthlySales.filter((row) => row.year === year).map((row) => row.month));
+  // Ignore partial months for projection/forecast logic
+  const closed = data.monthlySales.filter((row) => row.year === year && !row.partial);
+  return closed.length ? Math.max(...closed.map((row) => row.month)) : 0;
 }
 
 function getRevenueTarget() {

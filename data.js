@@ -85,16 +85,113 @@ window.SpunflexData = {
         "Total de pedidos no rodapé: R$ 73.188,14.",
         "Peso total no rodapé: 3.474,02 kg."
       ]
+    },
+    {
+      id: "src-nf-vendas-finalidade-05-06",
+      file: "NF Vendas por Finalidade 05.05 e 06.05 - joao.xlsx",
+      title: "NF Vendas por Finalidade - 05 e 06/05/2026",
+      type: "Planilha de notas fiscais",
+      reviewed: true,
+      extracted: [
+        "8 NFs emitidas (8808-8814 e 8816), 28 linhas de itens.",
+        "05/05/2026: 6.947,89 kg e R$ 101.439,22 em 2 NFs (Ferguile e J J Silk).",
+        "06/05/2026: 5.119,00 kg e R$ 100.193,27 em 6 NFs (Passalacqua, Eurosono, Prime Lonas).",
+        "Total 05-06/05: 12.066,89 kg e R$ 201.632,49 (preço médio R$ 16,71/kg)."
+      ]
+    },
+    {
+      id: "src-nf-faturamento-07",
+      file: "fat 07:05.xlsx",
+      title: "NF Vendas por Finalidade - 07/05/2026",
+      type: "Planilha de notas fiscais",
+      reviewed: true,
+      extracted: [
+        "3 NFs emitidas (8817, 8818, 8819), 4 linhas de itens.",
+        "07/05/2026: 2.944,49 kg e R$ 52.687,93 (preço médio R$ 17,89/kg).",
+        "Representantes: RC RICARDO ALMEID SP (R$ 25.601,18), VENDA INTERNA 5 (R$ 27.086,75)."
+      ]
     }
   ],
   currentMayBilling2026: {
     startDate: "2026-05-01",
-    endDate: "2026-05-05",
-    weightKg: 26160.35,
-    quantity: 583891.25,
-    revenue: 501050.03,
-    avgPrice: 19.1535,
-    sourceId: "src-faturamento-maio-ate-05"
+    endDate: "2026-05-07",
+    weightKg: 34223.84,
+    quantity: 751020.85,
+    revenue: 653931.23,
+    avgPrice: 19.1077,
+    sourceId: "src-faturamento-maio-ate-05",
+    breakdown: [
+      { range: "01/05 a 05/05", weightKg: 26160.35, revenue: 501050.03 },
+      { range: "06/05",          weightKg: 5119.00,  revenue: 100193.27 },
+      { range: "07/05",          weightKg: 2944.49,  revenue: 52687.93  }
+    ]
+  },
+  mayInvoices2026: {
+    period: { startDate: "2026-05-05", endDate: "2026-05-07" },
+    sourceId: "src-nf-vendas-finalidade-05-06",
+    totals: {
+      weightKg: 15011.38,
+      revenue: 254320.42,
+      avgPrice: 16.9418,
+      invoiceCount: 11,
+      lineCount: 32
+    },
+    daily: [
+      {
+        date: "2026-05-05",
+        weightKg: 6947.89,
+        revenue: 101439.22,
+        avgPrice: 14.5999,
+        invoiceCount: 2,
+        lineCount: 6,
+        notes: ["8808", "8809"]
+      },
+      {
+        date: "2026-05-06",
+        weightKg: 5119.00,
+        revenue: 100193.27,
+        avgPrice: 19.5728,
+        invoiceCount: 6,
+        lineCount: 22,
+        notes: ["8810", "8811", "8812", "8813", "8814", "8816"]
+      },
+      {
+        date: "2026-05-07",
+        weightKg: 2944.49,
+        revenue: 52687.93,
+        avgPrice: 17.8939,
+        invoiceCount: 3,
+        lineCount: 4,
+        notes: ["8817", "8818", "8819"]
+      }
+    ],
+    invoices: [
+      { number: "8808", date: "2026-05-05", client: "FERGUILE ESTOFADOS",       city: "Arapongas",         state: "PR", representative: "RC MONTEMEZZO MGA PR", machines: ["Corte 1"],            weightKg: 4151.95, revenue: 60618.50 },
+      { number: "8809", date: "2026-05-05", client: "J J SILK S EMBALAGENS",    city: "Jaú",               state: "SP", representative: "VENDA INTERNA",        machines: ["Corte 1", "Corte 2"], weightKg: 2795.94, revenue: 40820.72 },
+      { number: "8810", date: "2026-05-06", client: "PRIME LONAS COMERCIO",     city: "Curitiba",          state: "PR", representative: "VENDA INT ADRIANA",    machines: ["Rebobinadeira"],      weightKg: 250.00,  revenue: 6971.88  },
+      { number: "8811", date: "2026-05-06", client: "PASSALACQUA & CIA",        city: "Franca",            state: "SP", representative: "RC DANILO VOTU SP",    machines: ["Corte 1"],            weightKg: 176.40,  revenue: 3510.36  },
+      { number: "8812", date: "2026-05-06", client: "PASSALACQUA & CIA",        city: "Londrina",          state: "PR", representative: "RC DANILO VOTU SP",    machines: ["Corte 1"],            weightKg: 517.10,  revenue: 10290.37 },
+      { number: "8813", date: "2026-05-06", client: "PASSALACQUA CIA SP",       city: "Ribeirão Preto",    state: "SP", representative: "RC DANILO VOTU SP",    machines: ["Corte 1"],            weightKg: 1701.00, revenue: 33849.90 },
+      { number: "8814", date: "2026-05-06", client: "PASSALACQUA CIA MG",       city: "Belo Horizonte",    state: "MG", representative: "RC DANILO VOTU SP",    machines: ["Corte 1"],            weightKg: 884.80,  revenue: 17607.52 },
+      { number: "8816", date: "2026-05-06", client: "EUROSONO",                 city: "Rio Preto Da Eva",  state: "AM", representative: "RC ANDRÉ ALVARENGA",   machines: ["Corte 2"],            weightKg: 1589.70, revenue: 27963.24 },
+      { number: "8817", date: "2026-05-07", client: "DTEC REVESTIMENTOS",       city: "Curitiba",          state: "PR", representative: "VENDA INTERNA 5",      machines: ["Corte 1"],            weightKg: 291.21,  revenue: 6790.95  },
+      { number: "8818", date: "2026-05-07", client: "RI INDUSTRIA ARTEFATOS",   city: "São Paulo",         state: "SP", representative: "RC RICARDO ALMEID SP", machines: ["Corte 1"],            weightKg: 1673.28, revenue: 25601.18 },
+      { number: "8819", date: "2026-05-07", client: "JJSAF",                    city: "Pinhais",           state: "PR", representative: "VENDA INTERNA 5",      machines: ["Corte 1"],            weightKg: 980.00,  revenue: 20295.80 }
+    ],
+    representatives: [
+      { name: "RC DANILO VOTU SP",     weightKg: 3279.30, revenue: 65258.15, invoiceCount: 4 },
+      { name: "RC MONTEMEZZO MGA PR",  weightKg: 4151.95, revenue: 60618.50, invoiceCount: 1 },
+      { name: "VENDA INTERNA",         weightKg: 2795.94, revenue: 40820.72, invoiceCount: 1 },
+      { name: "RC ANDRÉ ALVARENGA",    weightKg: 1589.70, revenue: 27963.24, invoiceCount: 1 },
+      { name: "VENDA INTERNA 5",       weightKg: 1271.21, revenue: 27086.75, invoiceCount: 2 },
+      { name: "RC RICARDO ALMEID SP", weightKg: 1673.28, revenue: 25601.18, invoiceCount: 1 },
+      { name: "VENDA INT ADRIANA",     weightKg: 250.00,  revenue: 6971.88,  invoiceCount: 1 }
+    ],
+    machines: [
+      { name: "Corte 1",       weightKg: 12233.44, revenue: 205698.58 },
+      { name: "Corte 2",       weightKg: 2527.94,  revenue: 41649.96 },
+      { name: "Rebobinadeira", weightKg: 250.00,   revenue: 6971.88 }
+    ]
   },
   currentMayOrders2026: {
     date: "2026-05-05",
@@ -144,7 +241,8 @@ window.SpunflexData = {
     { year: 2026, month: 1, weightKg: 351033, revenue: 4747515.48 },
     { year: 2026, month: 2, weightKg: 353719, revenue: 4789003.46 },
     { year: 2026, month: 3, weightKg: 364156, revenue: 5044090.44 },
-    { year: 2026, month: 4, weightKg: 424143, revenue: 7033509.12 }
+    { year: 2026, month: 4, weightKg: 424143, revenue: 7033509.12 },
+    { year: 2026, month: 5, weightKg: 34223.84, revenue: 653931.23, partial: true, partialThrough: "2026-05-07" }
   ],
   representativesApril2026: [
     { name: "RC MONTEMEZZO MGA PR", weightKg: 100184, revenue: 1425033 },

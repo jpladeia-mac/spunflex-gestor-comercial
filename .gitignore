@@ -1,0 +1,26 @@
+# Editor / OS
+.DS_Store
+*.swp
+
+# Claude config (local only)
+.claude/
+
+# Internal docs (não publicar)
+COMECE_AQUI.txt
+ANALISE_SEGURANCA.md
+RESUMO_ANALISE_SEGURANCA.md
+PLANO_IMPLEMENTACAO_SEGURANCA.md
+INDICE_SEGURANCA.md
+CORRECOES_SEGURANCA.js
+
+# Planilhas e screenshots (dados originais sensíveis)
+*.xlsx
+*.jpeg
+*.jpg
+*.png
+!assets/*.png
+!assets/*.jpg
+
+# Pacotes / build / deploy artifacts
+*.zip
+spunflex-deploy/
