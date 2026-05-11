@@ -275,7 +275,20 @@ function getUsers() {
 }
 
 function saveUsers(users) {
-  localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
+  try {
+    const payload = JSON.stringify(users);
+    localStorage.setItem(STORAGE_KEYS.users, payload);
+    // Read-back verification: garante que persistiu mesmo (quota, modo privado, etc.)
+    const readBack = localStorage.getItem(STORAGE_KEYS.users);
+    if (readBack !== payload) {
+      throw new Error("Falha de leitura após gravação");
+    }
+    return true;
+  } catch (err) {
+    console.error("[Spunflex] saveUsers falhou:", err);
+    showToast("Erro ao salvar", "Navegador não permitiu gravar os dados (modo privado ou armazenamento cheio).", "error", 6000);
+    return false;
+  }
 }
 
 function getCurrentUser() {
@@ -511,7 +524,10 @@ function createdAccessText() {
 }
 
 async function createAdminUser() {
-  if (!isAdmin()) return;
+  if (!isAdmin()) {
+    showToast("Acesso negado", "Apenas administradores podem criar usuários.", "error");
+    return;
+  }
 
   const displayName = document.querySelector("#admin-display-name")?.value.trim();
   const username = normalizeUsername(document.querySelector("#admin-username")?.value || "");
@@ -519,79 +535,147 @@ async function createAdminUser() {
   const role = document.querySelector("#admin-role")?.value || "user";
   const permissions = [...document.querySelectorAll("[name='new-user-permission']:checked")].map((input) => input.value);
 
-  if (!displayName || !username || password.length < 6) {
-    showToast("Dados incompletos", "Informe nome, login e uma senha com pelo menos 6 caracteres.", "error");
+  if (!displayName) {
+    showToast("Nome obrigatório", "Informe o nome do usuário.", "error");
+    return;
+  }
+  if (!username) {
+    showToast("Login obrigatório", "Informe o login (sem espaços).", "error");
+    return;
+  }
+  if (password.length < 6) {
+    showToast("Senha curta", "A senha precisa ter pelo menos 6 caracteres.", "error");
     return;
   }
 
   const users = getUsers();
   if (users.some((user) => normalizeUsername(user.username) === username)) {
-    showToast("Login ja existe", "Escolha outro nome de usuario.", "error");
+    showToast("Login já existe", `O login "${username}" já está em uso. Escolha outro.`, "error");
     return;
   }
 
   if (role !== "admin" && !permissions.length) {
-    showToast("Sem permissao", "Autorize pelo menos uma pagina para este usuario.", "error");
+    showToast("Sem permissão", "Autorize pelo menos uma página para este usuário.", "error");
     return;
   }
 
+  const finalPermissions = role === "admin" ? VIEW_DEFINITIONS.map((view) => view.id) : permissions;
+
   const newUser = {
-    id: `user-${Date.now()}`,
+    id: `user-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
     username,
     displayName,
     role,
     active: true,
     passwordHash: await hashPasswordForStorage(password),
-    permissions: role === "admin" ? VIEW_DEFINITIONS.map((view) => view.id) : permissions,
+    permissions: finalPermissions,
     createdAt: new Date().toISOString(),
     lastLoginAt: null,
     accessCount: 0
   };
 
   const activationCode = createActivationCode(newUser);
+
+  if (!saveUsers([...users, newUser])) {
+    return;
+  }
+
   state.lastCreatedAccess = {
     username,
     password,
     displayName,
-    activationCode
+    activationCode,
+    permissions: finalPermissions
   };
-  saveUsers([...users, newUser]);
-  recordAccess(getCurrentUser().username, "admin", `Usuario criado: ${username}`);
+  recordAccess(getCurrentUser().username, "admin", `Usuário criado: ${username} (${role}, ${finalPermissions.length} permissões)`);
+
+  // Limpa o formulário pra evitar criação duplicada acidental
+  ["#admin-display-name", "#admin-username", "#admin-password"].forEach((sel) => {
+    const el = document.querySelector(sel);
+    if (el) el.value = "";
+  });
+
   render();
-  showToast("Usuario criado", `Acesso de ${displayName} foi liberado e o codigo foi gerado.`, "success");
+  showToast(
+    "Usuário criado",
+    `${displayName} (${username}) salvo com ${finalPermissions.length} permissão${finalPermissions.length !== 1 ? "ões" : ""}. Veja o código no card abaixo.`,
+    "success",
+    5000
+  );
 }
 
 function updateUserPermission(userId, page, allowed) {
   if (!isAdmin()) return;
   const users = getUsers();
+  const target = users.find((u) => u.id === userId);
+  if (!target) {
+    showToast("Usuário não encontrado", "Recarregue a página e tente novamente.", "error");
+    render();
+    return;
+  }
+  if (target.role === "admin") {
+    showToast("Ação bloqueada", "Administradores têm acesso total por padrão.", "warning");
+    render();
+    return;
+  }
+
   const updated = users.map((user) => {
-    if (user.id !== userId || user.role === "admin") return user;
+    if (user.id !== userId) return user;
     const permissions = new Set(user.permissions || []);
     if (allowed) permissions.add(page);
     else permissions.delete(page);
     return { ...user, permissions: [...permissions] };
   });
-  saveUsers(updated);
+
+  if (!saveUsers(updated)) {
+    render();
+    return;
+  }
+
   const user = updated.find((item) => item.id === userId);
-  recordAccess(getCurrentUser().username, "admin", `Permissao atualizada: ${user?.username || userId}`);
-  showToast("Permissao salva", "Autorizacao de pagina atualizada.", "success", 1800);
+  recordAccess(getCurrentUser().username, "admin", `Permissão atualizada: ${user?.username || userId} (${page} → ${allowed ? "liberada" : "bloqueada"})`);
+  const pageLabel = VIEW_DEFINITIONS.find((v) => v.id === page)?.label || page;
+  showToast(
+    "Permissão salva",
+    `${user.displayName || user.username}: "${pageLabel}" ${allowed ? "liberada" : "bloqueada"}.`,
+    "success",
+    2400
+  );
+  render();
 }
 
 function updateUserActive(userId, active) {
   if (!isAdmin()) return;
   const currentUser = getCurrentUser();
   if (userId === currentUser?.id) {
-    showToast("Acao bloqueada", "Voce nao pode desativar o proprio usuario.", "warning");
+    showToast("Ação bloqueada", "Você não pode desativar o próprio usuário.", "warning");
     render();
     return;
   }
 
   const users = getUsers();
+  const target = users.find((u) => u.id === userId);
+  if (!target) {
+    showToast("Usuário não encontrado", "Recarregue a página e tente novamente.", "error");
+    render();
+    return;
+  }
+
   const updated = users.map((user) => user.id === userId ? { ...user, active } : user);
-  saveUsers(updated);
-  const user = updated.find((item) => item.id === userId);
-  recordAccess(currentUser.username, "admin", `${active ? "Ativado" : "Desativado"}: ${user?.username || userId}`);
-  showToast("Status salvo", `Usuario ${active ? "ativado" : "desativado"}.`, "success", 1800);
+
+  if (!saveUsers(updated)) {
+    render();
+    return;
+  }
+
+  recordAccess(currentUser.username, "admin", `${active ? "Ativado" : "Desativado"}: ${target.username}`);
+  showToast(
+    "Status salvo",
+    `${target.displayName || target.username} agora está ${active ? "ativo" : "inativo"}.`,
+    "success",
+    2400
+  );
+  render();
 }
 
 async function updateAdminUser() {
@@ -656,20 +740,30 @@ async function updateAdminUser() {
       password,
       displayName,
       activationCode: createActivationCode(updatedUser),
-      mode: "updated"
+      mode: "updated",
+      permissions: updatedUser.permissions
     };
   }
 
-  saveUsers(users.map((user) => user.id === userId ? updatedUser : user));
+  if (!saveUsers(users.map((user) => user.id === userId ? updatedUser : user))) {
+    return;
+  }
 
   if (updatedUser.id === currentUser?.id) {
     setCurrentUser(sessionUserFrom(updatedUser));
   }
 
-  recordAccess(currentUser?.username || "admin", "admin", `Usuario editado: ${username}${password ? " | senha redefinida" : ""}`);
+  recordAccess(currentUser?.username || "admin", "admin", `Usuário editado: ${username}${password ? " | senha redefinida" : ""} (${updatedUser.permissions.length} permissões)`);
   state.editingUserId = null;
   render();
-  showToast("Usuario atualizado", password ? "Nova senha e codigo de ativacao foram gerados." : "Cadastro e permissoes foram salvos.", "success");
+  showToast(
+    "Usuário atualizado",
+    password
+      ? `${updatedUser.displayName} salvo com nova senha e ${updatedUser.permissions.length} permissão(ões).`
+      : `${updatedUser.displayName} salvo com ${updatedUser.permissions.length} permissão(ões).`,
+    "success",
+    4000
+  );
 }
 
 function deleteAdminUser(userId) {
@@ -1987,6 +2081,13 @@ function createdAccessPanel() {
     `;
   }
 
+  const permissions = state.lastCreatedAccess.permissions || [];
+  const permissionLabels = permissions.length
+    ? permissions
+        .map((perm) => VIEW_DEFINITIONS.find((v) => v.id === perm)?.label || perm)
+        .join(", ")
+    : "Todas as páginas (admin)";
+
   return `
     <div class="created-access-card">
       <div>
@@ -1996,6 +2097,7 @@ function createdAccessPanel() {
       <dl>
         <div><dt>Login</dt><dd>${escapeHtml(state.lastCreatedAccess.username)}</dd></div>
         <div><dt>Senha</dt><dd>${escapeHtml(state.lastCreatedAccess.password)}</dd></div>
+        <div><dt>Permissões salvas</dt><dd>${escapeHtml(permissionLabels)}</dd></div>
       </dl>
       <label>Código de ativação
         <textarea readonly>${escapeHtml(state.lastCreatedAccess.activationCode)}</textarea>
