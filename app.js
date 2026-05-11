@@ -1394,6 +1394,10 @@ function renderInvoices() {
       const dt = new Date(inv.date + "T12:00:00");
       const label = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
       const machines = inv.machines.join(" + ");
+      const pricePerKg = inv.weightKg ? inv.revenue / inv.weightKg : 0;
+      const priceTone = pricePerKg >= may.totals.avgPrice
+        ? "color:var(--success);font-weight:700"
+        : "color:var(--amber);font-weight:700";
       return `
         <tr>
           <td><strong>${inv.number}</strong></td>
@@ -1403,6 +1407,7 @@ function renderInvoices() {
           <td>${machines}</td>
           <td>${formatKg(inv.weightKg, 2)}</td>
           <td>${formatBRL(inv.revenue)}</td>
+          <td style="${priceTone}">${formatBRL(pricePerKg)}/kg</td>
         </tr>
       `;
     }).join("");
@@ -1474,18 +1479,24 @@ function renderInvoices() {
                 <th style="text-align:left">Máquina</th>
                 <th>Peso</th>
                 <th>Valor</th>
+                <th>R$/kg</th>
               </tr>
             </thead>
             <tbody>${invoiceRows}</tbody>
             <tfoot>
               <tr>
-                <td colspan="5"><strong>Total</strong></td>
+                <td colspan="5"><strong>Total / Média</strong></td>
                 <td>${formatKg(may.totals.weightKg, 2)}</td>
                 <td>${formatBRL(may.totals.revenue)}</td>
+                <td>${formatBRL(may.totals.avgPrice)}/kg</td>
               </tr>
             </tfoot>
           </table>
         </div>
+        <p style="margin: 10px 2px 0; font-size: 0.82rem; color: var(--muted);">
+          <span style="color:var(--success); font-weight:700">Verde</span> = R$/kg acima da média do período (R$ ${may.totals.avgPrice.toFixed(2)}/kg);
+          <span style="color:var(--amber); font-weight:700">âmbar</span> = abaixo da média.
+        </p>
       </article>
 
       <article class="panel span-7">
