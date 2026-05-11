@@ -166,6 +166,7 @@ function bootApp() {
     startClock();
     updateGreeting();
     updateCurrentUserBadge();
+    updateSidebarMeta();
     render();
     return;
   }
@@ -185,7 +186,28 @@ function bootApp() {
   startClock();
   updateGreeting();
   updateCurrentUserBadge();
+  updateSidebarMeta();
   render();
+}
+
+function updateSidebarMeta() {
+  const dateEl = document.querySelector("#sidebar-update-date");
+  const detailEl = document.querySelector("#sidebar-update-detail");
+  if (!dateEl || !detailEl) return;
+
+  // Pega a data mais recente coberta pelos dados (endDate do faturamento parcial do mês)
+  const billing = data.currentMayBilling2026;
+  const invoices = data.mayInvoices2026;
+  const latestIso = billing?.endDate || invoices?.period?.endDate || data.baseDate;
+  const latestDate = new Date(latestIso + "T12:00:00");
+
+  dateEl.textContent = latestDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  const nfCount = invoices?.totals?.invoiceCount || 0;
+  const detail = nfCount
+    ? `${nfCount} NFs · faturamento parcial maio`
+    : "Dados consolidados";
+  detailEl.textContent = detail;
 }
 
 function setupLoginControls() {
