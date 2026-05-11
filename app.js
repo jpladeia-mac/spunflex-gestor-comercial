@@ -11,8 +11,20 @@ const STORAGE_KEYS = {
   authenticated: "spunflex_authenticated",
   currentUser: "spunflex.currentUser",
   users: "spunflex.users.v1",
-  accessLogs: "spunflex.accessLogs.v1"
+  accessLogs: "spunflex.accessLogs.v1",
+  seedFlag: "spunflex.seed.team.v1"
 };
+
+// Equipe inicial pré-cadastrada: senhas hash SHA-256. O admin pode editar
+// nome, senha ou permissões a qualquer momento na aba Administração.
+const SEED_USERS = [
+  { id: "user-rodrigo", username: "rodrigo", displayName: "Rodrigo",
+    passwordHash: "b21f65f19ec266a82965228ca3ea5b5765687dfda53e080e82ccf3fca988290f" },
+  { id: "user-joao", username: "joao", displayName: "João",
+    passwordHash: "b1ba9b6762c999b27caaa6b4bde250fc5a70b84cd20354f228eba9f7ff42abdb" },
+  { id: "user-adriana", username: "adriana", displayName: "Adriana",
+    passwordHash: "27fd801792369e616cdb4751eaf73bd33c99deddd42ede295403247f65f9d65e" }
+];
 
 const VIEW_DEFINITIONS = [
   { id: "overview", label: "Dashboard" },
@@ -232,15 +244,44 @@ function setupPasswordToggle() {
 }
 
 function ensureUserStore() {
-  const users = getUsers();
+  let users = getUsers();
+
   if (!users.length) {
-    saveUsers([defaultAdminUser()]);
-    return;
+    users = [defaultAdminUser()];
+    saveUsers(users);
+  } else if (!users.some((user) => user.role === "admin")) {
+    users = [defaultAdminUser(), ...users];
+    saveUsers(users);
   }
 
-  const hasAdmin = users.some((user) => user.role === "admin");
-  if (!hasAdmin) {
-    saveUsers([defaultAdminUser(), ...users]);
+  // Seed inicial da equipe (idempotente): só executa uma vez por navegador.
+  // Se admin deletar um usuário seed, ele NÃO volta na próxima abertura.
+  const alreadySeeded = localStorage.getItem(STORAGE_KEYS.seedFlag) === "true";
+  if (alreadySeeded) return;
+
+  const usernamesExistentes = new Set(users.map((u) => normalizeUsername(u.username)));
+  const novosUsuarios = SEED_USERS
+    .filter((seed) => !usernamesExistentes.has(normalizeUsername(seed.username)))
+    .map((seed) => ({
+      id: seed.id,
+      username: seed.username,
+      displayName: seed.displayName,
+      role: "user",
+      active: true,
+      passwordHash: seed.passwordHash,
+      permissions: VIEW_DEFINITIONS.filter((v) => v.id !== "admin").map((v) => v.id),
+      createdAt: new Date().toISOString(),
+      lastLoginAt: null,
+      accessCount: 0
+    }));
+
+  if (novosUsuarios.length) {
+    saveUsers([...users, ...novosUsuarios]);
+  }
+  try {
+    localStorage.setItem(STORAGE_KEYS.seedFlag, "true");
+  } catch (e) {
+    /* ignora — usuário ainda foi criado */
   }
 }
 
