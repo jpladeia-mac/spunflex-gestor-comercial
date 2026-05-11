@@ -14,7 +14,8 @@ const STORAGE_KEYS = {
   accessLogs: "spunflex.accessLogs.v1",
   seedFlag: "spunflex.seed.team.v1",
   config: "spunflex.config.v1",
-  backlog: "spunflex.backlog.v1"
+  backlog: "spunflex.backlog.v1",
+  dailyOrders: "spunflex.dailyOrders.v1"
 };
 
 // ---- Configuração operacional (custo, capacidade, metas) persistida no navegador ----
@@ -54,6 +55,25 @@ function saveBacklog(list) {
     return true;
   } catch (e) {
     showToast("Erro ao salvar", "Não foi possível salvar a carteira.", "error");
+    return false;
+  }
+}
+
+// ---- Entrada diária de pedidos (Vendas) ----
+function getDailyOrders() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.dailyOrders) || "null");
+    if (Array.isArray(stored)) return stored;
+  } catch {/* fall through */}
+  return data.dailyOrders2026 || [];
+}
+
+function saveDailyOrders(list) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.dailyOrders, JSON.stringify(list));
+    return true;
+  } catch (e) {
+    showToast("Erro ao salvar", "Não foi possível salvar a entrada de pedidos.", "error");
     return false;
   }
 }
@@ -150,7 +170,7 @@ const SEED_USERS = [
 
 const VIEW_DEFINITIONS = [
   { id: "overview", label: "Dashboard" },
-  { id: "invoices", label: "Notas Fiscais" },
+  { id: "invoices", label: "Faturamento" },
   { id: "sales", label: "Vendas" },
   { id: "customers", label: "Clientes" },
   { id: "products", label: "Produtos" },
@@ -200,7 +220,9 @@ const state = {
   entryMetric: "totalValue",
   lastCreatedAccess: null,
   editingUserId: null,
-  invoiceFilters: { rep: "all", state: "all", machine: "all" }
+  invoiceFilters: { rep: "all", state: "all", machine: "all" },
+  customerQuery: "",
+  productQuery: ""
 };
 
 const app = document.querySelector("#app");
@@ -321,12 +343,212 @@ function bootApp() {
   sidebarScrim.addEventListener("click", closeMobileSidebar);
   fullscreenToggle.addEventListener("click", toggleFullscreen);
   document.querySelector("#logout-button").addEventListener("click", handleLogout);
+  setupNavSearch();
+  setupCommandPalette();
+  setupScrollToTop();
+  setupTableSorting();
   updateFullscreenButton();
   startClock();
   updateGreeting();
   updateCurrentUserBadge();
   updateSidebarMeta();
   render();
+}
+
+// ============================================================
+// SIDEBAR SEARCH — filtra os botões de navegação ao vivo
+// ============================================================
+function setupNavSearch() {
+  const input = document.querySelector("#nav-search-input");
+  if (!input) return;
+  input.addEventListener("input", () => {
+    const term = input.value.trim().toLowerCase();
+    let visibleSection = null;
+    document.querySelectorAll(".nav-button").forEach((btn) => {
+      const label = btn.querySelector(".nav-label")?.textContent.toLowerCase() || "";
+      const match = !term || label.includes(term);
+      btn.classList.toggle("nav-filtered", !match);
+    });
+    // Esconde labels de grupo se nada da seção bate
+    document.querySelectorAll(".nav-group-label").forEach((label) => {
+      let next = label.nextElementSibling;
+      let hasVisible = false;
+      while (next && !next.classList.contains("nav-group-label")) {
+        if (next.classList.contains("nav-button") && !next.classList.contains("nav-filtered") && !next.classList.contains("nav-hidden")) {
+          hasVisible = true; break;
+        }
+        next = next.nextElementSibling;
+      }
+      label.style.display = hasVisible ? "" : "none";
+    });
+  });
+}
+
+// ============================================================
+// COMMAND PALETTE — Cmd/Ctrl+K para alternar abas rapidamente
+// ============================================================
+let cmdPaletteState = { index: 0, items: [] };
+
+function setupCommandPalette() {
+  const input = document.querySelector("#command-input");
+  if (!input) return;
+  input.addEventListener("input", () => renderCommandList(input.value));
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      cmdPaletteState.index = Math.min(cmdPaletteState.items.length - 1, cmdPaletteState.index + 1);
+      renderCommandList(input.value, false);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      cmdPaletteState.index = Math.max(0, cmdPaletteState.index - 1);
+      renderCommandList(input.value, false);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const item = cmdPaletteState.items[cmdPaletteState.index];
+      if (item) {
+        closeCommandPalette();
+        setView(item.id);
+      }
+    }
+  });
+}
+
+function openCommandPalette() {
+  const palette = document.querySelector("#command-palette");
+  const input = document.querySelector("#command-input");
+  if (!palette || !input) return;
+  palette.classList.remove("hidden");
+  input.value = "";
+  cmdPaletteState.index = 0;
+  renderCommandList("");
+  setTimeout(() => input.focus(), 50);
+}
+
+function closeCommandPalette() {
+  document.querySelector("#command-palette")?.classList.add("hidden");
+}
+
+function renderCommandList(term, resetIndex = true) {
+  const list = document.querySelector("#command-list");
+  if (!list) return;
+  const user = getCurrentUser();
+  const all = VIEW_DEFINITIONS
+    .filter((v) => hasPermission(v.id, user))
+    .map((v, i) => ({ id: v.id, label: v.label, idx: i + 1 }));
+  const lc = term.trim().toLowerCase();
+  const filtered = lc
+    ? all.filter((v) => v.label.toLowerCase().includes(lc))
+    : all;
+  if (resetIndex) cmdPaletteState.index = 0;
+  cmdPaletteState.items = filtered;
+  if (!filtered.length) {
+    list.innerHTML = `<li class="empty">Nenhuma página encontrada</li>`;
+    return;
+  }
+  list.innerHTML = filtered.map((item, i) => `
+    <li class="${i === cmdPaletteState.index ? "is-active" : ""}" data-cmd-go="${item.id}" role="option">
+      <span>${escapeHtml(item.label)}</span>
+      ${item.idx <= 9 ? `<small><kbd>${item.idx}</kbd></small>` : ""}
+    </li>
+  `).join("");
+}
+
+// ============================================================
+// SCROLL-TO-TOP — botão flutuante após 400px
+// ============================================================
+function setupScrollToTop() {
+  const button = document.querySelector("#scroll-top");
+  if (!button) return;
+  const toggleVisibility = () => {
+    button.classList.toggle("is-visible", window.scrollY > 400);
+  };
+  window.addEventListener("scroll", toggleVisibility, { passive: true });
+  button.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+  toggleVisibility();
+}
+
+// ============================================================
+// TABLE SORTING — qualquer th com [data-sort-key] vira ordenável
+// ============================================================
+let tableSortState = {}; // tableId -> { key, dir }
+
+function setupTableSorting() {
+  document.addEventListener("click", (event) => {
+    const th = event.target.closest("th[data-sort-key]");
+    if (!th) return;
+    const table = th.closest("table");
+    if (!table) return;
+    const tableId = table.dataset.tableId || `table-${[...document.querySelectorAll("table")].indexOf(table)}`;
+    table.dataset.tableId = tableId;
+    const key = th.dataset.sortKey;
+    const prev = tableSortState[tableId];
+    const dir = prev?.key === key && prev.dir === "asc" ? "desc" : "asc";
+    tableSortState[tableId] = { key, dir };
+    sortTable(table, key, dir);
+    // Atualiza indicadores visuais
+    table.querySelectorAll("th[data-sort-key]").forEach((h) => h.classList.remove("sort-asc", "sort-desc"));
+    th.classList.add(dir === "asc" ? "sort-asc" : "sort-desc");
+  });
+}
+
+function sortTable(table, key, dir) {
+  const tbody = table.querySelector("tbody");
+  if (!tbody) return;
+  const rows = [...tbody.querySelectorAll("tr")];
+  const colIndex = [...table.querySelectorAll("th")].findIndex((th) => th.dataset.sortKey === key);
+  if (colIndex < 0) return;
+  const sortType = table.querySelector(`th[data-sort-key="${key}"]`)?.dataset.sortType || "text";
+  rows.sort((a, b) => {
+    const aCell = a.children[colIndex];
+    const bCell = b.children[colIndex];
+    let aVal, bVal;
+    if (sortType === "number") {
+      aVal = parseNumericFromCell(aCell);
+      bVal = parseNumericFromCell(bCell);
+      return dir === "asc" ? aVal - bVal : bVal - aVal;
+    }
+    aVal = aCell?.textContent.trim().toLowerCase() || "";
+    bVal = bCell?.textContent.trim().toLowerCase() || "";
+    return dir === "asc" ? aVal.localeCompare(bVal, "pt-BR") : bVal.localeCompare(aVal, "pt-BR");
+  });
+  rows.forEach((row) => tbody.appendChild(row));
+}
+
+function parseNumericFromCell(cell) {
+  if (!cell) return 0;
+  // Pega o primeiro número da célula; ignora R$, kg, %, etc.
+  const text = cell.textContent.replace(/\./g, "").replace(",", ".");
+  const match = text.match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : 0;
+}
+
+// ============================================================
+// CONFIRM MODAL — confirmAction(message, onAccept, opts)
+// ============================================================
+let confirmCallback = null;
+
+function confirmAction(title, message, onAccept, options = {}) {
+  const modal = document.querySelector("#confirm-modal");
+  const titleEl = document.querySelector("#confirm-title");
+  const msgEl = document.querySelector("#confirm-message");
+  const acceptBtn = document.querySelector("#confirm-accept");
+  if (!modal || !acceptBtn) {
+    if (window.confirm(message)) onAccept?.();
+    return;
+  }
+  titleEl.textContent = title || "Confirmar ação";
+  msgEl.textContent = message || "Tem certeza?";
+  acceptBtn.textContent = options.acceptLabel || "Confirmar";
+  acceptBtn.classList.toggle("danger-confirm", options.danger !== false);
+  confirmCallback = onAccept;
+  modal.classList.remove("hidden");
+  setTimeout(() => acceptBtn.focus(), 50);
+}
+
+function closeConfirmModal(accepted) {
+  document.querySelector("#confirm-modal")?.classList.add("hidden");
+  if (accepted && confirmCallback) confirmCallback();
+  confirmCallback = null;
 }
 
 function updateSidebarMeta() {
@@ -1192,7 +1414,39 @@ function handleClick(event) {
 
   const deleteUser = event.target.closest("[data-delete-user]");
   if (deleteUser) {
-    deleteAdminUser(deleteUser.dataset.deleteUser);
+    const userId = deleteUser.dataset.deleteUser;
+    const target = getUsers().find((u) => u.id === userId);
+    confirmAction(
+      "Excluir usuário?",
+      target ? `Tem certeza que deseja excluir o usuário "${target.displayName || target.username}"? Esta ação não pode ser desfeita.` : "Tem certeza?",
+      () => deleteAdminUser(userId),
+      { acceptLabel: "Excluir", danger: true }
+    );
+    return;
+  }
+
+  // -------- Command palette --------
+  if (event.target.closest("[data-close-palette]")) {
+    closeCommandPalette();
+    return;
+  }
+
+  const cmdItem = event.target.closest("[data-cmd-go]");
+  if (cmdItem) {
+    const id = cmdItem.dataset.cmdGo;
+    closeCommandPalette();
+    setView(id);
+    return;
+  }
+
+  // -------- Confirm modal --------
+  if (event.target.closest("[data-close-confirm]")) {
+    closeConfirmModal(false);
+    return;
+  }
+
+  if (event.target.closest("#confirm-accept")) {
+    closeConfirmModal(true);
     return;
   }
 
@@ -1204,7 +1458,32 @@ function handleClick(event) {
     return;
   }
 
-  // -------- Configurações operacionais --------
+  // -------- Salvar todas as configurações operacionais --------
+  const saveAllConfigBtn = event.target.closest("#save-all-config");
+  if (saveAllConfigBtn) {
+    const costPerKg = Number(document.querySelector("#config-cost")?.value);
+    const fixedCostMonthly = Number(document.querySelector("#config-fixed-cost")?.value);
+    const monthlyTargetKg = Number(document.querySelector("#config-target-kg")?.value);
+    const cap1 = Number(document.querySelector("#config-cap-corte1")?.value);
+    const cap2 = Number(document.querySelector("#config-cap-corte2")?.value);
+    const cap3 = Number(document.querySelector("#config-cap-rebo")?.value);
+    const valid = [costPerKg, fixedCostMonthly, monthlyTargetKg, cap1, cap2, cap3].every((v) => Number.isFinite(v) && v >= 0);
+    if (!valid) {
+      showToast("Valores inválidos", "Verifique os campos — todos devem ser números positivos.", "error");
+      return;
+    }
+    saveConfig({
+      costPerKg,
+      fixedCostMonthly,
+      monthlyTargetKg,
+      machineCapacityKg: { "Corte 1": cap1, "Corte 2": cap2, "Rebobinadeira": cap3 }
+    });
+    showToast("Configurações salvas", "Todos os indicadores foram recalculados com os novos valores.", "success", 2800);
+    render();
+    return;
+  }
+
+  // -------- (Compatibilidade) Salvar individual de config --------
   const saveConfigBtn = event.target.closest("[data-save-config]");
   if (saveConfigBtn) {
     const field = saveConfigBtn.dataset.saveConfig;
@@ -1236,6 +1515,59 @@ function handleClick(event) {
     saveConfig(partial);
     showToast("Configuração salva", `Atualização aplicada em todo o sistema.`, "success", 2400);
     render();
+    return;
+  }
+
+  // -------- Vendas (entrada diária de pedidos) --------
+  const addOrder = event.target.closest("#add-order");
+  if (addOrder) {
+    const date = document.querySelector("#order-date")?.value;
+    const orderCount = document.querySelector("#order-count")?.value;
+    const weightKg = Number(document.querySelector("#order-weight")?.value);
+    const revenue = Number(document.querySelector("#order-revenue")?.value);
+    const notes = document.querySelector("#order-notes")?.value.trim();
+
+    if (!date || !Number.isFinite(weightKg) || weightKg <= 0 || !Number.isFinite(revenue) || revenue <= 0) {
+      showToast("Dados incompletos", "Data, peso e valor são obrigatórios (positivos).", "error");
+      return;
+    }
+
+    const list = [...getDailyOrders()].filter((o) => o.date !== date);
+    list.push({
+      date,
+      weightKg,
+      revenue,
+      avgPrice: revenue / weightKg,
+      orderCount: orderCount ? Number(orderCount) : null,
+      notes: notes || ""
+    });
+
+    if (saveDailyOrders(list)) {
+      showToast("Entrada registrada", `${new Date(date + "T12:00:00").toLocaleDateString("pt-BR")}: ${formatBRL(revenue)} captados.`, "success", 2400);
+      ["#order-count", "#order-weight", "#order-revenue", "#order-notes"].forEach((sel) => {
+        const el = document.querySelector(sel);
+        if (el) el.value = "";
+      });
+      render();
+    }
+    return;
+  }
+
+  const deleteOrder = event.target.closest("[data-delete-order]");
+  if (deleteOrder) {
+    const date = deleteOrder.dataset.deleteOrder;
+    confirmAction(
+      "Excluir entrada de pedidos?",
+      `Tem certeza que deseja remover a entrada do dia ${new Date(date + "T12:00:00").toLocaleDateString("pt-BR")}?`,
+      () => {
+        const list = getDailyOrders().filter((o) => o.date !== date);
+        if (saveDailyOrders(list)) {
+          showToast("Entrada removida", "Removida das vendas.", "warning", 1800);
+          render();
+        }
+      },
+      { acceptLabel: "Excluir", danger: true }
+    );
     return;
   }
 
@@ -1290,11 +1622,19 @@ function handleClick(event) {
   const deleteBacklog = event.target.closest("[data-delete-backlog]");
   if (deleteBacklog) {
     const id = deleteBacklog.dataset.deleteBacklog;
-    const list = getBacklog().filter((o) => o.id !== id);
-    if (saveBacklog(list)) {
-      showToast("Pedido excluído", "Removido da carteira.", "warning", 1800);
-      render();
-    }
+    const target = getBacklog().find((o) => o.id === id);
+    confirmAction(
+      "Excluir pedido?",
+      target ? `Tem certeza que deseja remover o pedido ${id} (${target.client}) da carteira?` : "Confirmar?",
+      () => {
+        const list = getBacklog().filter((o) => o.id !== id);
+        if (saveBacklog(list)) {
+          showToast("Pedido excluído", "Removido da carteira.", "warning", 1800);
+          render();
+        }
+      },
+      { acceptLabel: "Excluir", danger: true }
+    );
     return;
   }
 }
@@ -1303,6 +1643,18 @@ function handleInput(event) {
   if (event.target.matches("#rep-search")) {
     state.repQuery = event.target.value;
     renderRepresentativesList();
+    return;
+  }
+
+  if (event.target.matches("#customer-search")) {
+    state.customerQuery = event.target.value;
+    debouncedRender();
+    return;
+  }
+
+  if (event.target.matches("#product-search")) {
+    state.productQuery = event.target.value;
+    debouncedRender();
     return;
   }
 
@@ -1315,9 +1667,65 @@ function handleInput(event) {
   }
 }
 
+// Debounce simples para não re-renderizar a cada tecla
+let _debounceTimer = null;
+function debouncedRender() {
+  clearTimeout(_debounceTimer);
+  _debounceTimer = setTimeout(() => {
+    const active = document.activeElement;
+    const activeId = active?.id;
+    const cursorPos = active?.selectionStart;
+    render();
+    // Restaura foco no input
+    if (activeId) {
+      const restored = document.querySelector(`#${activeId}`);
+      if (restored) {
+        restored.focus();
+        if (cursorPos !== undefined && restored.setSelectionRange) {
+          restored.setSelectionRange(cursorPos, cursorPos);
+        }
+      }
+    }
+  }, 200);
+}
+
 function handleKeydown(event) {
+  // Cmd+K / Ctrl+K — paleta de comandos
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    openCommandPalette();
+    return;
+  }
+
+  // Escape — fecha tudo
   if (event.key === "Escape") {
+    const palette = document.querySelector("#command-palette");
+    const confirmModal = document.querySelector("#confirm-modal");
+    if (palette && !palette.classList.contains("hidden")) {
+      closeCommandPalette();
+      return;
+    }
+    if (confirmModal && !confirmModal.classList.contains("hidden")) {
+      closeConfirmModal(false);
+      return;
+    }
     closeMobileSidebar();
+    return;
+  }
+
+  // Números 1-9 — pula para a aba (quando não digitando)
+  if (/^[1-9]$/.test(event.key) && !event.metaKey && !event.ctrlKey && !event.altKey) {
+    const active = document.activeElement;
+    if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.tagName === "SELECT" || active.isContentEditable)) {
+      return;
+    }
+    const user = getCurrentUser();
+    const allowed = VIEW_DEFINITIONS.filter((v) => hasPermission(v.id, user));
+    const idx = Number(event.key) - 1;
+    if (idx < allowed.length) {
+      event.preventDefault();
+      setView(allowed[idx].id);
+    }
   }
 }
 
@@ -1408,13 +1816,13 @@ function render() {
 
   const titles = {
     overview: "Dashboard Estratégico",
-    invoices: "Notas Fiscais",
-    sales: "Vendas",
+    invoices: "Faturamento (NFs emitidas)",
+    sales: "Vendas (entrada de pedidos)",
     customers: "Clientes",
     products: "Produtos",
     representatives: "Representantes",
     operations: "Operação",
-    backlog: "Carteira",
+    backlog: "Carteira (a faturar)",
     goals: "Metas",
     entries: "Entradas",
     finance: "Financeiro",
@@ -1969,21 +2377,21 @@ function renderInvoices() {
         <div class="panel-header">
           <div>
             <h2>Lista completa de NFs</h2>
-            <p>Cada nota com cliente, representante, máquina, peso e valor.</p>
+            <p>Cada nota com cliente, representante, máquina, peso e valor. Clique no cabeçalho para ordenar.</p>
           </div>
         </div>
         <div class="data-table-wrap">
           <table>
             <thead>
               <tr>
-                <th style="text-align:left">NF</th>
-                <th style="text-align:left">Data</th>
-                <th style="text-align:left">Cliente</th>
-                <th style="text-align:left">Representante</th>
-                <th style="text-align:left">Máquina</th>
-                <th>Peso</th>
-                <th>Valor</th>
-                <th>R$/kg</th>
+                <th style="text-align:left" data-sort-key="nf">NF</th>
+                <th style="text-align:left" data-sort-key="date">Data</th>
+                <th style="text-align:left" data-sort-key="client">Cliente</th>
+                <th style="text-align:left" data-sort-key="rep">Representante</th>
+                <th style="text-align:left" data-sort-key="machine">Máquina</th>
+                <th data-sort-key="weight" data-sort-type="number">Peso</th>
+                <th data-sort-key="revenue" data-sort-type="number">Valor</th>
+                <th data-sort-key="rkg" data-sort-type="number">R$/kg</th>
               </tr>
             </thead>
             <tbody>${invoiceRows}</tbody>
@@ -2061,83 +2469,161 @@ function renderInvoices() {
 }
 
 function renderSales() {
-  const metricLabel = state.metric === "revenue" ? "Faturamento" : "Peso";
-  const rows = months.map((month) => {
-    const record = salesRecord(state.year, month.id);
-    const baseLabel = record ? formatMetric(record[state.metric], state.metric) : "Sem dado";
+  // VENDAS = entrada diária de pedidos
+  const orders = [...getDailyOrders()].sort((a, b) => b.date.localeCompare(a.date));
+  const totals = orders.reduce((acc, o) => {
+    acc.revenue += Number(o.revenue) || 0;
+    acc.weightKg += Number(o.weightKg) || 0;
+    return acc;
+  }, { revenue: 0, weightKg: 0 });
+  const avgPrice = totals.weightKg ? totals.revenue / totals.weightKg : 0;
+  const today = new Date().toISOString().slice(0, 10);
+  const config = getConfig();
+
+  // Filtra por mês atual
+  const currentMonth = today.slice(0, 7);
+  const monthOrders = orders.filter((o) => o.date && o.date.startsWith(currentMonth));
+  const monthTotals = monthOrders.reduce((acc, o) => {
+    acc.revenue += Number(o.revenue) || 0;
+    acc.weightKg += Number(o.weightKg) || 0;
+    return acc;
+  }, { revenue: 0, weightKg: 0 });
+
+  // Bar list dos últimos 14 dias
+  const recentOrders = orders.slice(0, 14).reverse();
+  const maxRevenue = Math.max(...recentOrders.map((o) => Number(o.revenue) || 0), 1);
+  const orderBars = recentOrders.map((o) => {
+    const dt = new Date(o.date + "T12:00:00");
+    const label = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
     return {
-      label: month.short,
-      value: record ? record[state.metric] : 0,
-      valueLabel: record?.partial ? `${baseLabel} (parcial)` : baseLabel,
-      color: state.metric === "revenue" ? "" : "blue"
+      label,
+      value: Number(o.revenue) || 0,
+      valueLabel: `${formatBRL(o.revenue)} · ${formatKg(o.weightKg, 2)}`,
+      color: "blue"
     };
   });
 
+  const tableRows = orders.map((o) => {
+    const dt = new Date(o.date + "T12:00:00");
+    const label = dt.toLocaleDateString("pt-BR");
+    const isToday = o.date === today;
+    return `
+      <tr>
+        <td>${label}${isToday ? ` <span class="status-pill" style="margin-left:6px;font-size:0.7rem">Hoje</span>` : ""}</td>
+        <td>${o.orderCount ?? "-"}</td>
+        <td>${formatKg(Number(o.weightKg) || 0, 2)}</td>
+        <td>${formatBRL(Number(o.revenue) || 0)}</td>
+        <td>${o.weightKg ? formatBRL(Number(o.revenue) / Number(o.weightKg)) : "-"}/kg</td>
+        <td style="text-align:left">${escapeHtml(o.notes || "")}</td>
+        <td>
+          <button class="ghost-button danger-ghost table-action" type="button" data-delete-order="${escapeHtml(o.date)}">Excluir</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
   return `
     <div class="section-grid">
+      <article class="panel span-12 current-tracker">
+        <div class="panel-header">
+          <div>
+            <h2>Vendas · entrada diária de pedidos</h2>
+            <p>Pedidos captados por dia (não confundir com faturamento, que mostra NFs emitidas, nem com carteira, que mostra o saldo total a faturar).</p>
+          </div>
+          <span class="status-pill blue">${orders.length} dia${orders.length !== 1 ? "s" : ""} com captação</span>
+        </div>
+        <div class="section-grid" style="gap:14px">
+          ${kpiCard("Pedidos no mês", formatBRL(monthTotals.revenue), `${formatKg(monthTotals.weightKg, 2)} em ${monthOrders.length} dia${monthOrders.length !== 1 ? "s" : ""}`, "green")}
+          ${kpiCard("Ticket médio diário", formatBRL(orders.length ? totals.revenue / orders.length : 0), `Média de captação por dia`, "blue")}
+          ${kpiCard("R$/kg médio captado", formatBRL(avgPrice), `Preço médio dos pedidos`, avgPrice >= (salesRecord(2026, 4)?.revenue / salesRecord(2026, 4)?.weightKg || 0) ? "green" : "amber")}
+          ${kpiCard("Meta diária", formatKg(config.monthlyTargetKg / 20, 0), `${formatKg(config.monthlyTargetKg)} ÷ 20 dias úteis`, "amber")}
+        </div>
+      </article>
+
+      ${orders.length ? `
+      <article class="panel span-7">
+        <div class="panel-header">
+          <div>
+            <h2>Últimos dias com captação</h2>
+            <p>Histórico recente (mais antigo → mais novo).</p>
+          </div>
+        </div>
+        ${barList(orderBars)}
+      </article>
+
+      <article class="panel span-5 admin-form-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Registrar dia de pedidos</h2>
+            <p>Adicione o total captado em um dia.</p>
+          </div>
+        </div>
+        <div class="admin-form">
+          <label>Data
+            <input id="order-date" type="date" value="${today}">
+          </label>
+          <label>Quantidade de pedidos (opcional)
+            <input id="order-count" type="number" min="0" step="1" placeholder="Ex.: 12">
+          </label>
+          <label>Peso total (kg)
+            <input id="order-weight" type="number" min="0" step="0.01" placeholder="Ex.: 5000">
+          </label>
+          <label>Valor total (R$)
+            <input id="order-revenue" type="number" min="0" step="0.01" placeholder="Ex.: 100000">
+          </label>
+          <label>Observações
+            <input id="order-notes" type="text" placeholder="Ex.: cliente novo, urgência…">
+          </label>
+          <button class="primary-button" id="add-order" type="button">Adicionar entrada do dia</button>
+        </div>
+      </article>` : `
+      <article class="panel span-12">
+        <div class="empty-state-rich">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 11H5a2 2 0 0 0-2 2v6h18v-6a2 2 0 0 0-2-2h-4"></path>
+              <path d="M12 3v10"></path>
+              <path d="m8 7 4-4 4 4"></path>
+            </svg>
+          </div>
+          <h3>Nenhuma entrada de pedidos ainda</h3>
+          <p>Use o formulário abaixo para registrar quanto foi captado em cada dia.</p>
+        </div>
+      </article>`}
+
       <article class="panel span-12">
         <div class="panel-header">
           <div>
-            <h2>Histórico de vendas</h2>
-            <p>Compare faturamento e peso por mês entre 2023 e 2026.</p>
-          </div>
-          <div class="control-row">
-            ${metricButtons()}
-            ${yearButtons()}
+            <h2>Tabela de pedidos diários</h2>
+            <p>Cada linha = total captado naquele dia. Clique no cabeçalho para ordenar.</p>
           </div>
         </div>
-        ${barList(rows)}
-      </article>
-
-      <article class="panel span-5">
-        <div class="panel-header">
-          <div>
-            <h2>Resumo ${state.year}</h2>
-            <p>Totais conforme meses disponíveis na fonte.</p>
-          </div>
-          <span class="status-pill">${metricLabel}</span>
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left" data-sort-key="date">Data</th>
+                <th data-sort-key="count" data-sort-type="number">Qtde pedidos</th>
+                <th data-sort-key="weight" data-sort-type="number">Peso (kg)</th>
+                <th data-sort-key="revenue" data-sort-type="number">Valor (R$)</th>
+                <th data-sort-key="rkg" data-sort-type="number">R$/kg</th>
+                <th style="text-align:left" data-sort-key="notes">Obs.</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+            <tfoot>
+              <tr>
+                <td style="text-align:left"><strong>Total</strong></td>
+                <td>-</td>
+                <td>${formatKg(totals.weightKg, 2)}</td>
+                <td>${formatBRL(totals.revenue)}</td>
+                <td>${formatBRL(avgPrice)}/kg</td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
-        ${yearSummary(state.year)}
-      </article>
-
-      <article class="panel span-12 representatives-detail-panel">
-        <div class="panel-header">
-          <div>
-            <h2>Comparativo jan-abr</h2>
-            <p>Recorte usado para comparar 2026 contra anos completos anteriores.</p>
-          </div>
-        </div>
-        ${comparisonTable()}
-      </article>
-
-      <article class="panel span-12">
-        <div class="panel-header">
-          <div>
-            <h2>Sazonalidade mensal · 2023 → 2026</h2>
-            <p>Compare o mesmo mês entre anos. Mês destacado em <strong style="color:var(--brand-cyan-deep)">cyan</strong>: 2026 acima do ano anterior.</p>
-          </div>
-        </div>
-        ${seasonalityTable(state.metric)}
-      </article>
-
-      <article class="panel span-12">
-        <div class="panel-header">
-          <div>
-            <h2>Decomposição preço × volume · 2025 vs 2026</h2>
-            <p>Quanto do crescimento veio de peso e quanto veio de preço.</p>
-          </div>
-        </div>
-        ${priceVolumeDecomposition()}
-      </article>
-
-      <article class="panel span-12">
-        <div class="panel-header">
-          <div>
-            <h2>Tabela mensal - ${metricLabel}</h2>
-            <p>Valores digitados a partir da tabela histórica.</p>
-          </div>
-        </div>
-        ${pivotTable(state.metric)}
       </article>
     </div>
   `;
@@ -2453,16 +2939,81 @@ function renderFinance() {
         </div>
         ${financeTable()}
       </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Sazonalidade · 2023 → 2026</h2>
+            <p>Mesmo mês entre anos com variação YoY. Permite ler se janeiro/fev/mar/abr/etc historicamente são picos ou vales.</p>
+          </div>
+          <div class="control-row">
+            ${metricButtons()}
+          </div>
+        </div>
+        ${seasonalityTable(state.metric)}
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Decomposição preço × volume · 2025 vs 2026</h2>
+            <p>Quanto do crescimento jan-abr veio de peso e quanto veio de preço médio.</p>
+          </div>
+        </div>
+        ${priceVolumeDecomposition()}
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Comparativo jan-abr ano a ano</h2>
+            <p>Recorte usado para comparar 2026 contra anos completos anteriores.</p>
+          </div>
+        </div>
+        ${comparisonTable()}
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Tabela mensal — ${state.metric === "revenue" ? "Faturamento" : "Peso"}</h2>
+            <p>Pivot mês × ano. Maio/2026 destacado em âmbar (parcial).</p>
+          </div>
+          <div class="control-row">
+            ${metricButtons()}
+          </div>
+        </div>
+        ${pivotTable(state.metric)}
+      </article>
     </div>
   `;
 }
 
 // =================== CLIENTES ===================
 function renderCustomers() {
-  const customers = customerAggregates();
-  if (!customers.length) {
-    return `<div class="section-grid"><article class="panel span-12"><div class="empty-state">Sem clientes carregados ainda. Importe NFs para começar.</div></article></div>`;
+  const allCustomers = customerAggregates();
+  if (!allCustomers.length) {
+    return `<div class="section-grid"><article class="panel span-12"><div class="empty-state-rich">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="6" width="18" height="14" rx="2"></rect>
+          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+      </div>
+      <h3>Sem clientes para mostrar</h3>
+      <p>Importe NFs ou adicione pedidos na carteira para começar a análise de clientes.</p>
+    </div></article></div>`;
   }
+
+  const query = (state.customerQuery || "").trim().toLowerCase();
+  const customers = query
+    ? allCustomers.filter((c) =>
+        c.group.toLowerCase().includes(query) ||
+        c.states.some((s) => s.toLowerCase().includes(query)) ||
+        c.representatives.some((r) => r.toLowerCase().includes(query)) ||
+        c.cities.some((city) => city.toLowerCase().includes(query))
+      )
+    : allCustomers;
 
   const totals = customers.reduce((acc, c) => {
     acc.revenue += c.revenue;
@@ -2555,25 +3106,29 @@ function renderCustomers() {
         <div class="panel-header">
           <div>
             <h2>Ranking ABC de clientes</h2>
-            <p>Ordenado por faturamento. <strong>A</strong> = Top ${formatPercent(getConfig().abcThresholds.a)} · <strong>B</strong> = até ${formatPercent(getConfig().abcThresholds.b)} · <strong>C</strong> = cauda longa.</p>
+            <p>Ordenado por faturamento. <strong>A</strong> = Top ${formatPercent(getConfig().abcThresholds.a)} · <strong>B</strong> = até ${formatPercent(getConfig().abcThresholds.b)} · <strong>C</strong> = cauda longa. Clique no cabeçalho para ordenar.</p>
           </div>
           <span class="status-pill">A: ${aCount} · B: ${bCount} · C: ${cCount}</span>
+        </div>
+        <div class="control-row" style="margin-bottom:14px">
+          <input class="search-input" id="customer-search" type="search" placeholder="Buscar cliente, UF, cidade ou representante…" value="${escapeHtml(state.customerQuery || "")}" style="max-width:380px">
+          ${customers.length !== allCustomers.length ? `<span class="status-pill blue">${customers.length}/${allCustomers.length}</span>` : ""}
         </div>
         <div class="data-table-wrap">
           <table>
             <thead>
               <tr>
-                <th>ABC</th>
-                <th style="text-align:left">Cliente / Grupo</th>
-                <th style="text-align:left">UF</th>
-                <th style="text-align:left">Representante</th>
-                <th>NFs</th>
-                <th>Peso</th>
-                <th>Faturamento</th>
-                <th>R$/kg</th>
-                <th>Ticket médio</th>
-                <th>Participação</th>
-                <th>Recência</th>
+                <th data-sort-key="abc">ABC</th>
+                <th style="text-align:left" data-sort-key="client">Cliente / Grupo</th>
+                <th style="text-align:left" data-sort-key="uf">UF</th>
+                <th style="text-align:left" data-sort-key="rep">Representante</th>
+                <th data-sort-key="nfs" data-sort-type="number">NFs</th>
+                <th data-sort-key="weight" data-sort-type="number">Peso</th>
+                <th data-sort-key="revenue" data-sort-type="number">Faturamento</th>
+                <th data-sort-key="rkg" data-sort-type="number">R$/kg</th>
+                <th data-sort-key="ticket" data-sort-type="number">Ticket médio</th>
+                <th data-sort-key="share" data-sort-type="number">Participação</th>
+                <th data-sort-key="rec" data-sort-type="number">Recência</th>
               </tr>
             </thead>
             <tbody>${tableRows}</tbody>
@@ -2602,10 +3157,28 @@ function renderCustomers() {
 
 // =================== PRODUTOS ===================
 function renderProducts() {
-  const items = data.productMix2026?.items || [];
-  if (!items.length) {
-    return `<div class="section-grid"><article class="panel span-12"><div class="empty-state">Sem produtos carregados ainda.</div></article></div>`;
+  const allItems = data.productMix2026?.items || [];
+  if (!allItems.length) {
+    return `<div class="section-grid"><article class="panel span-12"><div class="empty-state-rich">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7l9-4 9 4-9 4-9-4z"></path>
+          <path d="M3 7v10l9 4 9-4V7"></path>
+        </svg>
+      </div>
+      <h3>Sem produtos cadastrados</h3>
+      <p>Os produtos aparecem aqui quando há NFs emitidas. Importe a próxima planilha de NF para popular o mix.</p>
+    </div></article></div>`;
   }
+  const query = (state.productQuery || "").trim().toLowerCase();
+  const items = query
+    ? allItems.filter((p) =>
+        p.description.toLowerCase().includes(query) ||
+        p.line.toLowerCase().includes(query) ||
+        p.color.toLowerCase().includes(query) ||
+        String(p.grammage).includes(query)
+      )
+    : allItems;
 
   const totals = items.reduce((acc, p) => {
     acc.revenue += p.revenue;
@@ -2750,22 +3323,26 @@ function renderProducts() {
         <div class="panel-header">
           <div>
             <h2>Ranking ABC de SKUs</h2>
-            <p>Ordenado por faturamento.</p>
+            <p>Ordenado por faturamento. Clique no cabeçalho para ordenar.</p>
           </div>
+        </div>
+        <div class="control-row" style="margin-bottom:14px">
+          <input class="search-input" id="product-search" type="search" placeholder="Buscar SKU, linha, cor ou gramatura…" value="${escapeHtml(state.productQuery || "")}" style="max-width:380px">
+          ${items.length !== allItems.length ? `<span class="status-pill blue">${items.length}/${allItems.length}</span>` : ""}
         </div>
         <div class="data-table-wrap">
           <table>
             <thead>
               <tr>
-                <th>ABC</th>
-                <th style="text-align:left">SKU</th>
-                <th style="text-align:left">Linha</th>
-                <th style="text-align:left">Cor</th>
-                <th>Gramatura</th>
-                <th>Peso</th>
-                <th>Faturamento</th>
-                <th>R$/kg</th>
-                <th>Participação</th>
+                <th data-sort-key="abc">ABC</th>
+                <th style="text-align:left" data-sort-key="sku">SKU</th>
+                <th style="text-align:left" data-sort-key="line">Linha</th>
+                <th style="text-align:left" data-sort-key="color">Cor</th>
+                <th data-sort-key="gram" data-sort-type="number">Gramatura</th>
+                <th data-sort-key="weight" data-sort-type="number">Peso</th>
+                <th data-sort-key="revenue" data-sort-type="number">Faturamento</th>
+                <th data-sort-key="rkg" data-sort-type="number">R$/kg</th>
+                <th data-sort-key="share" data-sort-type="number">Participação</th>
               </tr>
             </thead>
             <tbody>${skuRows}</tbody>
@@ -2882,47 +3459,37 @@ function renderOperations() {
         <div class="panel-header">
           <div>
             <h2>Configurações operacionais</h2>
-            <p>Custo, capacidades e metas usados em todos os cálculos do sistema. Editáveis e persistidos neste navegador.</p>
+            <p>Custo, capacidades e metas usados em todos os cálculos do sistema. Edite os campos abaixo e clique em <strong>Salvar todas as alterações</strong>.</p>
           </div>
           <span class="status-pill blue">Editável</span>
         </div>
-        <div class="admin-form">
+        <div class="admin-form" id="config-form">
           <label>Custo médio (R$/kg)
-            <div class="admin-password-row">
-              <input id="config-cost" type="number" min="0" step="0.01" value="${config.costPerKg}">
-              <button class="ghost-button" data-save-config="costPerKg" type="button">Salvar</button>
-            </div>
+            <input id="config-cost" type="number" min="0" step="0.01" value="${config.costPerKg}">
           </label>
           <label>Custo fixo mensal (R$)
-            <div class="admin-password-row">
-              <input id="config-fixed-cost" type="number" min="0" step="1000" value="${config.fixedCostMonthly}">
-              <button class="ghost-button" data-save-config="fixedCostMonthly" type="button">Salvar</button>
-            </div>
+            <input id="config-fixed-cost" type="number" min="0" step="1000" value="${config.fixedCostMonthly}">
           </label>
           <label>Capacidade Corte 1 (kg/mês)
-            <div class="admin-password-row">
-              <input id="config-cap-corte1" type="number" min="0" step="1000" value="${config.machineCapacityKg['Corte 1']}">
-              <button class="ghost-button" data-save-config="capacity-Corte 1" type="button">Salvar</button>
-            </div>
+            <input id="config-cap-corte1" type="number" min="0" step="1000" value="${config.machineCapacityKg['Corte 1']}">
           </label>
           <label>Capacidade Corte 2 (kg/mês)
-            <div class="admin-password-row">
-              <input id="config-cap-corte2" type="number" min="0" step="1000" value="${config.machineCapacityKg['Corte 2']}">
-              <button class="ghost-button" data-save-config="capacity-Corte 2" type="button">Salvar</button>
-            </div>
+            <input id="config-cap-corte2" type="number" min="0" step="1000" value="${config.machineCapacityKg['Corte 2']}">
           </label>
           <label>Capacidade Rebobinadeira (kg/mês)
-            <div class="admin-password-row">
-              <input id="config-cap-rebo" type="number" min="0" step="1000" value="${config.machineCapacityKg['Rebobinadeira']}">
-              <button class="ghost-button" data-save-config="capacity-Rebobinadeira" type="button">Salvar</button>
-            </div>
+            <input id="config-cap-rebo" type="number" min="0" step="1000" value="${config.machineCapacityKg['Rebobinadeira']}">
           </label>
           <label>Meta mensal (kg)
-            <div class="admin-password-row">
-              <input id="config-target-kg" type="number" min="0" step="1000" value="${config.monthlyTargetKg}">
-              <button class="ghost-button" data-save-config="monthlyTargetKg" type="button">Salvar</button>
-            </div>
+            <input id="config-target-kg" type="number" min="0" step="1000" value="${config.monthlyTargetKg}">
           </label>
+          <div style="grid-column:1/-1;display:flex;justify-content:flex-end;gap:10px;margin-top:6px">
+            <button class="primary-button" id="save-all-config" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Salvar todas as alterações</span>
+            </button>
+          </div>
         </div>
       </article>
     </div>
@@ -3034,20 +3601,30 @@ function renderBacklog() {
           <table>
             <thead>
               <tr>
-                <th style="text-align:left">ID</th>
-                <th>Captado</th>
-                <th style="text-align:left">Cliente</th>
-                <th style="text-align:left">Representante</th>
-                <th>Peso</th>
-                <th>Valor</th>
-                <th>Prometida</th>
-                <th>Status</th>
+                <th style="text-align:left" data-sort-key="id">ID</th>
+                <th data-sort-key="date">Captado</th>
+                <th style="text-align:left" data-sort-key="client">Cliente</th>
+                <th style="text-align:left" data-sort-key="rep">Representante</th>
+                <th data-sort-key="weight" data-sort-type="number">Peso</th>
+                <th data-sort-key="revenue" data-sort-type="number">Valor</th>
+                <th data-sort-key="promised">Prometida</th>
+                <th data-sort-key="status">Status</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
           </table>
-        </div>` : `<div class="empty-state">Nenhum pedido cadastrado ainda. Use o formulário ao lado para começar.</div>`}
+        </div>` : `
+        <div class="empty-state-rich">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 5h6l2 3h10v10a2 2 0 0 1-2 2H3z"></path>
+              <path d="M3 11h18"></path>
+            </svg>
+          </div>
+          <h3>Nenhum pedido na carteira ainda</h3>
+          <p>Use o formulário ao lado para cadastrar pedidos captados e acompanhar o saldo a entregar dentro do mês.</p>
+        </div>`}
       </article>
     </div>
   `;

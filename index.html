@@ -96,11 +96,16 @@
           </div>
         </div>
 
-        <div class="nav-meta">
-          <span class="nav-heading">Navegação</span>
+        <div class="nav-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="m21 21-4.3-4.3"></path>
+          </svg>
+          <input id="nav-search-input" type="text" placeholder="Buscar página… (⌘K)" aria-label="Buscar página">
         </div>
 
         <nav class="nav" aria-label="Navegação principal">
+          <span class="nav-group-label">Visão</span>
           <button class="nav-button active" type="button" data-view="overview" title="Dashboard">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -112,7 +117,8 @@
             </span>
             <span class="nav-label">Dashboard</span>
           </button>
-          <button class="nav-button" type="button" data-view="invoices" title="Notas Fiscais">
+          <span class="nav-group-label">Comercial</span>
+          <button class="nav-button" type="button" data-view="invoices" title="Faturamento — NFs já emitidas">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M6 3h9l3 3v15H6z"></path>
@@ -121,13 +127,14 @@
                 <path d="M9 17h4"></path>
               </svg>
             </span>
-            <span class="nav-label">Notas Fiscais</span>
+            <span class="nav-label">Faturamento</span>
           </button>
-          <button class="nav-button" type="button" data-view="sales" title="Vendas">
+          <button class="nav-button" type="button" data-view="sales" title="Vendas — entrada de pedidos diários">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 17l6-6 4 4 8-8"></path>
-                <path d="M14 7h7v7"></path>
+                <path d="M9 11H5a2 2 0 0 0-2 2v6h18v-6a2 2 0 0 0-2-2h-4"></path>
+                <path d="M12 3v10"></path>
+                <path d="m8 7 4-4 4 4"></path>
               </svg>
             </span>
             <span class="nav-label">Vendas</span>
@@ -163,6 +170,7 @@
             </span>
             <span class="nav-label">Representantes</span>
           </button>
+          <span class="nav-group-label">Operação</span>
           <button class="nav-button" type="button" data-view="operations" title="Operação">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -181,16 +189,6 @@
             </span>
             <span class="nav-label">Carteira</span>
           </button>
-          <button class="nav-button" type="button" data-view="goals" title="Metas">
-            <span class="nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="9"></circle>
-                <circle cx="12" cy="12" r="5"></circle>
-                <circle cx="12" cy="12" r="1.6" fill="currentColor"></circle>
-              </svg>
-            </span>
-            <span class="nav-label">Metas</span>
-          </button>
           <button class="nav-button" type="button" data-view="entries" title="Entradas">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -200,6 +198,17 @@
               </svg>
             </span>
             <span class="nav-label">Entradas</span>
+          </button>
+          <span class="nav-group-label">Estratégia</span>
+          <button class="nav-button" type="button" data-view="goals" title="Metas">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"></circle>
+                <circle cx="12" cy="12" r="5"></circle>
+                <circle cx="12" cy="12" r="1.6" fill="currentColor"></circle>
+              </svg>
+            </span>
+            <span class="nav-label">Metas</span>
           </button>
           <button class="nav-button" type="button" data-view="finance" title="Financeiro">
             <span class="nav-icon" aria-hidden="true">
@@ -211,6 +220,7 @@
             </span>
             <span class="nav-label">Financeiro</span>
           </button>
+          <span class="nav-group-label">Sistema</span>
           <button class="nav-button" type="button" data-view="admin" title="Admin">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -296,6 +306,47 @@
     </div>
 
     <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Paleta de comandos rápida (Cmd+K) -->
+    <div class="command-palette hidden" id="command-palette" role="dialog" aria-modal="true" aria-labelledby="cmd-title">
+      <div class="command-backdrop" data-close-palette></div>
+      <div class="command-panel" role="document">
+        <div class="command-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="m21 21-4.3-4.3"></path>
+          </svg>
+          <input id="command-input" type="text" placeholder="Para onde você quer ir?" aria-label="Buscar comando">
+          <kbd>esc</kbd>
+        </div>
+        <ul class="command-list" id="command-list" role="listbox"></ul>
+        <div class="command-hint">
+          <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
+          <span><kbd>enter</kbd> abrir</span>
+          <span><kbd>esc</kbd> fechar</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de confirmação reutilizável -->
+    <div class="modal confirm-modal hidden" id="confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+      <div class="modal-backdrop" data-close-confirm></div>
+      <div class="modal-panel confirm-panel">
+        <h2 id="confirm-title">Confirmar ação</h2>
+        <p id="confirm-message">Tem certeza?</p>
+        <div class="confirm-actions">
+          <button class="ghost-button" type="button" data-close-confirm>Cancelar</button>
+          <button class="primary-button danger-confirm" type="button" id="confirm-accept">Confirmar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Botão flutuante voltar ao topo -->
+    <button class="scroll-top-button hidden" id="scroll-top" type="button" aria-label="Voltar ao topo" title="Voltar ao topo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m18 15-6-6-6 6"></path>
+      </svg>
+    </button>
 
     <script src="./data.js"></script>
     <script src="./app.js"></script>

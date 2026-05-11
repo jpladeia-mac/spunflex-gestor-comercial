@@ -201,6 +201,22 @@ window.SpunflexData = {
     status: "Pedidos cadastrados em 05/05/2026",
     sourceId: "src-pedidos-maio-05"
   },
+
+  // -------------- ENTRADA DIÁRIA DE PEDIDOS (VENDAS) --------------
+  // Cada item representa o total de pedidos capturados num dia.
+  // Por enquanto temos apenas 05/05/2026; o admin pode adicionar mais
+  // dias pela própria página Vendas (persistido no localStorage).
+  dailyOrders2026: [
+    {
+      date: "2026-05-05",
+      weightKg: 3474.02,
+      revenue: 73188.14,
+      avgPrice: 21.066,
+      orderCount: null, // Quantidade de pedidos no dia (se disponível)
+      notes: "Pedidos cadastrados em 05/05/2026",
+      sourceId: "src-pedidos-maio-05"
+    }
+  ],
   monthlySales: [
     { year: 2023, month: 1, weightKg: 120178, revenue: 1890629 },
     { year: 2023, month: 2, weightKg: 106717, revenue: 1660497 },
