@@ -549,49 +549,6 @@ body.sidebar-collapsed .sidebar-panel {
   text-transform: uppercase;
 }
 
-/* Busca rápida no topo do sidebar */
-.nav-search {
-  position: relative;
-  display: flex;
-  align-items: center;
-  margin: 0 0 8px;
-}
-
-.nav-search svg {
-  position: absolute;
-  left: 10px;
-  width: 16px;
-  height: 16px;
-  color: rgba(198, 244, 255, 0.55);
-  pointer-events: none;
-}
-
-.nav-search input {
-  width: 100%;
-  min-height: 36px;
-  padding: 0 12px 0 32px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.22);
-  color: #ffffff;
-  font-size: 0.84rem;
-  transition: border-color 0.18s var(--ease), background 0.18s var(--ease);
-}
-
-.nav-search input::placeholder {
-  color: rgba(198, 244, 255, 0.42);
-}
-
-.nav-search input:focus {
-  outline: none;
-  border-color: var(--brand-cyan);
-  background: rgba(0, 0, 0, 0.34);
-}
-
-body.sidebar-collapsed .nav-search {
-  display: none;
-}
-
 /* Cabeçalho de grupo no menu */
 .nav-group-label {
   display: block;
@@ -613,142 +570,6 @@ body.sidebar-collapsed .nav-group-label {
   padding: 0;
   font-size: 0;
   background: rgba(255, 255, 255, 0.06);
-}
-
-.nav-button.nav-filtered {
-  display: none !important;
-}
-
-/* Paleta de comandos (Cmd+K) */
-.command-palette {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: start center;
-  padding: 80px 20px 20px;
-  z-index: 3000;
-  animation: modal-in 0.18s var(--ease-out);
-}
-
-.command-palette.hidden {
-  display: none;
-}
-
-.command-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(15, 18, 38, 0.65);
-  backdrop-filter: blur(6px);
-}
-
-.command-panel {
-  position: relative;
-  z-index: 1;
-  width: min(100%, 560px);
-  background: #ffffff;
-  border-radius: 16px;
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  animation: modal-pop 0.22s var(--ease-out);
-}
-
-.command-search {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line);
-}
-
-.command-search svg {
-  width: 18px;
-  height: 18px;
-  color: var(--muted);
-}
-
-.command-search input {
-  flex: 1;
-  border: none;
-  padding: 0;
-  font-size: 1rem;
-  color: var(--ink);
-  background: transparent;
-  outline: none;
-}
-
-.command-search kbd,
-.command-hint kbd {
-  display: inline-block;
-  padding: 2px 8px;
-  border: 1px solid var(--line);
-  border-bottom-width: 2px;
-  border-radius: 6px;
-  background: var(--surface-muted);
-  color: var(--ink-soft);
-  font-family: ui-monospace, "SF Mono", monospace;
-  font-size: 0.74rem;
-  font-weight: 600;
-}
-
-.command-list {
-  list-style: none;
-  margin: 0;
-  padding: 6px;
-  max-height: 360px;
-  overflow-y: auto;
-}
-
-.command-list li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  color: var(--ink);
-  font-size: 0.92rem;
-  font-weight: 500;
-  transition: background 0.12s var(--ease);
-}
-
-.command-list li:hover,
-.command-list li.is-active {
-  background: var(--brand-cyan-soft);
-  color: var(--brand-cyan-deep);
-}
-
-.command-list li small {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 0.74rem;
-  font-weight: 600;
-}
-
-.command-list li.empty {
-  color: var(--muted);
-  cursor: default;
-  background: transparent;
-  justify-content: center;
-}
-
-.command-list li.empty:hover {
-  background: transparent;
-}
-
-.command-hint {
-  display: flex;
-  gap: 14px;
-  padding: 10px 16px;
-  border-top: 1px solid var(--line);
-  font-size: 0.76rem;
-  color: var(--muted);
-  background: var(--surface-muted);
-}
-
-.command-hint span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
 }
 
 /* Modal de confirmação */
@@ -921,9 +742,7 @@ table th[data-sort-key]:hover {
   .topbar-actions,
   .scroll-top-button,
   .toast-container,
-  .command-palette,
   .modal,
-  .nav-search,
   .control-row {
     display: none !important;
   }

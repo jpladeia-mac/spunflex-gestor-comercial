@@ -343,8 +343,6 @@ function bootApp() {
   sidebarScrim.addEventListener("click", closeMobileSidebar);
   fullscreenToggle.addEventListener("click", toggleFullscreen);
   document.querySelector("#logout-button").addEventListener("click", handleLogout);
-  setupNavSearch();
-  setupCommandPalette();
   setupScrollToTop();
   setupTableSorting();
   updateFullscreenButton();
@@ -353,104 +351,6 @@ function bootApp() {
   updateCurrentUserBadge();
   updateSidebarMeta();
   render();
-}
-
-// ============================================================
-// SIDEBAR SEARCH — filtra os botões de navegação ao vivo
-// ============================================================
-function setupNavSearch() {
-  const input = document.querySelector("#nav-search-input");
-  if (!input) return;
-  input.addEventListener("input", () => {
-    const term = input.value.trim().toLowerCase();
-    let visibleSection = null;
-    document.querySelectorAll(".nav-button").forEach((btn) => {
-      const label = btn.querySelector(".nav-label")?.textContent.toLowerCase() || "";
-      const match = !term || label.includes(term);
-      btn.classList.toggle("nav-filtered", !match);
-    });
-    // Esconde labels de grupo se nada da seção bate
-    document.querySelectorAll(".nav-group-label").forEach((label) => {
-      let next = label.nextElementSibling;
-      let hasVisible = false;
-      while (next && !next.classList.contains("nav-group-label")) {
-        if (next.classList.contains("nav-button") && !next.classList.contains("nav-filtered") && !next.classList.contains("nav-hidden")) {
-          hasVisible = true; break;
-        }
-        next = next.nextElementSibling;
-      }
-      label.style.display = hasVisible ? "" : "none";
-    });
-  });
-}
-
-// ============================================================
-// COMMAND PALETTE — Cmd/Ctrl+K para alternar abas rapidamente
-// ============================================================
-let cmdPaletteState = { index: 0, items: [] };
-
-function setupCommandPalette() {
-  const input = document.querySelector("#command-input");
-  if (!input) return;
-  input.addEventListener("input", () => renderCommandList(input.value));
-  input.addEventListener("keydown", (event) => {
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      cmdPaletteState.index = Math.min(cmdPaletteState.items.length - 1, cmdPaletteState.index + 1);
-      renderCommandList(input.value, false);
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      cmdPaletteState.index = Math.max(0, cmdPaletteState.index - 1);
-      renderCommandList(input.value, false);
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      const item = cmdPaletteState.items[cmdPaletteState.index];
-      if (item) {
-        closeCommandPalette();
-        setView(item.id);
-      }
-    }
-  });
-}
-
-function openCommandPalette() {
-  const palette = document.querySelector("#command-palette");
-  const input = document.querySelector("#command-input");
-  if (!palette || !input) return;
-  palette.classList.remove("hidden");
-  input.value = "";
-  cmdPaletteState.index = 0;
-  renderCommandList("");
-  setTimeout(() => input.focus(), 50);
-}
-
-function closeCommandPalette() {
-  document.querySelector("#command-palette")?.classList.add("hidden");
-}
-
-function renderCommandList(term, resetIndex = true) {
-  const list = document.querySelector("#command-list");
-  if (!list) return;
-  const user = getCurrentUser();
-  const all = VIEW_DEFINITIONS
-    .filter((v) => hasPermission(v.id, user))
-    .map((v, i) => ({ id: v.id, label: v.label, idx: i + 1 }));
-  const lc = term.trim().toLowerCase();
-  const filtered = lc
-    ? all.filter((v) => v.label.toLowerCase().includes(lc))
-    : all;
-  if (resetIndex) cmdPaletteState.index = 0;
-  cmdPaletteState.items = filtered;
-  if (!filtered.length) {
-    list.innerHTML = `<li class="empty">Nenhuma página encontrada</li>`;
-    return;
-  }
-  list.innerHTML = filtered.map((item, i) => `
-    <li class="${i === cmdPaletteState.index ? "is-active" : ""}" data-cmd-go="${item.id}" role="option">
-      <span>${escapeHtml(item.label)}</span>
-      ${item.idx <= 9 ? `<small><kbd>${item.idx}</kbd></small>` : ""}
-    </li>
-  `).join("");
 }
 
 // ============================================================
@@ -1425,20 +1325,6 @@ function handleClick(event) {
     return;
   }
 
-  // -------- Command palette --------
-  if (event.target.closest("[data-close-palette]")) {
-    closeCommandPalette();
-    return;
-  }
-
-  const cmdItem = event.target.closest("[data-cmd-go]");
-  if (cmdItem) {
-    const id = cmdItem.dataset.cmdGo;
-    closeCommandPalette();
-    setView(id);
-    return;
-  }
-
   // -------- Confirm modal --------
   if (event.target.closest("[data-close-confirm]")) {
     closeConfirmModal(false);
@@ -1690,21 +1576,9 @@ function debouncedRender() {
 }
 
 function handleKeydown(event) {
-  // Cmd+K / Ctrl+K — paleta de comandos
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-    event.preventDefault();
-    openCommandPalette();
-    return;
-  }
-
   // Escape — fecha tudo
   if (event.key === "Escape") {
-    const palette = document.querySelector("#command-palette");
     const confirmModal = document.querySelector("#confirm-modal");
-    if (palette && !palette.classList.contains("hidden")) {
-      closeCommandPalette();
-      return;
-    }
     if (confirmModal && !confirmModal.classList.contains("hidden")) {
       closeConfirmModal(false);
       return;

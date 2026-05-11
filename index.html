@@ -96,14 +96,6 @@
           </div>
         </div>
 
-        <div class="nav-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="11" cy="11" r="7"></circle>
-            <path d="m21 21-4.3-4.3"></path>
-          </svg>
-          <input id="nav-search-input" type="text" placeholder="Buscar página… (⌘K)" aria-label="Buscar página">
-        </div>
-
         <nav class="nav" aria-label="Navegação principal">
           <span class="nav-group-label">Visão</span>
           <button class="nav-button active" type="button" data-view="overview" title="Dashboard">
@@ -306,27 +298,6 @@
     </div>
 
     <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
-
-    <!-- Paleta de comandos rápida (Cmd+K) -->
-    <div class="command-palette hidden" id="command-palette" role="dialog" aria-modal="true" aria-labelledby="cmd-title">
-      <div class="command-backdrop" data-close-palette></div>
-      <div class="command-panel" role="document">
-        <div class="command-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="11" cy="11" r="7"></circle>
-            <path d="m21 21-4.3-4.3"></path>
-          </svg>
-          <input id="command-input" type="text" placeholder="Para onde você quer ir?" aria-label="Buscar comando">
-          <kbd>esc</kbd>
-        </div>
-        <ul class="command-list" id="command-list" role="listbox"></ul>
-        <div class="command-hint">
-          <span><kbd>↑</kbd><kbd>↓</kbd> navegar</span>
-          <span><kbd>enter</kbd> abrir</span>
-          <span><kbd>esc</kbd> fechar</span>
-        </div>
-      </div>
-    </div>
 
     <!-- Modal de confirmação reutilizável -->
     <div class="modal confirm-modal hidden" id="confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
