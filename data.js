@@ -335,5 +335,59 @@ window.SpunflexData = {
       title: "Pedidos de maio separados do faturamento",
       detail: "A imagem de entrada de pedidos em 05/05/2026 soma R$ 73.188,14 e 3.474,02 kg. O sistema trata esse dado como carteira captada do dia, separado do faturamento por DataEmissao."
     }
-  ]
+  ],
+
+  // -------------- PRODUTOS / MIX (derivado das NFs 05-07/05) --------------
+  productMix2026: {
+    period: { startDate: "2026-05-05", endDate: "2026-05-07" },
+    items: [
+      { description: "NTLD 1400MM PRETO 60GR 350MT",   line: "NTLD", width: 1400, color: "PRETO",          grammage: 60,  weightKg: 3310.10, revenue: 48730.87, pricePerKg: 14.72 },
+      { description: "NTLD 1400MM PRETO 40GR 350MT",   line: "NTLD", width: 1400, color: "PRETO",          grammage: 40,  weightKg: 1509.20, revenue: 30033.08, pricePerKg: 19.90 },
+      { description: "NTLD 1400MM PRETO 120GR 200MT",  line: "NTLD", width: 1400, color: "PRETO",          grammage: 120, weightKg: 1512.00, revenue: 22663.20, pricePerKg: 14.99 },
+      { description: "NTEI 1400MM BRANCO A4 40GR 2500MT", line: "NTEI", width: 1400, color: "BRANCO",       grammage: 40,  weightKg: 980.00,  revenue: 20295.80, pricePerKg: 20.71 },
+      { description: "NTED 1400MM PRETO 45GR 1000MT",  line: "NTED", width: 1400, color: "PRETO",          grammage: 45,  weightKg: 1260.00, revenue: 18396.00, pricePerKg: 14.60 },
+      { description: "NTLD 1400MM BRANCO 60GR 350MT",  line: "NTLD", width: 1400, color: "BRANCO",         grammage: 60,  weightKg: 848.40,  revenue: 16883.16, pricePerKg: 19.90 },
+      { description: "NTLD 2100MM PRETO 100GR 250MT",  line: "NTLD", width: 2100, color: "PRETO",          grammage: 100, weightKg: 833.70,  revenue: 14664.78, pricePerKg: 17.59 },
+      { description: "NTLD 1400MM BRANCO 40GR 350MT",  line: "NTLD", width: 1400, color: "BRANCO",         grammage: 40,  weightKg: 705.60,  revenue: 14041.44, pricePerKg: 19.90 },
+      { description: "NTED 420MM PRETO 45GR 2000MT",   line: "NTED", width: 420,  color: "PRETO",          grammage: 45,  weightKg: 937.44,  revenue: 13686.62, pricePerKg: 14.60 },
+      { description: "NTLD 1400MM BRANCO 120GR 200MT", line: "NTLD", width: 1400, color: "BRANCO",         grammage: 120, weightKg: 833.28,  revenue: 12749.18, pricePerKg: 15.30 },
+      { description: "NTED 2100MM PRETO 40GR 500MT",   line: "NTED", width: 2100, color: "PRETO",          grammage: 40,  weightKg: 504.00,  revenue: 8865.36,  pricePerKg: 17.59 },
+      { description: "NTEI 280MM PRETO 45GR 2000MT",   line: "NTEI", width: 280,  color: "PRETO",          grammage: 45,  weightKg: 598.50,  revenue: 8738.10,  pricePerKg: 14.60 },
+      { description: "NTEI 1400MM PRETO 35GR 1000MT",  line: "NTEI", width: 1400, color: "PRETO",          grammage: 35,  weightKg: 291.21,  revenue: 6790.95,  pricePerKg: 23.32 },
+      { description: "NTLD 2100MM BRANCO 12GR 2000MT", line: "NTLD", width: 2100, color: "BRANCO",         grammage: 12,  weightKg: 252.00,  revenue: 4433.10,  pricePerKg: 17.59 },
+      { description: "NTLD 1400MM BRANCO 30GR 750MT",  line: "NTLD", width: 1400, color: "BRANCO",         grammage: 30,  weightKg: 245.95,  revenue: 3590.90,  pricePerKg: 14.60 },
+      { description: "NTLD 1400MM PRETO 100GR 200MT",  line: "NTLD", width: 1400, color: "PRETO",          grammage: 100, weightKg: 140.00,  revenue: 2786.00,  pricePerKg: 19.90 },
+      { description: "TNT MARROM 40GR",                line: "TNT",  width: 1400, color: "MARROM",         grammage: 40,  weightKg: 60.00,   revenue: 1673.25,  pricePerKg: 27.89 },
+      { description: "TNT AZUL BABY 40GR",             line: "TNT",  width: 1400, color: "AZUL BABY",      grammage: 40,  weightKg: 60.00,   revenue: 1673.25,  pricePerKg: 27.89 },
+      { description: "TNT VERDE BANDEIRA 40GR",        line: "TNT",  width: 1400, color: "VERDE BANDEIRA", grammage: 40,  weightKg: 50.00,   revenue: 1394.38,  pricePerKg: 27.89 },
+      { description: "TNT PRETO 40GR",                 line: "TNT",  width: 1400, color: "PRETO",          grammage: 40,  weightKg: 42.00,   revenue: 1171.27,  pricePerKg: 27.89 },
+      { description: "TNT PINK 40GR",                  line: "TNT",  width: 1400, color: "PINK",           grammage: 40,  weightKg: 28.00,   revenue: 780.85,   pricePerKg: 27.89 },
+      { description: "TNT AZUL ROYAL 40GR",            line: "TNT",  width: 1400, color: "AZUL ROYAL",     grammage: 40,  weightKg: 10.00,   revenue: 278.88,   pricePerKg: 27.89 }
+    ]
+  },
+
+  // -------------- AGRUPAMENTO ECONÔMICO DE CLIENTES --------------
+  // Mapeia razões sociais para um grupo único (mesmo CNPJ raiz).
+  customerGroups: {
+    "PASSALACQUA & CIA": "Grupo Passalacqua",
+    "PASSALACQUA CIA SP": "Grupo Passalacqua",
+    "PASSALACQUA CIA MG": "Grupo Passalacqua"
+  },
+
+  // -------------- CONFIGURAÇÃO OPERACIONAL PADRÃO --------------
+  // Valores iniciais; o admin pode editar pela aba Configurações
+  // e a alteração é persistida em localStorage.
+  defaultConfig: {
+    costPerKg: 12.50,              // R$/kg de custo médio estimado da matéria-prima + produção
+    fixedCostMonthly: 1800000,     // R$/mês de custo fixo da operação (estimativa inicial)
+    commissionPercent: 0.05,       // 5% comissão padrão sobre representante externo
+    machineCapacityKg: {
+      "Corte 1": 200000,           // capacidade nominal kg/mês
+      "Corte 2": 300000,
+      "Rebobinadeira": 50000
+    },
+    monthlyTargetKg: 450000,       // meta mensal padrão
+    monthlyTargetRevenue: 8000000, // meta mensal padrão de faturamento (acima do recorde de abril)
+    abcThresholds: { a: 0.50, b: 0.80 } // 50% Top = A; até 80% = B; restante = C
+  }
 };

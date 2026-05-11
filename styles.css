@@ -1388,7 +1388,8 @@ h3 {
 }
 
 .goal-form input,
-.search-input {
+.search-input,
+.control-row select {
   min-height: 42px;
   width: 100%;
   border: 1.5px solid var(--line);
@@ -1397,6 +1398,18 @@ h3 {
   color: var(--ink);
   background: var(--surface);
   transition: border-color 0.18s var(--ease), box-shadow 0.18s var(--ease);
+}
+
+.control-row select {
+  width: auto;
+  min-width: 200px;
+  cursor: pointer;
+}
+
+.control-row select:focus {
+  outline: none;
+  border-color: var(--brand-cyan);
+  box-shadow: 0 0 0 4px rgba(16, 183, 220, 0.14);
 }
 
 .goal-form input:focus,

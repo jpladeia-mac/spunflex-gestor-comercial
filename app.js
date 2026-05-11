@@ -12,8 +12,130 @@ const STORAGE_KEYS = {
   currentUser: "spunflex.currentUser",
   users: "spunflex.users.v1",
   accessLogs: "spunflex.accessLogs.v1",
-  seedFlag: "spunflex.seed.team.v1"
+  seedFlag: "spunflex.seed.team.v1",
+  config: "spunflex.config.v1",
+  backlog: "spunflex.backlog.v1"
 };
+
+// ---- Configuração operacional (custo, capacidade, metas) persistida no navegador ----
+function getConfig() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.config) || "null");
+    return { ...data.defaultConfig, ...(stored || {}) };
+  } catch {
+    return { ...data.defaultConfig };
+  }
+}
+
+function saveConfig(partial) {
+  const merged = { ...getConfig(), ...partial };
+  try {
+    localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(merged));
+    return merged;
+  } catch (e) {
+    showToast("Erro ao salvar", "Não foi possível salvar a configuração.", "error");
+    return merged;
+  }
+}
+
+// ---- Carteira (pedidos em aberto) persistida no navegador ----
+function getBacklog() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.backlog) || "[]");
+    return Array.isArray(stored) ? stored : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveBacklog(list) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.backlog, JSON.stringify(list));
+    return true;
+  } catch (e) {
+    showToast("Erro ao salvar", "Não foi possível salvar a carteira.", "error");
+    return false;
+  }
+}
+
+// ---- Helpers de produtos e clientes ----
+function customerGroup(name) {
+  if (!name) return "—";
+  // Lookup exato
+  if (data.customerGroups?.[name]) return data.customerGroups[name];
+  // Tenta detectar palavras-chave (caso o nome venha com pequenas variações)
+  const upper = name.toUpperCase();
+  for (const key of Object.keys(data.customerGroups || {})) {
+    if (upper.includes(key)) return data.customerGroups[key];
+  }
+  return name;
+}
+
+function customerAggregates() {
+  // Consolida vendas (mayInvoices2026) por cliente: kg, revenue, NFs, dias, R$/kg
+  const may = data.mayInvoices2026;
+  if (!may?.invoices) return [];
+  const map = new Map();
+  may.invoices.forEach((inv) => {
+    const group = customerGroup(inv.client);
+    const key = group;
+    if (!map.has(key)) {
+      map.set(key, {
+        group,
+        members: new Set(),
+        weightKg: 0,
+        revenue: 0,
+        invoices: 0,
+        days: new Set(),
+        representatives: new Set(),
+        states: new Set(),
+        cities: new Set(),
+        lastDate: null
+      });
+    }
+    const agg = map.get(key);
+    agg.members.add(inv.client);
+    agg.weightKg += inv.weightKg;
+    agg.revenue += inv.revenue;
+    agg.invoices += 1;
+    agg.days.add(inv.date);
+    agg.representatives.add(inv.representative);
+    agg.states.add(inv.state);
+    agg.cities.add(`${inv.city}/${inv.state}`);
+    if (!agg.lastDate || inv.date > agg.lastDate) agg.lastDate = inv.date;
+  });
+  return [...map.values()].map((agg) => ({
+    ...agg,
+    members: [...agg.members],
+    days: agg.days.size,
+    representatives: [...agg.representatives],
+    states: [...agg.states],
+    cities: [...agg.cities],
+    pricePerKg: agg.weightKg ? agg.revenue / agg.weightKg : 0,
+    avgTicket: agg.invoices ? agg.revenue / agg.invoices : 0
+  })).sort((a, b) => b.revenue - a.revenue);
+}
+
+function abcClassify(items, key = "revenue") {
+  // Aplica curva ABC com base nos thresholds da config
+  const total = items.reduce((sum, item) => sum + (item[key] || 0), 0);
+  const thresholds = getConfig().abcThresholds;
+  const sorted = [...items].sort((a, b) => (b[key] || 0) - (a[key] || 0));
+  let acc = 0;
+  return sorted.map((item) => {
+    acc += item[key] || 0;
+    const cumShare = total ? acc / total : 0;
+    let category = "C";
+    if (cumShare <= thresholds.a) category = "A";
+    else if (cumShare <= thresholds.b) category = "B";
+    return { ...item, cumShare, abc: category, share: total ? (item[key] || 0) / total : 0 };
+  });
+}
+
+function stateName(uf) {
+  const names = { AC:"Acre", AL:"Alagoas", AP:"Amapá", AM:"Amazonas", BA:"Bahia", CE:"Ceará", DF:"Distrito Federal", ES:"Espírito Santo", GO:"Goiás", MA:"Maranhão", MT:"Mato Grosso", MS:"Mato Grosso do Sul", MG:"Minas Gerais", PA:"Pará", PB:"Paraíba", PR:"Paraná", PE:"Pernambuco", PI:"Piauí", RJ:"Rio de Janeiro", RN:"Rio Grande do Norte", RS:"Rio Grande do Sul", RO:"Rondônia", RR:"Roraima", SC:"Santa Catarina", SP:"São Paulo", SE:"Sergipe", TO:"Tocantins" };
+  return names[uf] || uf;
+}
 
 // Equipe inicial pré-cadastrada: senhas hash SHA-256. O admin pode editar
 // nome, senha ou permissões a qualquer momento na aba Administração.
@@ -30,7 +152,11 @@ const VIEW_DEFINITIONS = [
   { id: "overview", label: "Dashboard" },
   { id: "invoices", label: "Notas Fiscais" },
   { id: "sales", label: "Vendas" },
+  { id: "customers", label: "Clientes" },
+  { id: "products", label: "Produtos" },
   { id: "representatives", label: "Representantes" },
+  { id: "operations", label: "Operação" },
+  { id: "backlog", label: "Carteira" },
   { id: "goals", label: "Metas" },
   { id: "entries", label: "Entradas" },
   { id: "finance", label: "Financeiro" },
@@ -73,7 +199,8 @@ const state = {
   repQuery: "",
   entryMetric: "totalValue",
   lastCreatedAccess: null,
-  editingUserId: null
+  editingUserId: null,
+  invoiceFilters: { rep: "all", state: "all", machine: "all" }
 };
 
 const app = document.querySelector("#app");
@@ -1066,6 +1193,109 @@ function handleClick(event) {
   const deleteUser = event.target.closest("[data-delete-user]");
   if (deleteUser) {
     deleteAdminUser(deleteUser.dataset.deleteUser);
+    return;
+  }
+
+  // -------- Filtros NFs --------
+  const clearInvoiceFilter = event.target.closest('[data-invoice-filter="clear"]');
+  if (clearInvoiceFilter) {
+    state.invoiceFilters = { rep: "all", state: "all", machine: "all" };
+    render();
+    return;
+  }
+
+  // -------- Configurações operacionais --------
+  const saveConfigBtn = event.target.closest("[data-save-config]");
+  if (saveConfigBtn) {
+    const field = saveConfigBtn.dataset.saveConfig;
+    const config = getConfig();
+    let value;
+    let partial = {};
+    if (field === "costPerKg") {
+      value = Number(document.querySelector("#config-cost").value);
+      if (!Number.isFinite(value) || value < 0) {
+        showToast("Valor inválido", "Informe um número positivo.", "error");
+        return;
+      }
+      partial = { costPerKg: value };
+    } else if (field === "fixedCostMonthly") {
+      value = Number(document.querySelector("#config-fixed-cost").value);
+      if (!Number.isFinite(value) || value < 0) return;
+      partial = { fixedCostMonthly: value };
+    } else if (field === "monthlyTargetKg") {
+      value = Number(document.querySelector("#config-target-kg").value);
+      if (!Number.isFinite(value) || value <= 0) return;
+      partial = { monthlyTargetKg: value };
+    } else if (field.startsWith("capacity-")) {
+      const machine = field.replace("capacity-", "");
+      const inputId = machine === "Corte 1" ? "#config-cap-corte1" : machine === "Corte 2" ? "#config-cap-corte2" : "#config-cap-rebo";
+      value = Number(document.querySelector(inputId).value);
+      if (!Number.isFinite(value) || value < 0) return;
+      partial = { machineCapacityKg: { ...config.machineCapacityKg, [machine]: value } };
+    }
+    saveConfig(partial);
+    showToast("Configuração salva", `Atualização aplicada em todo o sistema.`, "success", 2400);
+    render();
+    return;
+  }
+
+  // -------- Carteira (backlog) --------
+  const addBacklog = event.target.closest("#add-backlog");
+  if (addBacklog) {
+    const client = document.querySelector("#backlog-client")?.value.trim();
+    const rep = document.querySelector("#backlog-rep")?.value.trim();
+    const weightKg = Number(document.querySelector("#backlog-weight")?.value);
+    const revenue = Number(document.querySelector("#backlog-revenue")?.value);
+    const date = document.querySelector("#backlog-date")?.value;
+    const promised = document.querySelector("#backlog-promised")?.value;
+    const notes = document.querySelector("#backlog-notes")?.value.trim();
+
+    if (!client || !Number.isFinite(weightKg) || weightKg <= 0 || !Number.isFinite(revenue) || revenue <= 0) {
+      showToast("Dados incompletos", "Informe cliente, peso e valor (positivos).", "error");
+      return;
+    }
+
+    const newOrder = {
+      id: `P${Date.now().toString().slice(-6)}`,
+      client, representative: rep, weightKg, revenue,
+      date: date || new Date().toISOString().slice(0, 10),
+      promisedDate: promised || null,
+      notes: notes || "",
+      status: "aberto",
+      createdAt: new Date().toISOString()
+    };
+    const list = [...getBacklog(), newOrder];
+    if (saveBacklog(list)) {
+      showToast("Pedido cadastrado", `${client}: ${formatBRL(revenue)} adicionado à carteira.`, "success", 2400);
+      ["#backlog-client", "#backlog-rep", "#backlog-weight", "#backlog-revenue", "#backlog-promised", "#backlog-notes"].forEach((sel) => {
+        const el = document.querySelector(sel);
+        if (el) el.value = "";
+      });
+      render();
+    }
+    return;
+  }
+
+  const toggleBacklog = event.target.closest("[data-toggle-backlog]");
+  if (toggleBacklog) {
+    const id = toggleBacklog.dataset.toggleBacklog;
+    const list = getBacklog().map((o) => o.id === id ? { ...o, status: o.status === "entregue" ? "aberto" : "entregue" } : o);
+    if (saveBacklog(list)) {
+      showToast("Status atualizado", "Pedido atualizado na carteira.", "success", 1800);
+      render();
+    }
+    return;
+  }
+
+  const deleteBacklog = event.target.closest("[data-delete-backlog]");
+  if (deleteBacklog) {
+    const id = deleteBacklog.dataset.deleteBacklog;
+    const list = getBacklog().filter((o) => o.id !== id);
+    if (saveBacklog(list)) {
+      showToast("Pedido excluído", "Removido da carteira.", "warning", 1800);
+      render();
+    }
+    return;
   }
 }
 
@@ -1073,6 +1303,15 @@ function handleInput(event) {
   if (event.target.matches("#rep-search")) {
     state.repQuery = event.target.value;
     renderRepresentativesList();
+    return;
+  }
+
+  // Filtros de NFs (selects)
+  const invoiceFilter = event.target.closest("[data-invoice-filter]");
+  if (invoiceFilter && invoiceFilter.tagName === "SELECT") {
+    const key = invoiceFilter.dataset.invoiceFilter;
+    state.invoiceFilters = { ...state.invoiceFilters, [key]: invoiceFilter.value };
+    render();
   }
 }
 
@@ -1171,7 +1410,11 @@ function render() {
     overview: "Dashboard Estratégico",
     invoices: "Notas Fiscais",
     sales: "Vendas",
+    customers: "Clientes",
+    products: "Produtos",
     representatives: "Representantes",
+    operations: "Operação",
+    backlog: "Carteira",
     goals: "Metas",
     entries: "Entradas",
     finance: "Financeiro",
@@ -1187,7 +1430,11 @@ function render() {
     overview: renderOverview,
     invoices: renderInvoices,
     sales: renderSales,
+    customers: renderCustomers,
+    products: renderProducts,
     representatives: renderRepresentatives,
+    operations: renderOperations,
+    backlog: renderBacklog,
     goals: renderGoals,
     entries: renderEntries,
     finance: renderFinance,
@@ -1253,6 +1500,13 @@ function renderOverview() {
   const mayTargetRevenue = mayRevenueTarget;
   const mayTargetProgress = mayBilling.weightKg / mayTargetKg;
   const mayEndLabel = mayEndDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+
+  // Margem (usa custo R$/kg configurado)
+  const config = getConfig();
+  const costPerKg = config.costPerKg;
+  const mayCostTotal = mayBilling.weightKg * costPerKg;
+  const mayGrossMargin = mayBilling.revenue - mayCostTotal;
+  const mayGrossMarginPct = mayBilling.revenue ? mayGrossMargin / mayBilling.revenue : 0;
 
   const mayOperationRows = [
     {
@@ -1368,9 +1622,9 @@ function renderOverview() {
         </div>
         <div class="section-grid" style="gap:14px">
           ${kpiCard("Faturamento maio", formatBRL(mayBilling.revenue), `${formatKg(mayBilling.weightKg, 2)} · R$ ${(mayBilling.revenue / mayBilling.weightKg).toFixed(2)}/kg`, "green")}
-          ${kpiCard("Entradas de pedido", formatBRL(mayOrders.merchandiseValue), `${formatKg(mayOrders.weightKg, 2)} captados em ${new Date(mayOrders.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`, "blue")}
-          ${kpiCard("Carteira a entregar", formatBRL(backlogRevenueEstimate), `${formatKg(backlogKgEstimate, 2)} em pedidos abertos (atualizar conforme novos pedidos)`, "amber")}
-          ${kpiCard("Saldo p/ meta de R$", formatBRL(Math.max(mayTargetRevenue - mayBilling.revenue, 0)), `Meta sugerida ${formatBRL(mayTargetRevenue, 0)} (450t · preço de abril)`, "red")}
+          ${kpiCard("Margem bruta estimada", formatBRL(mayGrossMargin), `${formatPercent(mayGrossMarginPct)} sobre receita · custo R$ ${costPerKg.toFixed(2)}/kg`, "blue")}
+          ${kpiCard("Entradas de pedido", formatBRL(mayOrders.merchandiseValue), `${formatKg(mayOrders.weightKg, 2)} captados em ${new Date(mayOrders.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`, "amber")}
+          ${kpiCard("Saldo p/ meta de R$", formatBRL(Math.max(mayTargetRevenue - mayBilling.revenue, 0)), `Meta sugerida ${formatBRL(mayTargetRevenue, 0)} (${formatKg(mayTargetKg, 0)} · preço de abril)`, "red")}
         </div>
       </article>
 
@@ -1530,6 +1784,36 @@ function renderInvoices() {
     `;
   }
 
+  // Aplica filtros do state
+  const filters = state.invoiceFilters || { rep: "all", state: "all", machine: "all" };
+  const filterFn = (inv) =>
+    (filters.rep === "all" || inv.representative === filters.rep) &&
+    (filters.state === "all" || inv.state === filters.state) &&
+    (filters.machine === "all" || inv.machines.includes(filters.machine));
+
+  const allInvoices = may.invoices;
+  const filteredInvoices = allInvoices.filter(filterFn);
+  const reps = [...new Set(allInvoices.map((i) => i.representative))].sort();
+  const states = [...new Set(allInvoices.map((i) => i.state))].sort();
+  const machines = [...new Set(allInvoices.flatMap((i) => i.machines))].sort();
+  const filteredTotals = filteredInvoices.reduce((acc, i) => {
+    acc.revenue += i.revenue;
+    acc.weightKg += i.weightKg;
+    return acc;
+  }, { revenue: 0, weightKg: 0 });
+
+  // Agrupamento por cliente (grupo econômico) sobre o filtro atual
+  const byClient = new Map();
+  filteredInvoices.forEach((inv) => {
+    const group = customerGroup(inv.client);
+    if (!byClient.has(group)) byClient.set(group, { group, weightKg: 0, revenue: 0, invoices: 0 });
+    const agg = byClient.get(group);
+    agg.weightKg += inv.weightKg;
+    agg.revenue += inv.revenue;
+    agg.invoices += 1;
+  });
+  const clientGroupRows = [...byClient.values()].sort((a, b) => b.revenue - a.revenue);
+
   const dailyRows = may.daily.map((day) => {
     const dt = new Date(day.date + "T12:00:00");
     const label = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
@@ -1545,23 +1829,25 @@ function renderInvoices() {
     `;
   }).join("");
 
-  const invoiceRows = [...may.invoices]
+  const invoiceRows = [...filteredInvoices]
     .sort((a, b) => (a.date === b.date ? Number(a.number) - Number(b.number) : a.date.localeCompare(b.date)))
     .map((inv) => {
       const dt = new Date(inv.date + "T12:00:00");
       const label = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-      const machines = inv.machines.join(" + ");
+      const machinesStr = inv.machines.join(" + ");
       const pricePerKg = inv.weightKg ? inv.revenue / inv.weightKg : 0;
       const priceTone = pricePerKg >= may.totals.avgPrice
         ? "color:var(--success);font-weight:700"
         : "color:var(--amber);font-weight:700";
+      const group = customerGroup(inv.client);
+      const groupTag = group !== inv.client ? `<br><small style="color:var(--brand-cyan-deep);font-weight:700">${escapeHtml(group)}</small>` : "";
       return `
         <tr>
           <td><strong>${inv.number}</strong></td>
           <td>${label}</td>
-          <td>${inv.client}<br><small style="color:var(--muted)">${inv.city}/${inv.state}</small></td>
-          <td>${inv.representative}</td>
-          <td>${machines}</td>
+          <td>${escapeHtml(inv.client)}${groupTag}<br><small style="color:var(--muted)">${inv.city}/${inv.state}</small></td>
+          <td>${escapeHtml(inv.representative)}</td>
+          <td>${machinesStr}</td>
           <td>${formatKg(inv.weightKg, 2)}</td>
           <td>${formatBRL(inv.revenue)}</td>
           <td style="${priceTone}">${formatBRL(pricePerKg)}/kg</td>
@@ -1621,6 +1907,67 @@ function renderInvoices() {
       <article class="panel span-12">
         <div class="panel-header">
           <div>
+            <h2>Filtros</h2>
+            <p>Refine a lista por representante, estado ou máquina.</p>
+          </div>
+          ${filters.rep !== "all" || filters.state !== "all" || filters.machine !== "all" ? `<button class="ghost-button" type="button" data-invoice-filter="clear">Limpar filtros</button>` : ""}
+        </div>
+        <div class="control-row">
+          <select data-invoice-filter="rep">
+            <option value="all" ${filters.rep === "all" ? "selected" : ""}>Todos os representantes</option>
+            ${reps.map(r => `<option value="${escapeHtml(r)}" ${filters.rep === r ? "selected" : ""}>${escapeHtml(r)}</option>`).join("")}
+          </select>
+          <select data-invoice-filter="state">
+            <option value="all" ${filters.state === "all" ? "selected" : ""}>Todos os estados</option>
+            ${states.map(s => `<option value="${s}" ${filters.state === s ? "selected" : ""}>${s}</option>`).join("")}
+          </select>
+          <select data-invoice-filter="machine">
+            <option value="all" ${filters.machine === "all" ? "selected" : ""}>Todas as máquinas</option>
+            ${machines.map(m => `<option value="${escapeHtml(m)}" ${filters.machine === m ? "selected" : ""}>${escapeHtml(m)}</option>`).join("")}
+          </select>
+          <span class="status-pill blue" style="margin-left:auto">${filteredInvoices.length}/${allInvoices.length} NFs · ${formatBRL(filteredTotals.revenue)} · ${formatKg(filteredTotals.weightKg, 2)}</span>
+        </div>
+      </article>
+
+      ${clientGroupRows.length > 1 ? `
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Agrupamento por cliente / grupo econômico</h2>
+            <p>Razões sociais do mesmo grupo são somadas (ex.: Passalacqua Franca/Londrina/SP/MG = 1 grupo).</p>
+          </div>
+        </div>
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Grupo / Cliente</th>
+                <th>NFs</th>
+                <th>Peso</th>
+                <th>Faturamento</th>
+                <th>R$/kg</th>
+                <th>Participação</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${clientGroupRows.map(c => `
+                <tr>
+                  <td style="text-align:left"><strong>${escapeHtml(c.group)}</strong></td>
+                  <td>${c.invoices}</td>
+                  <td>${formatKg(c.weightKg, 2)}</td>
+                  <td>${formatBRL(c.revenue)}</td>
+                  <td>${formatBRL(c.revenue / c.weightKg)}/kg</td>
+                  <td>${formatPercent(c.revenue / filteredTotals.revenue)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </article>` : ""}
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
             <h2>Lista completa de NFs</h2>
             <p>Cada nota com cliente, representante, máquina, peso e valor.</p>
           </div>
@@ -1642,10 +1989,10 @@ function renderInvoices() {
             <tbody>${invoiceRows}</tbody>
             <tfoot>
               <tr>
-                <td colspan="5"><strong>Total / Média</strong></td>
-                <td>${formatKg(may.totals.weightKg, 2)}</td>
-                <td>${formatBRL(may.totals.revenue)}</td>
-                <td>${formatBRL(may.totals.avgPrice)}/kg</td>
+                <td colspan="5"><strong>${filteredInvoices.length === allInvoices.length ? "Total / Média" : "Filtrado / Média"}</strong></td>
+                <td>${formatKg(filteredTotals.weightKg, 2)}</td>
+                <td>${formatBRL(filteredTotals.revenue)}</td>
+                <td>${filteredTotals.weightKg ? formatBRL(filteredTotals.revenue / filteredTotals.weightKg) : "-"}/kg</td>
               </tr>
             </tfoot>
           </table>
@@ -1766,6 +2113,26 @@ function renderSales() {
       <article class="panel span-12">
         <div class="panel-header">
           <div>
+            <h2>Sazonalidade mensal · 2023 → 2026</h2>
+            <p>Compare o mesmo mês entre anos. Mês destacado em <strong style="color:var(--brand-cyan-deep)">cyan</strong>: 2026 acima do ano anterior.</p>
+          </div>
+        </div>
+        ${seasonalityTable(state.metric)}
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Decomposição preço × volume · 2025 vs 2026</h2>
+            <p>Quanto do crescimento veio de peso e quanto veio de preço.</p>
+          </div>
+        </div>
+        ${priceVolumeDecomposition()}
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
             <h2>Tabela mensal - ${metricLabel}</h2>
             <p>Valores digitados a partir da tabela histórica.</p>
           </div>
@@ -1773,6 +2140,71 @@ function renderSales() {
         ${pivotTable(state.metric)}
       </article>
     </div>
+  `;
+}
+
+function seasonalityTable(metric) {
+  const years = [2023, 2024, 2025, 2026];
+  const rows = months.map((month) => {
+    const cells = years.map((year) => {
+      const record = salesRecord(year, month.id);
+      const prev = year > 2023 ? salesRecord(year - 1, month.id) : null;
+      if (!record) return `<td>-</td>`;
+      const value = formatMetric(record[metric], metric, year);
+      const yoy = prev ? change(record[metric], prev[metric]) : null;
+      let badge = "";
+      if (yoy !== null) {
+        const cls = yoy >= 0 ? "comparison-positive" : "comparison-negative";
+        badge = `<br><small class="${cls}">${yoy >= 0 ? "+" : ""}${formatPercent(yoy)}</small>`;
+      }
+      const partialTag = record.partial ? `<br><small style="color:var(--amber)">parcial</small>` : "";
+      return `<td>${value}${badge}${partialTag}</td>`;
+    }).join("");
+    return `<tr><td><strong>${month.name}</strong></td>${cells}</tr>`;
+  }).join("");
+
+  return `
+    <div class="data-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left">Mês</th>
+            ${years.map((y) => `<th>${y}<br><small style="color:var(--muted)">YoY</small></th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function priceVolumeDecomposition() {
+  const t2025 = totalSales(2025, 4);
+  const t2026 = totalSales(2026, 4);
+  const price2025 = t2025.revenue / t2025.weightKg;
+  const price2026 = t2026.revenue / t2026.weightKg;
+
+  // Decomposição: efeito volume = (kg2026 - kg2025) * preço2025; efeito preço = (preço2026 - preço2025) * kg2026
+  const volumeEffect = (t2026.weightKg - t2025.weightKg) * price2025;
+  const priceEffect = (price2026 - price2025) * t2026.weightKg;
+  const totalDelta = t2026.revenue - t2025.revenue;
+  const volPct = totalDelta ? volumeEffect / totalDelta : 0;
+  const priPct = totalDelta ? priceEffect / totalDelta : 0;
+
+  return `
+    <div class="section-grid" style="gap:14px">
+      ${kpiCard("Receita jan-abr 2025", formatBRL(t2025.revenue, 0), `${formatKg(t2025.weightKg)} · R$ ${price2025.toFixed(2)}/kg`, "blue")}
+      ${kpiCard("Receita jan-abr 2026", formatBRL(t2026.revenue), `${formatKg(t2026.weightKg)} · R$ ${price2026.toFixed(2)}/kg`, "green")}
+      ${kpiCard("Efeito volume", formatBRL(volumeEffect, 0), `${formatPercent(volPct)} do crescimento`, volumeEffect >= 0 ? "green" : "red")}
+      ${kpiCard("Efeito preço", formatBRL(priceEffect, 0), `${formatPercent(priPct)} do crescimento`, priceEffect >= 0 ? "green" : "red")}
+    </div>
+    <p style="margin: 14px 2px 0; font-size: 0.86rem; color: var(--muted);">
+      <strong>Leitura:</strong> jan-abr/2026 está ${formatBRL(totalDelta)} acima de 2025.
+      ${volumeEffect >= 0 ? `Volume ${formatPercent(volPct)} contribuiu` : `Volume PERDEU ${formatPercent(Math.abs(volPct))}`}
+      e
+      ${priceEffect >= 0 ? `preço ${formatPercent(priPct)}` : `preço CAIU ${formatPercent(Math.abs(priPct))}`}.
+      ${priceEffect < 0 ? "<strong style='color:var(--red)'>Atenção: preço médio caiu</strong> — pressão de desconto ou mix com menor R$/kg." : "Preço se manteve ou subiu — bom sinal."}
+    </p>
   `;
 }
 
@@ -1951,12 +2383,42 @@ function renderFinance() {
     ? new Date(mayPartial.partialThrough + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
     : "";
 
+  const config = getConfig();
+  const cmvYtd = ytd.weightKg * config.costPerKg;
+  const grossMarginYtd = ytd.revenue - cmvYtd;
+  const grossMarginPctYtd = ytd.revenue ? grossMarginYtd / ytd.revenue : 0;
+  const fixedMonthly = config.fixedCostMonthly;
+  const fixedYtd = fixedMonthly * throughMonth;
+  const ebitdaYtd = grossMarginYtd - fixedYtd;
+  const ebitdaPctYtd = ytd.revenue ? ebitdaYtd / ytd.revenue : 0;
+  const breakEvenKg = config.costPerKg > 0 ? fixedMonthly / ((ytd.revenue / ytd.weightKg) - config.costPerKg) : 0;
+
   return `
     <div class="section-grid">
       ${kpiCard("Faturamento 2023", formatBRL(totalSales(2023).revenue, 0), `${formatKg(totalSales(2023).weightKg)} vendidos`, "blue")}
       ${kpiCard("Faturamento 2024", formatBRL(totalSales(2024).revenue, 0), `${formatPercent(change(totalSales(2024).revenue, totalSales(2023).revenue))} vs 2023`, "green")}
       ${kpiCard("Faturamento 2025", formatBRL(total2025.revenue, 0), `${formatPercent(change(total2025.revenue, totalSales(2024).revenue))} vs 2024`, "amber")}
       ${kpiCard("Parcial 2026", formatBRL(ytdWithPartial.revenue), `Projeção linear ${formatBRL(forecast)}${mayPartial ? ` · inclui maio parcial até ${partialThroughLabel}` : ""}`, "red")}
+
+      <article class="panel span-12 management-hero">
+        <div class="panel-header">
+          <div>
+            <h2>P&L estimado · jan-abr 2026</h2>
+            <p>Demonstrativo simplificado usando custo R$/kg e custo fixo mensal configurados em Operação.</p>
+          </div>
+          <span class="status-pill ${grossMarginPctYtd >= 0.3 ? '' : 'amber'}">Margem ${formatPercent(grossMarginPctYtd)}</span>
+        </div>
+        <div class="section-grid" style="gap:14px">
+          ${kpiCard("Receita bruta", formatBRL(ytd.revenue), `${formatKg(ytd.weightKg)} faturados`, "green")}
+          ${kpiCard("CMV (custo variável)", formatBRL(cmvYtd, 0), `${formatKg(ytd.weightKg)} × R$ ${config.costPerKg.toFixed(2)}/kg`, "amber")}
+          ${kpiCard("Margem bruta", formatBRL(grossMarginYtd, 0), `${formatPercent(grossMarginPctYtd)} sobre receita`, grossMarginPctYtd >= 0.3 ? "green" : "red")}
+          ${kpiCard("EBITDA estimado", formatBRL(ebitdaYtd, 0), `${formatPercent(ebitdaPctYtd)} · após R$ ${(fixedYtd / 1e6).toFixed(2)}MM fixos`, ebitdaYtd > 0 ? "blue" : "red")}
+        </div>
+        <p style="margin:14px 2px 0; font-size:0.84rem; color:var(--muted)">
+          <strong>Break-even mensal estimado:</strong> ${breakEvenKg > 0 ? `${formatKg(breakEvenKg)} (com R$/kg médio atual)` : "N/A"}.
+          Para alterar custo/kg ou custo fixo, vá em <strong>Operação → Configurações</strong>.
+        </p>
+      </article>
 
       <article class="panel span-5">
         <div class="panel-header">
@@ -1990,6 +2452,602 @@ function renderFinance() {
           </div>
         </div>
         ${financeTable()}
+      </article>
+    </div>
+  `;
+}
+
+// =================== CLIENTES ===================
+function renderCustomers() {
+  const customers = customerAggregates();
+  if (!customers.length) {
+    return `<div class="section-grid"><article class="panel span-12"><div class="empty-state">Sem clientes carregados ainda. Importe NFs para começar.</div></article></div>`;
+  }
+
+  const totals = customers.reduce((acc, c) => {
+    acc.revenue += c.revenue;
+    acc.weightKg += c.weightKg;
+    acc.invoices += c.invoices;
+    return acc;
+  }, { revenue: 0, weightKg: 0, invoices: 0 });
+
+  const classified = abcClassify(customers, "revenue");
+  const aCount = classified.filter((c) => c.abc === "A").length;
+  const bCount = classified.filter((c) => c.abc === "B").length;
+  const cCount = classified.filter((c) => c.abc === "C").length;
+  const top = classified[0];
+  const topShare = top.revenue / totals.revenue;
+
+  // Por estado
+  const byState = new Map();
+  customers.forEach((c) => {
+    c.states.forEach((uf) => {
+      if (!byState.has(uf)) byState.set(uf, { uf, revenue: 0, weightKg: 0, customers: 0 });
+      const agg = byState.get(uf);
+      agg.revenue += c.revenue / c.states.length;
+      agg.weightKg += c.weightKg / c.states.length;
+      agg.customers += 1;
+    });
+  });
+  const stateRows = [...byState.values()].sort((a, b) => b.revenue - a.revenue);
+
+  const refDate = data.mayInvoices2026?.period?.endDate || new Date().toISOString().slice(0, 10);
+  const refDateObj = new Date(refDate + "T12:00:00");
+
+  const tableRows = classified.map((c) => {
+    const daysSince = c.lastDate
+      ? Math.round((refDateObj - new Date(c.lastDate + "T12:00:00")) / 86400000)
+      : "-";
+    const statusLabel = daysSince <= 3 ? "Ativo" : daysSince <= 14 ? "Acompanhar" : "Inativo";
+    const statusClass = daysSince <= 3 ? "" : daysSince <= 14 ? "amber" : "red";
+    return `
+      <tr>
+        <td>
+          <span class="status-pill ${c.abc === 'A' ? '' : c.abc === 'B' ? 'amber' : 'red'}">${c.abc}</span>
+        </td>
+        <td>
+          <strong>${escapeHtml(c.group)}</strong>
+          ${c.members.length > 1 ? `<br><small style="color:var(--muted)">${c.members.length} razões sociais</small>` : ""}
+        </td>
+        <td>${escapeHtml(c.states.join(", "))}</td>
+        <td>${escapeHtml(c.representatives.join(", "))}</td>
+        <td>${c.invoices}</td>
+        <td>${formatKg(c.weightKg, 2)}</td>
+        <td>${formatBRL(c.revenue)}</td>
+        <td>${formatBRL(c.pricePerKg)}/kg</td>
+        <td>${formatBRL(c.avgTicket)}</td>
+        <td>${formatPercent(c.share)}<br><small style="color:var(--muted)">${formatPercent(c.cumShare)} acum.</small></td>
+        <td><span class="status-pill ${statusClass}">${statusLabel} (${daysSince}d)</span></td>
+      </tr>
+    `;
+  }).join("");
+
+  const stateBars = stateRows.map((s) => {
+    const w = Math.max(2, Math.round((s.revenue / totals.revenue) * 100));
+    return `
+      <div class="bar-row">
+        <div class="bar-label">${escapeHtml(stateName(s.uf))} (${s.uf})<br><small style="color:var(--muted)">${s.customers} cliente${s.customers > 1 ? "s" : ""}</small></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${w}%"></div></div>
+        <div class="bar-value">${formatBRL(s.revenue)}<br><small style="color:var(--muted)">${formatKg(s.weightKg, 2)}</small></div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="section-grid">
+      <article class="panel span-12 current-tracker">
+        <div class="panel-header">
+          <div>
+            <h2>Clientes · análise comercial</h2>
+            <p>Curva ABC, agrupamento por grupo econômico, recência e cobertura geográfica das NFs ${refDateObj.toLocaleDateString("pt-BR", { month: "long" })}/2026.</p>
+          </div>
+          <span class="status-pill blue">${customers.length} cliente${customers.length > 1 ? "s" : ""}</span>
+        </div>
+        <div class="section-grid" style="gap:14px">
+          ${kpiCard("Faturamento", formatBRL(totals.revenue), `${formatKg(totals.weightKg, 2)} · ${totals.invoices} NFs`, "green")}
+          ${kpiCard("Maior cliente", escapeHtml(top.group), `${formatPercent(topShare)} · ${formatBRL(top.revenue)}`, "amber")}
+          ${kpiCard("Pareto · classe A", `${aCount}`, `Top ${formatPercent(getConfig().abcThresholds.a)} = ${aCount} cliente${aCount > 1 ? "s" : ""}`, "blue")}
+          ${kpiCard("Cobertura geográfica", `${stateRows.length} UF${stateRows.length > 1 ? "s" : ""}`, stateRows.slice(0, 3).map(s => s.uf).join(" · "), "red")}
+        </div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Ranking ABC de clientes</h2>
+            <p>Ordenado por faturamento. <strong>A</strong> = Top ${formatPercent(getConfig().abcThresholds.a)} · <strong>B</strong> = até ${formatPercent(getConfig().abcThresholds.b)} · <strong>C</strong> = cauda longa.</p>
+          </div>
+          <span class="status-pill">A: ${aCount} · B: ${bCount} · C: ${cCount}</span>
+        </div>
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ABC</th>
+                <th style="text-align:left">Cliente / Grupo</th>
+                <th style="text-align:left">UF</th>
+                <th style="text-align:left">Representante</th>
+                <th>NFs</th>
+                <th>Peso</th>
+                <th>Faturamento</th>
+                <th>R$/kg</th>
+                <th>Ticket médio</th>
+                <th>Participação</th>
+                <th>Recência</th>
+              </tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </div>
+        <p style="margin: 10px 2px 0; font-size: 0.82rem; color: var(--muted);">
+          <strong>Recência</strong>: dias desde a última NF até ${refDateObj.toLocaleDateString("pt-BR")} ·
+          <span class="status-pill" style="margin:0 4px">≤3d Ativo</span>
+          <span class="status-pill amber" style="margin:0 4px">≤14d Acompanhar</span>
+          <span class="status-pill red" style="margin:0 4px">+14d Inativo</span>
+        </p>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Cobertura por estado</h2>
+            <p>Faturamento distribuído entre UFs com cliente faturado no período.</p>
+          </div>
+        </div>
+        <div class="bar-list">${stateBars}</div>
+      </article>
+    </div>
+  `;
+}
+
+// =================== PRODUTOS ===================
+function renderProducts() {
+  const items = data.productMix2026?.items || [];
+  if (!items.length) {
+    return `<div class="section-grid"><article class="panel span-12"><div class="empty-state">Sem produtos carregados ainda.</div></article></div>`;
+  }
+
+  const totals = items.reduce((acc, p) => {
+    acc.revenue += p.revenue;
+    acc.weightKg += p.weightKg;
+    return acc;
+  }, { revenue: 0, weightKg: 0 });
+
+  const classified = abcClassify(items, "revenue");
+
+  // Agrupamento por linha
+  const byLine = new Map();
+  items.forEach((p) => {
+    if (!byLine.has(p.line)) byLine.set(p.line, { line: p.line, weightKg: 0, revenue: 0, skus: 0 });
+    const agg = byLine.get(p.line);
+    agg.weightKg += p.weightKg;
+    agg.revenue += p.revenue;
+    agg.skus += 1;
+  });
+  const lineRows = [...byLine.values()].sort((a, b) => b.revenue - a.revenue);
+
+  // Por cor
+  const byColor = new Map();
+  items.forEach((p) => {
+    const key = p.color;
+    if (!byColor.has(key)) byColor.set(key, { color: p.color, weightKg: 0, revenue: 0 });
+    const agg = byColor.get(key);
+    agg.weightKg += p.weightKg;
+    agg.revenue += p.revenue;
+  });
+  const colorRows = [...byColor.values()].sort((a, b) => b.revenue - a.revenue);
+
+  // Por gramatura
+  const byGrammage = new Map();
+  items.forEach((p) => {
+    const key = p.grammage;
+    if (!byGrammage.has(key)) byGrammage.set(key, { grammage: p.grammage, weightKg: 0, revenue: 0, skus: 0 });
+    const agg = byGrammage.get(key);
+    agg.weightKg += p.weightKg;
+    agg.revenue += p.revenue;
+    agg.skus += 1;
+  });
+  const grammageRows = [...byGrammage.values()].sort((a, b) => a.grammage - b.grammage);
+
+  const skuRows = classified.map((p) => `
+    <tr>
+      <td><span class="status-pill ${p.abc === 'A' ? '' : p.abc === 'B' ? 'amber' : 'red'}">${p.abc}</span></td>
+      <td style="text-align:left">${escapeHtml(p.description)}</td>
+      <td>${escapeHtml(p.line)}</td>
+      <td>${escapeHtml(p.color)}</td>
+      <td>${p.grammage} g</td>
+      <td>${formatKg(p.weightKg, 2)}</td>
+      <td>${formatBRL(p.revenue)}</td>
+      <td>${formatBRL(p.pricePerKg)}/kg</td>
+      <td>${formatPercent(p.share)}</td>
+    </tr>
+  `).join("");
+
+  const lineBars = lineRows.map((l) => {
+    const w = Math.max(2, Math.round((l.revenue / totals.revenue) * 100));
+    const rkg = l.weightKg ? l.revenue / l.weightKg : 0;
+    return `
+      <div class="bar-row">
+        <div class="bar-label"><strong>${escapeHtml(l.line)}</strong><br><small style="color:var(--muted)">${l.skus} SKU${l.skus > 1 ? "s" : ""} · R$ ${rkg.toFixed(2)}/kg</small></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${w}%"></div></div>
+        <div class="bar-value">${formatBRL(l.revenue)}<br><small style="color:var(--muted)">${formatKg(l.weightKg, 2)}</small></div>
+      </div>
+    `;
+  }).join("");
+
+  const colorBars = colorRows.map((c) => {
+    const w = Math.max(2, Math.round((c.revenue / totals.revenue) * 100));
+    return `
+      <div class="bar-row">
+        <div class="bar-label">${escapeHtml(c.color)}</div>
+        <div class="bar-track"><div class="bar-fill blue" style="width:${w}%"></div></div>
+        <div class="bar-value">${formatBRL(c.revenue)}<br><small style="color:var(--muted)">${formatKg(c.weightKg, 2)}</small></div>
+      </div>
+    `;
+  }).join("");
+
+  const grammageBars = grammageRows.map((g) => {
+    const w = Math.max(2, Math.round((g.revenue / totals.revenue) * 100));
+    const rkg = g.weightKg ? g.revenue / g.weightKg : 0;
+    return `
+      <div class="bar-row">
+        <div class="bar-label">${g.grammage} g/m² <small style="color:var(--muted)">(${g.skus} SKUs)</small></div>
+        <div class="bar-track"><div class="bar-fill amber" style="width:${w}%"></div></div>
+        <div class="bar-value">${formatBRL(g.revenue)}<br><small style="color:var(--muted)">R$ ${rkg.toFixed(2)}/kg</small></div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="section-grid">
+      <article class="panel span-12 current-tracker">
+        <div class="panel-header">
+          <div>
+            <h2>Mix de produtos · maio</h2>
+            <p>Análise de SKUs vendidos por linha, cor e gramatura nas NFs 05/05 a 07/05.</p>
+          </div>
+          <span class="status-pill blue">${items.length} SKUs</span>
+        </div>
+        <div class="section-grid" style="gap:14px">
+          ${kpiCard("Faturamento", formatBRL(totals.revenue), `${formatKg(totals.weightKg, 2)}`, "green")}
+          ${kpiCard("Linhas ativas", `${lineRows.length}`, lineRows.map(l => l.line).join(" · "), "blue")}
+          ${kpiCard("R$/kg médio", formatBRL(totals.revenue / totals.weightKg), "Média ponderada", "amber")}
+          ${kpiCard("SKU mais vendido", escapeHtml(classified[0]?.description.split(" ").slice(0, 4).join(" ")), formatBRL(classified[0]?.revenue), "red")}
+        </div>
+      </article>
+
+      <article class="panel span-6">
+        <div class="panel-header">
+          <div>
+            <h2>Por linha</h2>
+            <p>NTLD, NTEI, NTED, TNT — onde está o faturamento.</p>
+          </div>
+        </div>
+        <div class="bar-list">${lineBars}</div>
+      </article>
+
+      <article class="panel span-6">
+        <div class="panel-header">
+          <div>
+            <h2>Por cor</h2>
+            <p>Distribuição entre cores produzidas no período.</p>
+          </div>
+        </div>
+        <div class="bar-list">${colorBars}</div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Por gramatura</h2>
+            <p>Onde está o faturamento por g/m². R$/kg médio varia significativamente conforme gramatura.</p>
+          </div>
+        </div>
+        <div class="bar-list">${grammageBars}</div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Ranking ABC de SKUs</h2>
+            <p>Ordenado por faturamento.</p>
+          </div>
+        </div>
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ABC</th>
+                <th style="text-align:left">SKU</th>
+                <th style="text-align:left">Linha</th>
+                <th style="text-align:left">Cor</th>
+                <th>Gramatura</th>
+                <th>Peso</th>
+                <th>Faturamento</th>
+                <th>R$/kg</th>
+                <th>Participação</th>
+              </tr>
+            </thead>
+            <tbody>${skuRows}</tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  `;
+}
+
+// =================== OPERAÇÃO ===================
+function renderOperations() {
+  const config = getConfig();
+  const totals = data.dailyEntriesApril2026Totals;
+  const aprilSales = salesRecord(2026, 4);
+  const mayInvoices = data.mayInvoices2026;
+
+  const machineActuals = {
+    "Corte 1": totals.corte1Kg,
+    "Corte 2": totals.corte2Kg,
+    "Rebobinadeira": totals.reboKg
+  };
+
+  const machineRows = Object.entries(config.machineCapacityKg).map(([name, capacity]) => {
+    const actual = machineActuals[name] || 0;
+    const utilization = capacity ? actual / capacity : 0;
+    const widthPct = Math.max(2, Math.min(100, Math.round(utilization * 100)));
+    const status = utilization >= 0.85 ? "Alta utilização" : utilization >= 0.50 ? "Saudável" : "Ociosidade";
+    const statusClass = utilization >= 0.85 ? "amber" : utilization >= 0.50 ? "" : "red";
+    return `
+      <div class="bar-row">
+        <div class="bar-label">
+          <strong>${name}</strong><br>
+          <small style="color:var(--muted)">${formatKg(actual)} / ${formatKg(capacity)} mensal · <span class="status-pill ${statusClass}" style="font-size:0.7rem">${status}</span></small>
+        </div>
+        <div class="bar-track"><div class="bar-fill ${utilization >= 0.85 ? "amber" : ""}" style="width:${widthPct}%"></div></div>
+        <div class="bar-value">${formatPercent(utilization)}<br><small style="color:var(--muted)">${formatKg(Math.max(capacity - actual, 0))} disponível</small></div>
+      </div>
+    `;
+  }).join("");
+
+  const totalCapacity = Object.values(config.machineCapacityKg).reduce((sum, v) => sum + v, 0);
+  const totalActual = Object.values(machineActuals).reduce((sum, v) => sum + v, 0);
+  const globalUtilization = totalCapacity ? totalActual / totalCapacity : 0;
+
+  const mayMachineRows = mayInvoices?.machines?.map((m) => {
+    const cap = config.machineCapacityKg[m.name] || 0;
+    const util = cap ? (m.weightKg / cap) : 0;
+    return `
+      <tr>
+        <td><strong>${escapeHtml(m.name)}</strong></td>
+        <td>${formatKg(m.weightKg, 2)}</td>
+        <td>${formatBRL(m.revenue)}</td>
+        <td>${formatBRL(m.revenue / m.weightKg)}/kg</td>
+        <td>${formatKg(cap)}</td>
+        <td>${formatPercent(util)}</td>
+      </tr>
+    `;
+  }).join("") || "";
+
+  return `
+    <div class="section-grid">
+      <article class="panel span-12 current-tracker">
+        <div class="panel-header">
+          <div>
+            <h2>Operação · utilização das máquinas</h2>
+            <p>Comparativo entre produção/faturamento real e capacidade nominal. Edite as capacidades na seção Configurações abaixo para refletir a fábrica real.</p>
+          </div>
+          <span class="status-pill blue">Abril/2026</span>
+        </div>
+        <div class="section-grid" style="gap:14px">
+          ${kpiCard("Utilização global", formatPercent(globalUtilization), `${formatKg(totalActual)} de ${formatKg(totalCapacity)} possíveis`, globalUtilization >= 0.7 ? "green" : "amber")}
+          ${kpiCard("Capacidade ociosa", formatKg(Math.max(totalCapacity - totalActual, 0)), "kg/mês não convertidos em receita", "red")}
+          ${kpiCard("Receita potencial", formatBRL((totalCapacity - totalActual) * (aprilSales.revenue / aprilSales.weightKg)), "Se ocupar 100% ao R$/kg de abril", "blue")}
+          ${kpiCard("R$/kg de abril", formatBRL(aprilSales.revenue / aprilSales.weightKg), "Preço médio de referência", "amber")}
+        </div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Capacidade vs entradas (abril)</h2>
+            <p>Quanto cada máquina processou em abril versus a capacidade nominal cadastrada.</p>
+          </div>
+        </div>
+        <div class="bar-list">${machineRows}</div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Produção em NFs de maio (05-07/05)</h2>
+            <p>Saída por máquina conforme NFs emitidas no período.</p>
+          </div>
+        </div>
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Máquina</th>
+                <th>Peso</th>
+                <th>Faturamento</th>
+                <th>R$/kg</th>
+                <th>Capacidade mensal</th>
+                <th>Utilização (parcial)</th>
+              </tr>
+            </thead>
+            <tbody>${mayMachineRows}</tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel span-12 admin-form-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Configurações operacionais</h2>
+            <p>Custo, capacidades e metas usados em todos os cálculos do sistema. Editáveis e persistidos neste navegador.</p>
+          </div>
+          <span class="status-pill blue">Editável</span>
+        </div>
+        <div class="admin-form">
+          <label>Custo médio (R$/kg)
+            <div class="admin-password-row">
+              <input id="config-cost" type="number" min="0" step="0.01" value="${config.costPerKg}">
+              <button class="ghost-button" data-save-config="costPerKg" type="button">Salvar</button>
+            </div>
+          </label>
+          <label>Custo fixo mensal (R$)
+            <div class="admin-password-row">
+              <input id="config-fixed-cost" type="number" min="0" step="1000" value="${config.fixedCostMonthly}">
+              <button class="ghost-button" data-save-config="fixedCostMonthly" type="button">Salvar</button>
+            </div>
+          </label>
+          <label>Capacidade Corte 1 (kg/mês)
+            <div class="admin-password-row">
+              <input id="config-cap-corte1" type="number" min="0" step="1000" value="${config.machineCapacityKg['Corte 1']}">
+              <button class="ghost-button" data-save-config="capacity-Corte 1" type="button">Salvar</button>
+            </div>
+          </label>
+          <label>Capacidade Corte 2 (kg/mês)
+            <div class="admin-password-row">
+              <input id="config-cap-corte2" type="number" min="0" step="1000" value="${config.machineCapacityKg['Corte 2']}">
+              <button class="ghost-button" data-save-config="capacity-Corte 2" type="button">Salvar</button>
+            </div>
+          </label>
+          <label>Capacidade Rebobinadeira (kg/mês)
+            <div class="admin-password-row">
+              <input id="config-cap-rebo" type="number" min="0" step="1000" value="${config.machineCapacityKg['Rebobinadeira']}">
+              <button class="ghost-button" data-save-config="capacity-Rebobinadeira" type="button">Salvar</button>
+            </div>
+          </label>
+          <label>Meta mensal (kg)
+            <div class="admin-password-row">
+              <input id="config-target-kg" type="number" min="0" step="1000" value="${config.monthlyTargetKg}">
+              <button class="ghost-button" data-save-config="monthlyTargetKg" type="button">Salvar</button>
+            </div>
+          </label>
+        </div>
+      </article>
+    </div>
+  `;
+}
+
+// =================== CARTEIRA ===================
+function renderBacklog() {
+  const items = getBacklog();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const totals = items.reduce((acc, o) => {
+    acc.revenue += Number(o.revenue) || 0;
+    acc.weightKg += Number(o.weightKg) || 0;
+    if (o.status !== "entregue") {
+      acc.openRevenue += Number(o.revenue) || 0;
+      acc.openWeight += Number(o.weightKg) || 0;
+    }
+    return acc;
+  }, { revenue: 0, weightKg: 0, openRevenue: 0, openWeight: 0 });
+
+  const rows = items.map((o) => {
+    const promised = o.promisedDate ? new Date(o.promisedDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "-";
+    const daysToDeliver = o.promisedDate ? Math.round((new Date(o.promisedDate + "T12:00:00") - new Date(today + "T12:00:00")) / 86400000) : null;
+    let statusClass = "";
+    let statusLabel = o.status === "entregue" ? "Entregue" : "Em aberto";
+    if (o.status !== "entregue" && daysToDeliver !== null) {
+      if (daysToDeliver < 0) { statusClass = "red"; statusLabel = `Atrasado ${Math.abs(daysToDeliver)}d`; }
+      else if (daysToDeliver <= 7) { statusClass = "amber"; statusLabel = `Vence em ${daysToDeliver}d`; }
+    }
+    return `
+      <tr>
+        <td><strong>${escapeHtml(o.id || "-")}</strong></td>
+        <td>${o.date ? new Date(o.date + "T12:00:00").toLocaleDateString("pt-BR") : "-"}</td>
+        <td>${escapeHtml(o.client || "-")}</td>
+        <td>${escapeHtml(o.representative || "-")}</td>
+        <td>${formatKg(Number(o.weightKg) || 0, 2)}</td>
+        <td>${formatBRL(Number(o.revenue) || 0)}</td>
+        <td>${promised}</td>
+        <td><span class="status-pill ${statusClass}">${statusLabel}</span></td>
+        <td>
+          <button class="ghost-button table-action" type="button" data-toggle-backlog="${o.id}">${o.status === "entregue" ? "Reabrir" : "Marcar entregue"}</button>
+          <button class="ghost-button danger-ghost table-action" type="button" data-delete-backlog="${o.id}">Excluir</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  return `
+    <div class="section-grid">
+      <article class="panel span-12 current-tracker">
+        <div class="panel-header">
+          <div>
+            <h2>Carteira · pedidos em aberto</h2>
+            <p>Cadastre manualmente cada pedido captado para acompanhar saldo, prazo e responsável. Em uma próxima fase, isso virá direto do ERP.</p>
+          </div>
+          <span class="status-pill blue">${items.filter(i => i.status !== "entregue").length} em aberto</span>
+        </div>
+        <div class="section-grid" style="gap:14px">
+          ${kpiCard("Pedidos em aberto", formatBRL(totals.openRevenue), `${formatKg(totals.openWeight, 2)} para entregar`, "green")}
+          ${kpiCard("Total cadastrado", formatBRL(totals.revenue), `${items.length} pedido${items.length !== 1 ? "s" : ""}`, "blue")}
+          ${kpiCard("Já entregue", formatBRL(totals.revenue - totals.openRevenue), `${formatKg(totals.weightKg - totals.openWeight, 2)} concluído`, "amber")}
+          ${kpiCard("Saldo médio por pedido", formatBRL(items.length ? totals.openRevenue / Math.max(items.filter(i => i.status !== "entregue").length, 1) : 0), "Ticket médio em aberto", "red")}
+        </div>
+      </article>
+
+      <article class="panel span-5 admin-form-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Cadastrar pedido</h2>
+            <p>Adicione um pedido captado para entrar na carteira.</p>
+          </div>
+        </div>
+        <div class="admin-form">
+          <label>Cliente
+            <input id="backlog-client" type="text" placeholder="Razão social">
+          </label>
+          <label>Representante
+            <input id="backlog-rep" type="text" placeholder="Nome do representante">
+          </label>
+          <label>Peso (kg)
+            <input id="backlog-weight" type="number" min="0" step="0.01" placeholder="Ex.: 5000">
+          </label>
+          <label>Valor (R$)
+            <input id="backlog-revenue" type="number" min="0" step="0.01" placeholder="Ex.: 100000">
+          </label>
+          <label>Data de captação
+            <input id="backlog-date" type="date" value="${today}">
+          </label>
+          <label>Data prometida
+            <input id="backlog-promised" type="date">
+          </label>
+          <label>Observações
+            <input id="backlog-notes" type="text" placeholder="Ex.: produto, urgência, etc">
+          </label>
+          <button class="primary-button" id="add-backlog" type="button">Adicionar à carteira</button>
+        </div>
+      </article>
+
+      <article class="panel span-7">
+        <div class="panel-header">
+          <div>
+            <h2>Pedidos cadastrados</h2>
+            <p>Todos os pedidos na carteira local deste navegador.</p>
+          </div>
+        </div>
+        ${items.length ? `
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">ID</th>
+                <th>Captado</th>
+                <th style="text-align:left">Cliente</th>
+                <th style="text-align:left">Representante</th>
+                <th>Peso</th>
+                <th>Valor</th>
+                <th>Prometida</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>` : `<div class="empty-state">Nenhum pedido cadastrado ainda. Use o formulário ao lado para começar.</div>`}
       </article>
     </div>
   `;
