@@ -16,6 +16,7 @@ const STORAGE_KEYS = {
 
 const VIEW_DEFINITIONS = [
   { id: "overview", label: "Dashboard" },
+  { id: "invoices", label: "Notas Fiscais" },
   { id: "sales", label: "Vendas" },
   { id: "representatives", label: "Representantes" },
   { id: "goals", label: "Metas" },
@@ -1011,6 +1012,7 @@ function render() {
 
   const titles = {
     overview: "Dashboard Estratégico",
+    invoices: "Notas Fiscais",
     sales: "Vendas",
     representatives: "Representantes",
     goals: "Metas",
@@ -1026,6 +1028,7 @@ function render() {
 
   const views = {
     overview: renderOverview,
+    invoices: renderInvoices,
     sales: renderSales,
     representatives: renderRepresentatives,
     goals: renderGoals,
@@ -1153,8 +1156,51 @@ function renderOverview() {
     }
   ];
 
+  // Backlog / carteira a entregar: pedidos captados - faturado a partir desses pedidos.
+  // Não há mapping direto pedido->NF, então usamos como aproximação o saldo: pedidos do dia + saldo p/ meta.
+  const backlogRevenueEstimate = mayOrders.merchandiseValue;
+  const backlogKgEstimate = mayOrders.weightKg;
+
+  const may = data.mayInvoices2026;
+  const repsCurrent = may?.representatives ? [...may.representatives].sort((a, b) => b.revenue - a.revenue) : [];
+  const dailyCurrent = may?.daily || [];
+  const topRepCurrent = repsCurrent[0];
+
+  const repRowsCurrent = repsCurrent.map((rep) => {
+    const share = may.totals.revenue ? rep.revenue / may.totals.revenue : 0;
+    const width = Math.max(2, Math.round(share * 100));
+    return `
+      <div class="bar-row">
+        <div class="bar-label">${rep.name}<br><small style="color:var(--muted)">${rep.invoiceCount} NF${rep.invoiceCount > 1 ? "s" : ""}</small></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div>
+        <div class="bar-value">${formatBRL(rep.revenue)}<br><small style="color:var(--muted)">${formatKg(rep.weightKg, 2)}</small></div>
+      </div>
+    `;
+  }).join("");
+
+  const dailyRowsCurrent = dailyCurrent.map((day) => {
+    const dt = new Date(day.date + "T12:00:00");
+    const label = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    return `
+      <tr>
+        <td>${label}</td>
+        <td>${day.invoiceCount}</td>
+        <td>${day.lineCount}</td>
+        <td>${formatKg(day.weightKg, 2)}</td>
+        <td>${formatBRL(day.revenue)}</td>
+        <td>${formatBRL(day.avgPrice)}/kg</td>
+      </tr>
+    `;
+  }).join("");
+
+  const monthStatus = projectionVsApril >= 0 ? "Ritmo forte" : (projectionVsApril >= -0.2 ? "Acompanhar" : "Atenção");
+  const monthStatusTone = projectionVsApril >= 0 ? "" : (projectionVsApril >= -0.2 ? "amber" : "red");
+  const pricePressure = avgPrice2026 < aprilAvgPrice ? "Pressão" : "Saudável";
+  const ytdMonthlyAvg = ytd.revenue / throughMonth;
+
   return `
     <div class="section-grid">
+      <!-- ============== MÊS ATUAL ============== -->
       <article class="panel span-12 current-tracker">
         <div class="panel-header">
           <div>
@@ -1164,81 +1210,115 @@ function renderOverview() {
           <span class="status-pill blue">Atualizado em ${mayEndLabel}</span>
         </div>
         <div class="section-grid" style="gap:14px">
-          ${kpiCard("Faturamento maio (parcial)", formatBRL(mayBilling.revenue), `Preço médio R$ ${(mayBilling.revenue / mayBilling.weightKg).toFixed(2)}/kg`, "green")}
-          ${kpiCard("Peso maio (parcial)", formatKg(mayBilling.weightKg, 2), `${formatPercent(mayTargetProgress)} da meta de 450 t`, "blue")}
-          ${kpiCard("Projeção linear maio", formatBRL(linearProjectionRevenue), `${formatPercent(projectionVsApril)} vs abril (${formatBRL(aprilRef, 0)})`, "amber")}
+          ${kpiCard("Faturamento maio", formatBRL(mayBilling.revenue), `${formatKg(mayBilling.weightKg, 2)} · R$ ${(mayBilling.revenue / mayBilling.weightKg).toFixed(2)}/kg`, "green")}
+          ${kpiCard("Entradas de pedido", formatBRL(mayOrders.merchandiseValue), `${formatKg(mayOrders.weightKg, 2)} captados em ${new Date(mayOrders.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`, "blue")}
+          ${kpiCard("Carteira a entregar", formatBRL(backlogRevenueEstimate), `${formatKg(backlogKgEstimate, 2)} em pedidos abertos (atualizar conforme novos pedidos)`, "amber")}
           ${kpiCard("Saldo p/ meta de R$", formatBRL(Math.max(mayTargetRevenue - mayBilling.revenue, 0)), `Meta sugerida ${formatBRL(mayTargetRevenue, 0)} (450t · preço de abril)`, "red")}
         </div>
       </article>
 
-      ${kpiCard("Faturamento jan-abr", formatBRL(ytd.revenue), `${formatPercent(ytdGrowth)} vs jan-abr/2025`, "green")}
-      ${kpiCard("Projeção 2026", formatBRL(forecast), `${formatPercent(forecastGrowth)} vs fechamento de 2025`, "blue")}
-      ${kpiCard("Preço médio 2026", formatBRL(avgPrice2026), `${formatBRL(aprilAvgPrice)}/kg em abril`, "amber")}
-      ${kpiCard("Concentração Top 5", formatPercent(concentration.top5Share), `${concentration.top1.name} lidera com ${formatPercent(concentration.top1Share)}`, "red")}
-
-      <article class="panel span-12 current-month-panel">
+      ${repsCurrent.length ? `
+      <article class="panel span-7">
         <div class="panel-header">
           <div>
-            <h2>Maio em andamento</h2>
-            <p>Faturamento acumulado até 06/05 e entrada de pedidos captada em 05/05, sem misturar DataEmissao com carteira de pedidos.</p>
+            <h2>Resumo por representante · maio</h2>
+            <p>Faturamento por representante nas NFs emitidas em ${may.period.startDate.slice(8,10)}/05 a ${may.period.endDate.slice(8,10)}/05.</p>
           </div>
-          <span class="status-pill blue">Mês atual</span>
+          <button class="ghost-button" type="button" data-view-jump="invoices">Ver notas fiscais</button>
         </div>
-        <div class="management-grid">
-          ${managementCard("Faturamento até 06/05", `${formatBRL(mayBilling.revenue)} em ${formatKg(mayBilling.weightKg, 2)} faturados.`, `Progresso da meta de 450t: ${formatPercent(mayBilling.weightKg / mayTargetKg)}.`)}
-          ${managementCard("Pedidos em 05/05", `${formatBRL(mayOrders.merchandiseValue)} em ${formatKg(mayOrders.weightKg, 2)} cadastrados.`, `Preço médio dos pedidos: ${formatBRL(mayOrders.merchandiseValue / mayOrders.weightKg)}/kg.`)}
-          ${managementCard("Eficiência operacional", `Pedidos do dia equivalem a ${formatPercent(mayOrders.merchandiseValue / mayBilling.revenue)} do faturamento acumulado.`, "Acompanhar conversão pedido -> entrega -> faturamento.")}
-          ${managementCard("Ritmo necessário", `Saldo de ${formatTon(mayTargetKg - mayBilling.weightKg)} para cumprir a meta de maio.`, "Prioridade: reforçar carteira e acelerar faturamento diário.")}
-        </div>
-      </article>
-
-      ${renderMayInvoicesPanel()}
-
-      <article class="panel span-12">
-        <div class="panel-header">
-          <div>
-            <h2>Eficiência vendas x faturamento</h2>
-            <p>Leitura executiva do mês atual: volume realizado, carteira captada e saldo de execução.</p>
-          </div>
-        </div>
-        ${barList(mayOperationRows)}
-      </article>
-
-      <article class="panel span-12 management-hero">
-        <div class="panel-header">
-          <div>
-            <h2>Situação executiva</h2>
-            <p>Leitura consolidada para orientar decisões comerciais com a base disponível.</p>
-          </div>
-          <span class="status-pill">Crescimento forte</span>
-        </div>
-        <div class="management-grid">
-          ${managementCard("Crescer com controle", `A operação está acelerando: ${formatPercent(ytdGrowth)} de crescimento em faturamento no ano contra 2025.`, "Prioridade: transformar abril em novo piso mensal.")}
-          ${managementCard("Proteger preço", `O preço médio de abril chegou a ${formatBRL(aprilAvgPrice)}/kg, acima da média parcial de 2026.`, "Prioridade: bloquear descontos que derrubem R$/kg.")}
-          ${managementCard("Reduzir dependência", `O Top 5 concentra ${formatPercent(concentration.top5Share)} do mês de abril.`, "Prioridade: plano de ativação para a base intermediária.")}
-          ${managementCard("Conciliar operação", `Entradas e faturamento de abril não são a mesma base e diferem em ${formatBRL(reconciliation.revenue)}.`, "Prioridade: funil único de pedido, faturamento, entrada e recebimento.")}
-        </div>
+        <div class="bar-list">${repRowsCurrent}</div>
       </article>
 
       <article class="panel span-5">
         <div class="panel-header">
           <div>
-            <h2>Meta e projeção</h2>
-            <p>Progresso contra meta local, com projeção linear pelo ritmo jan-abr.</p>
+            <h2>Destaques</h2>
+            <p>Indicadores rápidos do mês.</p>
           </div>
-          <span class="status-pill blue">Forecast</span>
         </div>
-        ${goalProgress(ytd.revenue)}
-      </article>
+        <div class="stat-stack">
+          <div><span>Maior representante</span><strong>${topRepCurrent.name}</strong><small>${formatBRL(topRepCurrent.revenue)} · ${formatKg(topRepCurrent.weightKg, 2)}</small></div>
+          <div><span>NFs emitidas</span><strong>${may.totals.invoiceCount}</strong><small>${may.totals.lineCount} itens em ${dailyCurrent.length} dias úteis</small></div>
+          <div><span>Preço médio</span><strong>R$ ${may.totals.avgPrice.toFixed(2)}/kg</strong><small>Referência abril: R$ ${aprilAvgPrice.toFixed(2)}/kg</small></div>
+        </div>
+      </article>` : ""}
 
-      <article class="panel span-7">
+      ${dailyRowsCurrent ? `
+      <article class="panel span-12">
         <div class="panel-header">
           <div>
-            <h2>Painel de controle semanal</h2>
+            <h2>Resumo diário · maio</h2>
+            <p>Volume, faturamento e ticket médio por dia útil com NFs emitidas.</p>
+          </div>
+        </div>
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Dia</th>
+                <th>NFs</th>
+                <th>Itens</th>
+                <th>Peso</th>
+                <th>Faturamento</th>
+                <th>Preço médio</th>
+              </tr>
+            </thead>
+            <tbody>${dailyRowsCurrent}</tbody>
+            <tfoot>
+              <tr>
+                <td style="text-align:left"><strong>Total</strong></td>
+                <td>${may.totals.invoiceCount}</td>
+                <td>${may.totals.lineCount}</td>
+                <td>${formatKg(may.totals.weightKg, 2)}</td>
+                <td>${formatBRL(may.totals.revenue)}</td>
+                <td>${formatBRL(may.totals.avgPrice)}/kg</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </article>` : ""}
+
+      <article class="panel span-12 management-hero">
+        <div class="panel-header">
+          <div>
+            <h2>Performance executiva · maio</h2>
+            <p>Leitura de meta, projeção e ritmo necessário pra fechar o mês.</p>
+          </div>
+          <span class="status-pill ${monthStatusTone}">${monthStatus}</span>
+        </div>
+        <div class="management-grid">
+          ${managementCard("Projeção linear", `${formatBRL(linearProjectionRevenue)} extrapolado pelo ritmo de ${daysElapsed} dia(s).`, `${formatPercent(projectionVsApril)} vs abril (${formatBRL(aprilRef, 0)}).`)}
+          ${managementCard("Meta da operação", `Meta sugerida ${formatBRL(mayTargetRevenue, 0)} em ${formatKg(mayTargetKg, 0)} (preço de abril aplicado).`, `Faltam ${formatBRL(Math.max(mayTargetRevenue - mayBilling.revenue, 0))} e ${formatTon(Math.max(mayTargetKg - mayBilling.weightKg, 0))}.`)}
+          ${managementCard("Ritmo necessário", `Para bater a meta de peso, precisa de ${formatKg(Math.max(mayTargetKg - mayBilling.weightKg, 0) / Math.max(daysInMonth - daysElapsed, 1), 0)}/dia útil nos próximos ${Math.max(daysInMonth - daysElapsed, 0)} dias.`, "Acionar carteira aberta e priorizar pedidos com preço acima da média.")}
+          ${managementCard("Pressão de preço", `${pricePressure}: média maio R$ ${(mayBilling.revenue / mayBilling.weightKg).toFixed(2)}/kg vs abril R$ ${aprilAvgPrice.toFixed(2)}/kg.`, "Bloquear desconto fora da política ou aprovar exceção formal.")}
+        </div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Painel de controle · alertas e ações</h2>
             <p>Régua operacional com referência, gatilho e ação de gestão.</p>
           </div>
         </div>
         ${strategicDecisionTable(strategicRows)}
+      </article>
+
+      <!-- ============== VISÃO MACRO DO ANO ============== -->
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Visão macro · performance 2026</h2>
+            <p>Resumo do ano até abril (mês fechado mais recente).</p>
+          </div>
+          <span class="status-pill">Anual</span>
+        </div>
+        <div class="section-grid" style="gap:14px">
+          ${kpiCard("Faturamento jan-abr", formatBRL(ytd.revenue), `${formatPercent(ytdGrowth)} vs jan-abr/2025`, "green")}
+          ${kpiCard("Projeção 2026", formatBRL(forecast), `${formatPercent(forecastGrowth)} vs fechamento de 2025`, "blue")}
+          ${kpiCard("Preço médio 2026", formatBRL(avgPrice2026), `Abril: ${formatBRL(aprilAvgPrice)}/kg`, "amber")}
+          ${kpiCard("Concentração Top 5", formatPercent(concentration.top5Share), `${concentration.top1.name} lidera com ${formatPercent(concentration.top1Share)}`, "red")}
+        </div>
       </article>
 
       <article class="panel span-7">
@@ -1255,23 +1335,19 @@ function renderOverview() {
       <article class="panel span-5">
         <div class="panel-header">
           <div>
-            <h2>Mapa comercial de abril</h2>
-            <p>Resumo de canais e concentração para gestão de carteira.</p>
+            <h2>Meta anual · progresso</h2>
+            <p>Progresso contra meta, com projeção linear pelo ritmo jan-abr.</p>
           </div>
-          <button class="ghost-button" type="button" data-view-jump="representatives">Detalhar</button>
+          <span class="status-pill blue">Forecast</span>
         </div>
-        <div class="stat-stack">
-          <div><span>Total geral faturado</span><strong>${formatBRL(aprilSales.revenue)}</strong><small>${formatKg(aprilSales.weightKg)} no faturamento da empresa</small></div>
-          <div><span>Venda direta/interna</span><strong>${formatBRL(direct.revenue, 0)}</strong><small>${formatPercent(direct.share)} do mês</small></div>
-          <div><span>Maior representante</span><strong>${formatBRL(concentration.top1.revenue, 0)}</strong><small>${concentration.top1.name}</small></div>
-        </div>
+        ${goalProgress(ytd.revenue)}
       </article>
 
       <article class="panel span-12">
         <div class="panel-header">
           <div>
-            <h2>Prioridades executivas</h2>
-            <p>Recomendações práticas para os próximos 30 dias.</p>
+            <h2>Prioridades executivas · 30 dias</h2>
+            <p>Recomendações práticas para o próximo ciclo.</p>
           </div>
         </div>
         <div class="priority-grid">
@@ -1285,9 +1361,17 @@ function renderOverview() {
   `;
 }
 
-function renderMayInvoicesPanel() {
+function renderInvoices() {
   const may = data.mayInvoices2026;
-  if (!may || !may.invoices?.length) return "";
+  if (!may || !may.invoices?.length) {
+    return `
+      <div class="section-grid">
+        <article class="panel span-12">
+          <div class="empty-state">Nenhuma nota fiscal carregada ainda. Importe um xlsx de NFs e os dados aparecem aqui.</div>
+        </article>
+      </div>
+    `;
+  }
 
   const dailyRows = may.daily.map((day) => {
     const dt = new Date(day.date + "T12:00:00");
@@ -1327,12 +1411,26 @@ function renderMayInvoicesPanel() {
     .sort((a, b) => b.revenue - a.revenue)
     .map((rep) => {
       const share = rep.revenue / may.totals.revenue;
-      const widthPct = Math.max(2, Math.round(share * 100));
+      const w = Math.max(2, Math.round(share * 100));
       return `
         <div class="bar-row">
           <div class="bar-label">${rep.name}<br><small style="color:var(--muted)">${rep.invoiceCount} NF${rep.invoiceCount > 1 ? "s" : ""}</small></div>
-          <div class="bar-track"><div class="bar-fill" style="width:${widthPct}%"></div></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${w}%"></div></div>
           <div class="bar-value">${formatBRL(rep.revenue)}<br><small style="color:var(--muted)">${formatKg(rep.weightKg, 2)}</small></div>
+        </div>
+      `;
+    }).join("");
+
+  const machineRows = [...may.machines]
+    .sort((a, b) => b.revenue - a.revenue)
+    .map((mac) => {
+      const share = mac.revenue / may.totals.revenue;
+      const w = Math.max(2, Math.round(share * 100));
+      return `
+        <div class="bar-row">
+          <div class="bar-label">${mac.name}</div>
+          <div class="bar-track"><div class="bar-fill blue" style="width:${w}%"></div></div>
+          <div class="bar-value">${formatBRL(mac.revenue)}<br><small style="color:var(--muted)">${formatKg(mac.weightKg, 2)}</small></div>
         </div>
       `;
     }).join("");
@@ -1341,91 +1439,109 @@ function renderMayInvoicesPanel() {
   const endLabel = new Date(may.period.endDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
   return `
-    <article class="panel span-12">
-      <div class="panel-header">
-        <div>
-          <h2>Notas fiscais ${startLabel} a ${endLabel}</h2>
-          <p>Detalhamento das ${may.totals.invoiceCount} NFs emitidas no período (${may.totals.lineCount} itens). Fonte: planilha "NF Vendas por Finalidade".</p>
+    <div class="section-grid">
+      <article class="panel span-12 current-tracker">
+        <div class="panel-header">
+          <div>
+            <h2>Notas fiscais · ${startLabel} a ${endLabel}</h2>
+            <p>${may.totals.invoiceCount} NFs emitidas, ${may.totals.lineCount} linhas de itens. Fonte: planilhas xlsx revisadas.</p>
+          </div>
+          <span class="status-pill blue">${formatBRL(may.totals.revenue)} · ${formatKg(may.totals.weightKg, 2)}</span>
         </div>
-        <span class="status-pill">${formatBRL(may.totals.revenue)} · ${formatKg(may.totals.weightKg, 2)}</span>
-      </div>
+        <div class="section-grid" style="gap:14px">
+          ${kpiCard("Faturamento", formatBRL(may.totals.revenue), `Preço médio R$ ${may.totals.avgPrice.toFixed(2)}/kg`, "green")}
+          ${kpiCard("Peso", formatKg(may.totals.weightKg, 2), `${may.totals.lineCount} linhas em ${may.totals.invoiceCount} NFs`, "blue")}
+          ${kpiCard("NFs/dia (média)", `${(may.totals.invoiceCount / may.daily.length).toFixed(1)}`, `${may.daily.length} dia${may.daily.length > 1 ? "s" : ""} com emissão`, "amber")}
+          ${kpiCard("Ticket médio por NF", formatBRL(may.totals.revenue / may.totals.invoiceCount), `${formatKg(may.totals.weightKg / may.totals.invoiceCount, 2)}/NF`, "red")}
+        </div>
+      </article>
 
-      <div class="section-grid" style="gap: 16px;">
-        ${kpiCard("Faturamento 05-06/05", formatBRL(may.totals.revenue), `Preço médio R$ ${may.totals.avgPrice.toFixed(2)}/kg`, "green")}
-        ${kpiCard("Peso 05-06/05", formatKg(may.totals.weightKg, 2), `${may.totals.lineCount} linhas em ${may.totals.invoiceCount} NFs`, "blue")}
-        ${kpiCard("NFs em 05/05", `${may.daily[0].invoiceCount}`, `${formatBRL(may.daily[0].revenue)} | ${formatKg(may.daily[0].weightKg, 2)}`, "amber")}
-        ${kpiCard("NFs em 06/05", `${may.daily[1].invoiceCount}`, `${formatBRL(may.daily[1].revenue)} | ${formatKg(may.daily[1].weightKg, 2)}`, "red")}
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Lista completa de NFs</h2>
+            <p>Cada nota com cliente, representante, máquina, peso e valor.</p>
+          </div>
+        </div>
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">NF</th>
+                <th style="text-align:left">Data</th>
+                <th style="text-align:left">Cliente</th>
+                <th style="text-align:left">Representante</th>
+                <th style="text-align:left">Máquina</th>
+                <th>Peso</th>
+                <th>Valor</th>
+              </tr>
+            </thead>
+            <tbody>${invoiceRows}</tbody>
+            <tfoot>
+              <tr>
+                <td colspan="5"><strong>Total</strong></td>
+                <td>${formatKg(may.totals.weightKg, 2)}</td>
+                <td>${formatBRL(may.totals.revenue)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </article>
 
-        <article class="panel span-7">
-          <div class="panel-header">
-            <div>
-              <h2>Notas fiscais</h2>
-              <p>Cada nota com cliente, representante, máquinas e valores.</p>
-            </div>
+      <article class="panel span-7">
+        <div class="panel-header">
+          <div>
+            <h2>Por representante</h2>
+            <p>Participação no faturamento do período.</p>
           </div>
-          <div class="data-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th style="text-align:left">NF</th>
-                  <th style="text-align:left">Data</th>
-                  <th style="text-align:left">Cliente</th>
-                  <th style="text-align:left">Representante</th>
-                  <th style="text-align:left">Máquina</th>
-                  <th>Peso</th>
-                  <th>Valor</th>
-                </tr>
-              </thead>
-              <tbody>${invoiceRows}</tbody>
-            </table>
-          </div>
-        </article>
+        </div>
+        <div class="bar-list">${repRows}</div>
+      </article>
 
-        <article class="panel span-5">
-          <div class="panel-header">
-            <div>
-              <h2>Por representante</h2>
-              <p>Participação no faturamento dos dois dias.</p>
-            </div>
+      <article class="panel span-5">
+        <div class="panel-header">
+          <div>
+            <h2>Por máquina</h2>
+            <p>Distribuição entre Corte 1, Corte 2 e Rebobinadeira.</p>
           </div>
-          <div class="bar-list">${repRows}</div>
-        </article>
+        </div>
+        <div class="bar-list">${machineRows}</div>
+      </article>
 
-        <article class="panel span-12">
-          <div class="panel-header">
-            <div>
-              <h2>Resumo diário</h2>
-              <p>Volume e ticket médio por dia.</p>
-            </div>
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Resumo diário</h2>
+            <p>Volume e ticket médio por dia.</p>
           </div>
-          <div class="data-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th style="text-align:left">Dia</th>
-                  <th>NFs</th>
-                  <th>Itens</th>
-                  <th>Peso</th>
-                  <th>Faturamento</th>
-                  <th>Preço médio</th>
-                </tr>
-              </thead>
-              <tbody>${dailyRows}</tbody>
-              <tfoot>
-                <tr>
-                  <td style="text-align:left"><strong>Total</strong></td>
-                  <td>${may.totals.invoiceCount}</td>
-                  <td>${may.totals.lineCount}</td>
-                  <td>${formatKg(may.totals.weightKg, 2)}</td>
-                  <td>${formatBRL(may.totals.revenue)}</td>
-                  <td>${formatBRL(may.totals.avgPrice)}/kg</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </article>
-      </div>
-    </article>
+        </div>
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Dia</th>
+                <th>NFs</th>
+                <th>Itens</th>
+                <th>Peso</th>
+                <th>Faturamento</th>
+                <th>Preço médio</th>
+              </tr>
+            </thead>
+            <tbody>${dailyRows}</tbody>
+            <tfoot>
+              <tr>
+                <td style="text-align:left"><strong>Total</strong></td>
+                <td>${may.totals.invoiceCount}</td>
+                <td>${may.totals.lineCount}</td>
+                <td>${formatKg(may.totals.weightKg, 2)}</td>
+                <td>${formatBRL(may.totals.revenue)}</td>
+                <td>${formatBRL(may.totals.avgPrice)}/kg</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </article>
+    </div>
   `;
 }
 
