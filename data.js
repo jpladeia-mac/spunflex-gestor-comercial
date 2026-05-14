@@ -1,6 +1,6 @@
 window.SpunflexData = {
-  baseDate: "2026-05-13",
-  backlogSnapshotDate: "2026-05-13",
+  baseDate: "2026-05-14",
+  backlogSnapshotDate: "2026-05-14",
   company: "Spunflex",
   sources: [
     {
@@ -174,15 +174,53 @@ window.SpunflexData = {
             "Total original dos pedidos ativos: 223.698,34 kg e R$ 4.250.000,43 (6903 bobinas).",
             "Pedidos cadastrados em 13/05/2026: 6 pedidos, 9.532,26 kg e R$ 219.779,41."
         ]
+    },
+    {
+        "id": "src-fat-geral-14-05",
+        "file": "DATABASE_DIARIA/14.05/NF Vendas por Finalidade 14.05 AS17H51 JOAO - MES MAIO.xlsx",
+        "title": "NF Vendas por Finalidade - 02 a 14/05/2026 (completo)",
+        "type": "Planilha de notas fiscais",
+        "reviewed": true,
+        "extracted": [
+            "58 NFs emitidas (8796-8860), cobrindo 02, 04-08, 11-14/05/2026.",
+            "Total: 95.357,20 kg e R$ 1.838.391,10 (preço médio R$ 19,28/kg).",
+            "13/05/2026: 9 NFs (8843-8851), 8.420,35 kg e R$ 172.501,32 (R$ 20,49/kg).",
+            "14/05/2026: 7 NFs (8852-8860), 9.896,20 kg e R$ 200.384,54 (R$ 20,25/kg)."
+        ]
+    },
+    {
+        "id": "src-pedidos-14-05",
+        "file": "DATABASE_DIARIA/14.05/Consulta Completa Pedidos - ENTRADAS DE PEDIDOS EM 14.05 AS 17H50 JOAO.xlsx",
+        "title": "Entrada de pedidos - 14/05/2026",
+        "type": "Planilha de pedidos",
+        "reviewed": true,
+        "extracted": [
+            "Pedidos 7858 e 7859 (FELTEX FABRICACAO DE), RC SINESIO, Corte 2.",
+            "Produto: NTEI 2100MM AZUL MARINHO 35GR, entrega 26/05/2026.",
+            "Total: R$ 30.126,60 e 1.323,00 kg (36 bobinas)."
+        ]
+    },
+    {
+        "id": "src-estoque-14-05",
+        "file": "DATABASE_DIARIA/14.05/Estoque Disponível 14.05 AS 17H51 JOAO.xlsx",
+        "title": "Estoque disponível - 14/05/2026",
+        "type": "Planilha de estoque",
+        "reviewed": true,
+        "extracted": [
+            "318 itens, 150.039,69 kg físico total, 4.353 bobinas.",
+            "Corte 1: 108 itens, 38.997,85 kg, 1.192 bobinas.",
+            "Corte 2: 155 itens, 107.179,84 kg, 2.216 bobinas.",
+            "Rebobinadeira: 55 itens, 3.862,00 kg, 945 bobinas."
+        ]
     }
 ],
   currentMayBilling2026: {
     "startDate": "2026-05-02",
-    "endDate": "2026-05-12",
-    "weightKg": 82930.4,
-    "revenue": 1608779.95,
-    "avgPrice": 19.3992,
-    "sourceId": "src-fat-geral-11-05",
+    "endDate": "2026-05-14",
+    "weightKg": 95357.2,
+    "revenue": 1838391.1,
+    "avgPrice": 19.279,
+    "sourceId": "src-fat-geral-14-05",
     "breakdown": [
         {
             "range": "02/05",
@@ -192,7 +230,7 @@ window.SpunflexData = {
         {
             "range": "04/05",
             "weightKg": 16794.45,
-            "revenue": 355176.06
+            "revenue": 354592.06
         },
         {
             "range": "05/05",
@@ -202,12 +240,12 @@ window.SpunflexData = {
         {
             "range": "06/05",
             "weightKg": 5205.0,
-            "revenue": 102377.27
+            "revenue": 95830.3
         },
         {
             "range": "07/05",
             "weightKg": 2884.35,
-            "revenue": 53002.93
+            "revenue": 52687.93
         },
         {
             "range": "08/05",
@@ -221,23 +259,33 @@ window.SpunflexData = {
         },
         {
             "range": "12/05",
-            "weightKg": 12695.4,
-            "revenue": 272336.05
+            "weightKg": 6805.65,
+            "revenue": 136507.31
+        },
+        {
+            "range": "13/05",
+            "weightKg": 8420.35,
+            "revenue": 172501.32
+        },
+        {
+            "range": "14/05",
+            "weightKg": 9896.2,
+            "revenue": 200384.54
         }
     ]
 },
   mayInvoices2026: {
     "period": {
         "startDate": "2026-05-02",
-        "endDate": "2026-05-12"
+        "endDate": "2026-05-14"
     },
-    "sourceId": "src-fat-geral-11-05",
+    "sourceId": "src-fat-geral-14-05",
     "totals": {
-        "weightKg": 82930.4,
-        "revenue": 1608779.95,
-        "avgPrice": 19.3992,
-        "invoiceCount": 46,
-        "lineCount": 120
+        "weightKg": 95357.2,
+        "revenue": 1838391.1,
+        "avgPrice": 19.279,
+        "invoiceCount": 58,
+        "lineCount": 152
     },
     "daily": [
         {
@@ -254,17 +302,16 @@ window.SpunflexData = {
         {
             "date": "2026-05-04",
             "weightKg": 16794.45,
-            "revenue": 355176.06,
-            "avgPrice": 21.1484,
-            "invoiceCount": 10,
-            "lineCount": 18,
+            "revenue": 354592.06,
+            "avgPrice": 21.1136,
+            "invoiceCount": 9,
+            "lineCount": 17,
             "notes": [
                 "8797",
                 "8798",
                 "8799",
                 "8800",
                 "8801",
-                "8802",
                 "8803",
                 "8804",
                 "8805",
@@ -286,32 +333,30 @@ window.SpunflexData = {
         {
             "date": "2026-05-06",
             "weightKg": 5205.0,
-            "revenue": 102377.27,
-            "avgPrice": 19.669,
-            "invoiceCount": 7,
-            "lineCount": 25,
+            "revenue": 95830.3,
+            "avgPrice": 18.4112,
+            "invoiceCount": 6,
+            "lineCount": 22,
             "notes": [
                 "8810",
                 "8811",
                 "8812",
                 "8813",
                 "8814",
-                "8815",
                 "8816"
             ]
         },
         {
             "date": "2026-05-07",
             "weightKg": 2884.35,
-            "revenue": 53002.93,
-            "avgPrice": 18.376,
-            "invoiceCount": 4,
-            "lineCount": 5,
+            "revenue": 52687.93,
+            "avgPrice": 18.2668,
+            "invoiceCount": 3,
+            "lineCount": 4,
             "notes": [
                 "8817",
                 "8818",
-                "8819",
-                "8820"
+                "8819"
             ]
         },
         {
@@ -350,11 +395,11 @@ window.SpunflexData = {
         },
         {
             "date": "2026-05-12",
-            "weightKg": 12695.4,
-            "revenue": 272336.05,
-            "avgPrice": 21.4516,
-            "invoiceCount": 8,
-            "lineCount": 22,
+            "weightKg": 6805.65,
+            "revenue": 136507.31,
+            "avgPrice": 20.0579,
+            "invoiceCount": 7,
+            "lineCount": 17,
             "notes": [
                 "8835",
                 "8836",
@@ -362,8 +407,43 @@ window.SpunflexData = {
                 "8838",
                 "8839",
                 "8840",
-                "8841",
-                "8842"
+                "8841"
+            ]
+        },
+        {
+            "date": "2026-05-13",
+            "weightKg": 8420.35,
+            "revenue": 172501.32,
+            "avgPrice": 20.4862,
+            "invoiceCount": 9,
+            "lineCount": 20,
+            "notes": [
+                "8843",
+                "8844",
+                "8845",
+                "8846",
+                "8847",
+                "8848",
+                "8849",
+                "8850",
+                "8851"
+            ]
+        },
+        {
+            "date": "2026-05-14",
+            "weightKg": 9896.2,
+            "revenue": 200384.54,
+            "avgPrice": 20.2486,
+            "invoiceCount": 7,
+            "lineCount": 22,
+            "notes": [
+                "8852",
+                "8853",
+                "8854",
+                "8855",
+                "8856",
+                "8858",
+                "8860"
             ]
         }
     ],
@@ -954,17 +1034,180 @@ window.SpunflexData = {
             "revenue": 4269.16
         },
         {
-            "number": "8842",
-            "date": "2026-05-12",
-            "client": "BRACELL PAPEIS NORDE",
-            "city": "São Gonçalo dos Camp",
+            "number": "8843",
+            "date": "2026-05-13",
+            "client": "PERASSOLI",
+            "city": "São Miguel do Oeste",
+            "state": "SC",
+            "representative": "RC RAFAEL PR SC OEST",
+            "machines": ["Corte 1"],
+            "weightKg": 112.9,
+            "revenue": 2624.83
+        },
+        {
+            "number": "8844",
+            "date": "2026-05-13",
+            "client": "M S CABECEIRAS",
+            "city": "Capitão Leônidas Mar",
+            "state": "PR",
+            "representative": "RC RAFAEL PR SC OEST",
+            "machines": ["Corte 1", "Corte 2"],
+            "weightKg": 316.65,
+            "revenue": 6826.97
+        },
+        {
+            "number": "8845",
+            "date": "2026-05-13",
+            "client": "VANITY INDUSTRIAL LT",
+            "city": "Guarulhos",
+            "state": "SP",
+            "representative": "VENDA INTERNA 5",
+            "machines": ["Corte 1"],
+            "weightKg": 280.2,
+            "revenue": 5903.02
+        },
+        {
+            "number": "8846",
+            "date": "2026-05-13",
+            "client": "BONEMANIA TECIDOS E",
+            "city": "Apucarana",
+            "state": "PR",
+            "representative": "RC MONTEMEZZO MGA PR",
+            "machines": ["Corte 1", "Corte 2"],
+            "weightKg": 2625.8,
+            "revenue": 57732.78
+        },
+        {
+            "number": "8847",
+            "date": "2026-05-13",
+            "client": "SOHOME",
+            "city": "Sarandi",
+            "state": "PR",
+            "representative": "RC MONTEMEZZO MGA PR",
+            "machines": ["Corte 1", "Corte 2"],
+            "weightKg": 1404.0,
+            "revenue": 21134.4
+        },
+        {
+            "number": "8848",
+            "date": "2026-05-13",
+            "client": "MODELAR ESTOFADOS",
+            "city": "Santo Antônio de Jes",
             "state": "BA",
-            "representative": "RC CHRISTIAN COMPANY",
-            "machines": [
-                "Corte 1"
-            ],
-            "weightKg": 5889.75,
-            "revenue": 135828.74
+            "representative": "RC MS SALV. BA",
+            "machines": ["Corte 1"],
+            "weightKg": 323.15,
+            "revenue": 6978.79
+        },
+        {
+            "number": "8849",
+            "date": "2026-05-13",
+            "client": "VEST MOVEL TEXTIL LT",
+            "city": "Arapongas",
+            "state": "PR",
+            "representative": "RC MONTEMEZZO MGA PR",
+            "machines": ["Corte 1"],
+            "weightKg": 1015.45,
+            "revenue": 22811.8
+        },
+        {
+            "number": "8850",
+            "date": "2026-05-13",
+            "client": "CHAPEUS GARCIA",
+            "city": "Caicó",
+            "state": "RN",
+            "representative": "RC FRANCISCO RN",
+            "machines": ["Corte 1"],
+            "weightKg": 1672.25,
+            "revenue": 34432.73
+        },
+        {
+            "number": "8851",
+            "date": "2026-05-13",
+            "client": "KDU CONFECCOES",
+            "city": "Santo Antônio do Sud",
+            "state": "PR",
+            "representative": "VENDA INT ADRIANA",
+            "machines": ["Corte 1"],
+            "weightKg": 669.95,
+            "revenue": 14056.0
+        },
+        {
+            "number": "8852",
+            "date": "2026-05-14",
+            "client": "MAXI BORDADOS",
+            "city": "Curitiba",
+            "state": "PR",
+            "representative": "VENDA INTERNA 5",
+            "machines": ["Corte 2"],
+            "weightKg": 3614.75,
+            "revenue": 76788.68
+        },
+        {
+            "number": "8853",
+            "date": "2026-05-14",
+            "client": "ANTUARTE COMERCIO DE",
+            "city": "São Paulo",
+            "state": "SP",
+            "representative": "VENDA INTERNA 5",
+            "machines": ["Rebobinadeira"],
+            "weightKg": 2352.0,
+            "revenue": 43041.6
+        },
+        {
+            "number": "8854",
+            "date": "2026-05-14",
+            "client": "THS SILVA LTDA",
+            "city": "Aparecida de Goiânia",
+            "state": "GO",
+            "representative": "VENDA INT ADRIANA",
+            "machines": ["Corte 1"],
+            "weightKg": 546.4,
+            "revenue": 11155.2
+        },
+        {
+            "number": "8855",
+            "date": "2026-05-14",
+            "client": "N E COMERCIO E INDUS",
+            "city": "Bezerros",
+            "state": "PE",
+            "representative": "RC LASALVIA PE/PB",
+            "machines": ["Corte 1", "Corte 2"],
+            "weightKg": 304.75,
+            "revenue": 6595.33
+        },
+        {
+            "number": "8856",
+            "date": "2026-05-14",
+            "client": "S G A INDUSTRIA E CO",
+            "city": "Curitiba",
+            "state": "PR",
+            "representative": "VENDA INT LETICIA",
+            "machines": ["Corte 1"],
+            "weightKg": 1049.15,
+            "revenue": 22373.6
+        },
+        {
+            "number": "8858",
+            "date": "2026-05-14",
+            "client": "RAFAELLA NATAL MURAR",
+            "city": "Curitiba",
+            "state": "PR",
+            "representative": "VENDA INT KELLY",
+            "machines": ["Corte 1", "Corte 2"],
+            "weightKg": 934.4,
+            "revenue": 18789.54
+        },
+        {
+            "number": "8860",
+            "date": "2026-05-14",
+            "client": "SH ARTIGOS PARA ESTO",
+            "city": "São José dos Pinhais",
+            "state": "PR",
+            "representative": "VENDA INTERNA 5",
+            "machines": ["Corte 1", "Corte 2"],
+            "weightKg": 1094.75,
+            "revenue": 21640.59
         }
     ],
     "representatives": [
@@ -977,31 +1220,37 @@ window.SpunflexData = {
         {
             "name": "RC ANDRÉ ALVARENGA",
             "weightKg": 15469.95,
-            "revenue": 270259.99,
+            "revenue": 265897.02,
             "invoiceCount": 3
         },
         {
             "name": "RC MONTEMEZZO MGA PR",
-            "weightKg": 7782.6,
-            "revenue": 139176.73,
-            "invoiceCount": 7
+            "weightKg": 12827.85,
+            "revenue": 240855.71,
+            "invoiceCount": 10
         },
         {
-            "name": "RC CHRISTIAN COMPANY",
-            "weightKg": 5889.75,
-            "revenue": 135828.74,
-            "invoiceCount": 1
+            "name": "VENDA INTERNA 5",
+            "weightKg": 9270.05,
+            "revenue": 188497.32,
+            "invoiceCount": 8
         },
         {
             "name": "VENDA INT ADRIANA",
-            "weightKg": 6376.0,
-            "revenue": 123818.23,
-            "invoiceCount": 7
+            "weightKg": 7592.35,
+            "revenue": 149029.43,
+            "invoiceCount": 9
         },
         {
             "name": "VENDA INTERNA",
             "weightKg": 6459.65,
             "revenue": 116094.33,
+            "invoiceCount": 2
+        },
+        {
+            "name": "VENDA INT LETICIA",
+            "weightKg": 3781.25,
+            "revenue": 77685.54,
             "invoiceCount": 2
         },
         {
@@ -1011,10 +1260,10 @@ window.SpunflexData = {
             "invoiceCount": 4
         },
         {
-            "name": "VENDA INT LETICIA",
-            "weightKg": 2732.1,
-            "revenue": 55311.94,
-            "invoiceCount": 1
+            "name": "RC FRANCISCO RN",
+            "weightKg": 2930.3,
+            "revenue": 61748.69,
+            "invoiceCount": 2
         },
         {
             "name": "VENDA DIRETA",
@@ -1023,16 +1272,10 @@ window.SpunflexData = {
             "invoiceCount": 2
         },
         {
-            "name": "VENDA INTERNA 5",
-            "weightKg": 1928.35,
-            "revenue": 41123.43,
-            "invoiceCount": 4
-        },
-        {
             "name": "RC RAFAEL PR SC OEST",
-            "weightKg": 2131.7,
-            "revenue": 39812.47,
-            "invoiceCount": 1
+            "weightKg": 2561.25,
+            "revenue": 49264.27,
+            "invoiceCount": 3
         },
         {
             "name": "RC SIMAN RJ",
@@ -1041,10 +1284,10 @@ window.SpunflexData = {
             "invoiceCount": 2
         },
         {
-            "name": "RC FRANCISCO RN",
-            "weightKg": 1258.05,
-            "revenue": 27315.96,
-            "invoiceCount": 1
+            "name": "RC MS SALV. BA",
+            "weightKg": 1360.45,
+            "revenue": 28831.56,
+            "invoiceCount": 2
         },
         {
             "name": "RC RICARDO ALMEID SP",
@@ -1053,9 +1296,15 @@ window.SpunflexData = {
             "invoiceCount": 1
         },
         {
-            "name": "RC MS SALV. BA",
-            "weightKg": 1037.3,
-            "revenue": 21852.77,
+            "name": "VENDA INT KELLY",
+            "weightKg": 934.4,
+            "revenue": 18789.54,
+            "invoiceCount": 1
+        },
+        {
+            "name": "RC LASALVIA PE/PB",
+            "weightKg": 304.75,
+            "revenue": 6595.33,
             "invoiceCount": 1
         },
         {
@@ -1063,40 +1312,33 @@ window.SpunflexData = {
             "weightKg": 302.3,
             "revenue": 6575.31,
             "invoiceCount": 1
-        },
-        {
-            "name": "SPUNFLEX",
-            "weightKg": 0.0,
-            "revenue": 3083.0,
-            "invoiceCount": 3,
-            "notes": "Transações internas sem peso"
         }
     ],
     "machines": [
         {
-            "name": "Corte 1",
-            "weightKg": 47286.65,
-            "revenue": 938937.35
+            "name": "Corte 2",
+            "weightKg": 46655.3,
+            "revenue": 900783.09
         },
         {
-            "name": "Corte 2",
-            "weightKg": 33524.55,
-            "revenue": 623123.87
+            "name": "Corte 1",
+            "weightKg": 44230.7,
+            "revenue": 855293.65
         },
         {
             "name": "Rebobinadeira",
-            "weightKg": 2119.2,
-            "revenue": 43635.73
+            "weightKg": 4471.2,
+            "revenue": 86677.33
         }
     ]
 },
   currentMayOrders2026: {
-    "date": "2026-05-13",
-    "weightKg": 9532.261,
-    "merchandiseValue": 219779.41,
-    "avgPrice": 23.0564,
-    "status": "Pedidos cadastrados em 13/05/2026",
-    "sourceId": "src-carteira-13-05"
+    "date": "2026-05-14",
+    "weightKg": 1323.002,
+    "merchandiseValue": 30126.6,
+    "avgPrice": 22.7714,
+    "status": "Pedidos cadastrados em 14/05/2026",
+    "sourceId": "src-pedidos-14-05"
 },
 
   // -------------- ENTRADA DIÁRIA DE PEDIDOS (VENDAS) --------------
@@ -1175,6 +1417,15 @@ window.SpunflexData = {
         "orderCount": 6,
         "notes": "Pedidos 7852, 7853, 7854, 7855, 7856, 7857 — 439 bobinas",
         "sourceId": "src-carteira-13-05"
+    },
+    {
+        "date": "2026-05-14",
+        "weightKg": 1323.002,
+        "revenue": 30126.6,
+        "avgPrice": 22.7714,
+        "orderCount": 2,
+        "notes": "Pedidos 7858, 7859 (FELTEX) — 36 bobinas",
+        "sourceId": "src-pedidos-14-05"
     }
 ],
   monthlySales: [
@@ -5564,6 +5815,82 @@ window.SpunflexData = {
         "saldoKg": 783.64,
         "saldoValor": 20194.23,
         "saldoBobinas": 49
+    },
+    {
+        "pedido": 7858,
+        "cliente": "FELTEX FABRICACAO DE",
+        "representante": "RC SINESIO",
+        "dataPedido": "2026-05-14",
+        "dataEntrega": "2026-05-26",
+        "situacao": "Cadastrada",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60/75/90 DD",
+        "cidade": "Ferraz De Vasconcelo",
+        "estado": "SP",
+        "segmento": "COLCHÃO",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 2100MM AZUL MARINHO 35GR",
+                "bobinas": 18,
+                "kg": 661.501,
+                "valor": 15063.3,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 18,
+                "pedidoKg": 661.501,
+                "pedidoValor": 15063.3,
+                "saldoKg": 661.501,
+                "saldoValor": 15063.3,
+                "saldoBobinas": 18
+            }
+        ],
+        "totalKg": 661.501,
+        "totalValor": 15063.3,
+        "totalBobinas": 18,
+        "pedidoKg": 661.501,
+        "pedidoValor": 15063.3,
+        "pedidoBobinas": 18,
+        "saldoKg": 661.501,
+        "saldoValor": 15063.3,
+        "saldoBobinas": 18
+    },
+    {
+        "pedido": 7859,
+        "cliente": "FELTEX FABRICACAO DE",
+        "representante": "RC SINESIO",
+        "dataPedido": "2026-05-14",
+        "dataEntrega": "2026-05-26",
+        "situacao": "Cadastrada",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60/75/90 DD",
+        "cidade": "Ferraz De Vasconcelo",
+        "estado": "SP",
+        "segmento": "COLCHÃO",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 2100MM AZUL MARINHO 35GR",
+                "bobinas": 18,
+                "kg": 661.501,
+                "valor": 15063.3,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 18,
+                "pedidoKg": 661.501,
+                "pedidoValor": 15063.3,
+                "saldoKg": 661.501,
+                "saldoValor": 15063.3,
+                "saldoBobinas": 18
+            }
+        ],
+        "totalKg": 661.501,
+        "totalValor": 15063.3,
+        "totalBobinas": 18,
+        "pedidoKg": 661.501,
+        "pedidoValor": 15063.3,
+        "pedidoBobinas": 18,
+        "saldoKg": 661.501,
+        "saldoValor": 15063.3,
+        "saldoBobinas": 18
     }
 ]
 ,
