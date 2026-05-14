@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Montserrat:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./styles.css?v=20260514-maq-labels">
   </head>
   <body>
     <div class="login-container hidden" id="login-container">
@@ -109,6 +109,16 @@
             </span>
             <span class="nav-label">Dashboard</span>
           </button>
+          <button class="nav-button" type="button" data-view="goals" title="Metas">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"></circle>
+                <circle cx="12" cy="12" r="5"></circle>
+                <circle cx="12" cy="12" r="1.6" fill="currentColor"></circle>
+              </svg>
+            </span>
+            <span class="nav-label">Metas</span>
+          </button>
           <span class="nav-group-label">Comercial</span>
           <button class="nav-button" type="button" data-view="invoices" title="Faturamento — NFs já emitidas">
             <span class="nav-icon" aria-hidden="true">
@@ -151,6 +161,16 @@
             </span>
             <span class="nav-label">Produtos</span>
           </button>
+          <button class="nav-button" type="button" data-view="prices" title="Precificação">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                <path d="M2 17l10 5 10-5"></path>
+                <path d="M2 12l10 5 10-5"></path>
+              </svg>
+            </span>
+            <span class="nav-label">Preços</span>
+          </button>
           <button class="nav-button" type="button" data-view="representatives" title="Representantes">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -162,16 +182,6 @@
             </span>
             <span class="nav-label">Representantes</span>
           </button>
-          <span class="nav-group-label">Operação</span>
-          <button class="nav-button" type="button" data-view="operations" title="Operação">
-            <span class="nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.08A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.08A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.08A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 1 1 0 4h-.08a1.7 1.7 0 0 0-1.52 1.04z"></path>
-              </svg>
-            </span>
-            <span class="nav-label">Operação</span>
-          </button>
           <button class="nav-button" type="button" data-view="backlog" title="Carteira">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -181,27 +191,38 @@
             </span>
             <span class="nav-label">Carteira</span>
           </button>
-          <button class="nav-button" type="button" data-view="entries" title="Entradas">
+          <button class="nav-button" type="button" data-view="freights" title="Fretes">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 7h13l5 5v5H3z"></path>
-                <circle cx="8" cy="18" r="2"></circle>
-                <circle cx="17" cy="18" r="2"></circle>
+                <path d="M3 7h11v9H3z"></path>
+                <path d="M14 10h4l3 3v3h-7z"></path>
+                <circle cx="7" cy="18" r="2"></circle>
+                <circle cx="18" cy="18" r="2"></circle>
               </svg>
             </span>
-            <span class="nav-label">Entradas</span>
+            <span class="nav-label">Fretes</span>
           </button>
-          <span class="nav-group-label">Estratégia</span>
-          <button class="nav-button" type="button" data-view="goals" title="Metas">
+          <span class="nav-group-label">Produção</span>
+          <button class="nav-button" type="button" data-view="inventory" title="Estoque de produtos acabados">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="9"></circle>
-                <circle cx="12" cy="12" r="5"></circle>
-                <circle cx="12" cy="12" r="1.6" fill="currentColor"></circle>
+                <path d="M3 7l9-4 9 4-9 4-9-4z"></path>
+                <path d="M3 12l9 4 9-4"></path>
+                <path d="M3 17l9 4 9-4"></path>
               </svg>
             </span>
-            <span class="nav-label">Metas</span>
+            <span class="nav-label">Estoque</span>
           </button>
+          <button class="nav-button" type="button" data-view="operations" title="Produção">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.08A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.08A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.08A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 1 1 0 4h-.08a1.7 1.7 0 0 0-1.52 1.04z"></path>
+              </svg>
+            </span>
+            <span class="nav-label">Produção</span>
+          </button>
+          <span class="nav-group-label">Financeiro</span>
           <button class="nav-button" type="button" data-view="finance" title="Financeiro">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -319,7 +340,8 @@
       </svg>
     </button>
 
-    <script src="./data.js"></script>
-    <script src="./app.js"></script>
+    <script src="./data.js?v=20260514-maq-labels"></script>
+    <script src="./stock-data.js?v=20260514-maq-labels"></script>
+    <script src="./app.js?v=20260514-maq-labels"></script>
   </body>
 </html>

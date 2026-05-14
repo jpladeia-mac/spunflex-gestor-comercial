@@ -1,206 +1,1103 @@
 window.SpunflexData = {
-  baseDate: "2026-05-04",
+  baseDate: "2026-05-13",
+  backlogSnapshotDate: "2026-05-13",
   company: "Spunflex",
   sources: [
     {
-      id: "src-2026-jan-abr-grafico",
-      file: "WhatsApp Image 2026-05-04 at 17.54.52.jpeg",
-      title: "2026 por mês - peso e faturamento",
-      type: "Gráfico dinâmico",
-      reviewed: true,
-      extracted: [
-        "Jan a abr/2026: peso mensal de 351.033 kg a 424.143 kg.",
-        "Jan a abr/2026: faturamento mensal de R$ 4,747 mi a R$ 7,034 mi.",
-        "Abril/2026 aparece como melhor mês do período no gráfico."
-      ]
+        "id": "src-2026-jan-abr-grafico",
+        "file": "WhatsApp Image 2026-05-04 at 17.54.52.jpeg",
+        "title": "2026 por mês - peso e faturamento",
+        "type": "Gráfico dinâmico",
+        "reviewed": true,
+        "extracted": [
+            "Jan a abr/2026: peso mensal de 351.033 kg a 424.143 kg.",
+            "Jan a abr/2026: faturamento mensal de R$ 4,747 mi a R$ 7,034 mi.",
+            "Abril/2026 aparece como melhor mês do período no gráfico."
+        ]
     },
     {
-      id: "src-historico-anos",
-      file: "WhatsApp Image 2026-05-04 at 17.55.16.jpeg",
-      title: "Histórico mensal 2023-2026",
-      type: "Tabela dinâmica",
-      reviewed: true,
-      extracted: [
-        "Histórico de peso e reais por mês entre 2023 e 2026.",
-        "Total 2025: 3.759.547 kg e R$ 52.243.716.",
-        "Total parcial 2026: 1.493.051 kg e R$ 21.614.119."
-      ]
+        "id": "src-historico-anos",
+        "file": "WhatsApp Image 2026-05-04 at 17.55.16.jpeg",
+        "title": "Histórico mensal 2023-2026",
+        "type": "Tabela dinâmica",
+        "reviewed": true,
+        "extracted": [
+            "Histórico de peso e reais por mês entre 2023 e 2026.",
+            "Total 2025: 3.759.547 kg e R$ 52.243.716.",
+            "Total parcial 2026: 1.493.051 kg e R$ 21.614.119."
+        ]
     },
     {
-      id: "src-ranking-abril",
-      file: "WhatsApp Image 2026-05-04 at 17.56.48.jpeg",
-      title: "Ranking de representantes - abril/2026",
-      type: "Tabela por representante",
-      reviewed: true,
-      extracted: [
-        "Ranking de abril/2026 por peso e por reais.",
-        "Total por representantes: 437.798 kg e R$ 7.033.509.",
-        "Maior representante por valor e peso: RC Montemezzo MGA PR."
-      ]
+        "id": "src-ranking-abril",
+        "file": "WhatsApp Image 2026-05-04 at 17.56.48.jpeg",
+        "title": "Ranking de representantes - abril/2026",
+        "type": "Tabela por representante",
+        "reviewed": true,
+        "extracted": [
+            "Ranking de abril/2026 por peso e por reais.",
+            "Total por representantes: 437.798 kg e R$ 7.033.509.",
+            "Maior representante por valor e peso: RC Montemezzo MGA PR."
+        ]
     },
     {
-      id: "src-entradas-mensais",
-      file: "WhatsApp Image 2026-05-04 at 17.57.47.jpeg",
-      title: "Entradas mensais 2026",
-      type: "Tabela de entrada",
-      reviewed: true,
-      extracted: [
-        "Entradas por data de entrada em jan-abr/2026.",
-        "Total parcial: 1.516.332,75 kg e R$ 22.872.546,39.",
-        "Abril/2026: 355.432,93 kg e R$ 6.711.672,28."
-      ]
+        "id": "src-entradas-mensais",
+        "file": "WhatsApp Image 2026-05-04 at 17.57.47.jpeg",
+        "title": "Entradas mensais 2026",
+        "type": "Tabela de entrada",
+        "reviewed": true,
+        "extracted": [
+            "Entradas por data de entrada em jan-abr/2026.",
+            "Total parcial: 1.516.332,75 kg e R$ 22.872.546,39.",
+            "Abril/2026: 355.432,93 kg e R$ 6.711.672,28."
+        ]
     },
     {
-      id: "src-entradas-diarias-abril",
-      file: "WhatsApp Image 2026-05-04 at 17.58.34.jpeg",
-      title: "Entradas diárias - abril/2026",
-      type: "Tabela diária por corte",
-      reviewed: true,
-      extracted: [
-        "Entradas de abril por dia, Corte 1, Corte 2 e Rebo.",
-        "Média informada: 18.707 kg/dia e R$ 353.246/dia.",
-        "Preço médio informado em abril: R$ 18,88/kg."
-      ]
+        "id": "src-entradas-diarias-abril",
+        "file": "WhatsApp Image 2026-05-04 at 17.58.34.jpeg",
+        "title": "Entradas diárias - abril/2026",
+        "type": "Tabela diária por corte",
+        "reviewed": true,
+        "extracted": [
+            "Entradas de abril por dia, Corte 1, Corte 2 e Rebo.",
+            "Média informada: 18.707 kg/dia e R$ 353.246/dia.",
+            "Preço médio informado em abril: R$ 18,88/kg."
+        ]
     },
     {
-      id: "src-faturamento-maio-ate-05",
-      file: "faturamento até 05:05.jpeg",
-      title: "Faturamento maio/2026 até 05/05",
-      type: "Tabela de faturamento parcial",
-      reviewed: true,
-      extracted: [
-        "Filtro de data: 01/05/2026 a 05/05/2026.",
-        "Total faturado parcial: R$ 501.050,03.",
-        "Peso faturado parcial: 26.160,35 kg."
-      ]
+        "id": "src-faturamento-maio-ate-05",
+        "file": "faturamento até 05:05.jpeg",
+        "title": "Faturamento maio/2026 até 05/05",
+        "type": "Tabela de faturamento parcial",
+        "reviewed": true,
+        "extracted": [
+            "Filtro de data: 01/05/2026 a 05/05/2026.",
+            "Total faturado parcial: R$ 501.050,03.",
+            "Peso faturado parcial: 26.160,35 kg."
+        ]
     },
     {
-      id: "src-pedidos-maio-05",
-      file: "entrada de pedidos em 05:05.jpeg",
-      title: "Entrada de pedidos - 05/05/2026",
-      type: "Tabela de pedidos",
-      reviewed: true,
-      extracted: [
-        "DataPedido exibida nas linhas: 05/05/2026.",
-        "Total de pedidos no rodapé: R$ 73.188,14.",
-        "Peso total no rodapé: 3.474,02 kg."
-      ]
+        "id": "src-pedidos-maio-05",
+        "file": "entrada de pedidos em 05:05.jpeg",
+        "title": "Entrada de pedidos - 05/05/2026",
+        "type": "Tabela de pedidos",
+        "reviewed": true,
+        "extracted": [
+            "DataPedido exibida nas linhas: 05/05/2026.",
+            "Total de pedidos no rodapé: R$ 73.188,14.",
+            "Peso total no rodapé: 3.474,02 kg."
+        ]
     },
     {
-      id: "src-nf-vendas-finalidade-05-06",
-      file: "NF Vendas por Finalidade 05.05 e 06.05 - joao.xlsx",
-      title: "NF Vendas por Finalidade - 05 e 06/05/2026",
-      type: "Planilha de notas fiscais",
-      reviewed: true,
-      extracted: [
-        "8 NFs emitidas (8808-8814 e 8816), 28 linhas de itens.",
-        "05/05/2026: 6.947,89 kg e R$ 101.439,22 em 2 NFs (Ferguile e J J Silk).",
-        "06/05/2026: 5.119,00 kg e R$ 100.193,27 em 6 NFs (Passalacqua, Eurosono, Prime Lonas).",
-        "Total 05-06/05: 12.066,89 kg e R$ 201.632,49 (preço médio R$ 16,71/kg)."
-      ]
+        "id": "src-nf-vendas-finalidade-05-06",
+        "file": "NF Vendas por Finalidade 05.05 e 06.05 - joao.xlsx",
+        "title": "NF Vendas por Finalidade - 05 e 06/05/2026",
+        "type": "Planilha de notas fiscais",
+        "reviewed": true,
+        "extracted": [
+            "8 NFs emitidas (8808-8814 e 8816), 28 linhas de itens.",
+            "05/05/2026: 6.947,89 kg e R$ 101.439,22 em 2 NFs (Ferguile e J J Silk).",
+            "06/05/2026: 5.119,00 kg e R$ 100.193,27 em 6 NFs (Passalacqua, Eurosono, Prime Lonas).",
+            "Total 05-06/05: 12.066,89 kg e R$ 201.632,49 (preço médio R$ 16,71/kg)."
+        ]
     },
     {
-      id: "src-nf-faturamento-07",
-      file: "fat 07:05.xlsx",
-      title: "NF Vendas por Finalidade - 07/05/2026",
-      type: "Planilha de notas fiscais",
-      reviewed: true,
-      extracted: [
-        "3 NFs emitidas (8817, 8818, 8819), 4 linhas de itens.",
-        "07/05/2026: 2.944,49 kg e R$ 52.687,93 (preço médio R$ 17,89/kg).",
-        "Representantes: RC RICARDO ALMEID SP (R$ 25.601,18), VENDA INTERNA 5 (R$ 27.086,75)."
-      ]
+        "id": "src-nf-faturamento-07",
+        "file": "fat 07:05.xlsx",
+        "title": "NF Vendas por Finalidade - 07/05/2026",
+        "type": "Planilha de notas fiscais",
+        "reviewed": true,
+        "extracted": [
+            "3 NFs emitidas (8817, 8818, 8819), 4 linhas de itens.",
+            "07/05/2026: 2.944,49 kg e R$ 52.687,93 (preço médio R$ 17,89/kg).",
+            "Representantes: RC RICARDO ALMEID SP (R$ 25.601,18), VENDA INTERNA 5 (R$ 27.086,75)."
+        ]
+    },
+    {
+        "id": "src-fat-08-05",
+        "file": "Faturamento 08.05.xlsx",
+        "title": "NF Vendas por Finalidade - 08/05/2026",
+        "type": "Planilha de notas fiscais",
+        "reviewed": true,
+        "extracted": [
+            "7 NFs emitidas (8821-8827), 13 linhas de itens.",
+            "08/05/2026: 16.945,05 kg e R$ 327.745,96 (preço médio R$ 19,34/kg).",
+            "Representantes: RC SINESIO (R$ 244.498,12), RC MONTEMEZZO MGA PR (R$ 34.328,52), RC FRANCISCO RN (R$ 27.315,96), RC SIMAN RJ (R$ 18.282,08), VENDA INT ADRIANA (R$ 3.321,28)."
+        ]
+    },
+    {
+        "id": "src-fat-11-05",
+        "file": "faturamento 11.05.jpeg",
+        "title": "Faturamento 11/05/2026",
+        "type": "Tabela de faturamento por cliente",
+        "reviewed": true,
+        "extracted": [
+            "Filtro: VENDAS DE MERCADORIA em 11/05/2026.",
+            "Total faturado: R$ 351.683,71 e 19.040,25 kg (preço médio R$ 18,47/kg).",
+            "Clientes: ZEFLEX (R$ 203.571,48), SINTEMAIS (R$ 55.311,94), PRIME LONAS (R$ 25.098,77), CRISTALFLEX (R$ 39.812,47), MATRIX (R$ 23.164,26), DAFNE (R$ 4.724,79)."
+        ]
+    },
+    {
+        "id": "src-pedidos-11-05",
+        "file": "entrada de pedidos 11.05.jpeg",
+        "title": "Entrada de pedidos - 11/05/2026",
+        "type": "Tabela de pedidos",
+        "reviewed": true,
+        "extracted": [
+            "DataPedido exibida nas linhas: 11/05/2026.",
+            "Pedidos 7845 (ATCO FILIAL) e 7846 (BEQAA CAMA BOX LTDA) via RC SINESIO.",
+            "Total de pedidos: R$ 160.717,76 e 8.078,02 kg (256 bobinas)."
+        ]
+    },
+    {
+        "id": "src-fat-geral-11-05",
+        "file": "DATABASE_DIARIA/NF Vendas por Finalidade até 12.05.xlsx",
+        "title": "NF Vendas por Finalidade - 02 a 12/05/2026 (completo)",
+        "type": "Planilha de notas fiscais",
+        "reviewed": true,
+        "extracted": [
+            "46 NFs emitidas (8796-8842, exceto 8807), 120 linhas de itens.",
+            "Período: 02/05 a 12/05/2026 (02, 04, 05, 06, 07, 08, 11 e 12/05).",
+            "Total: 82.930,40 kg e R$ 1.608.779,95 (preço médio R$ 19,40/kg).",
+            "12/05/2026: 12.695,40 kg e R$ 272.336,05 em 8 NFs (8835-8842).",
+            "Inclui NFs internas sem peso para paletes/sucata quando presentes na planilha."
+        ]
+    },
+    {
+        "id": "src-carteira-13-05",
+        "file": "DATABASE_DIARIA/carteira geral de pedidos em 13.05.xlsx",
+        "title": "Carteira geral de pedidos - 13/05/2026",
+        "type": "Planilha de carteira de pedidos",
+        "reviewed": true,
+        "extracted": [
+            "Carteira viva em 13/05/2026: 56 pedidos ativos, 159 linhas de itens.",
+            "Carteira em aberto: 213.824,22 kg e R$ 4.103.435,44 (6368 bobinas).",
+            "Total original dos pedidos ativos: 223.698,34 kg e R$ 4.250.000,43 (6903 bobinas).",
+            "Pedidos cadastrados em 13/05/2026: 6 pedidos, 9.532,26 kg e R$ 219.779,41."
+        ]
     }
-  ],
+],
   currentMayBilling2026: {
-    startDate: "2026-05-01",
-    endDate: "2026-05-07",
-    weightKg: 34223.84,
-    quantity: 751020.85,
-    revenue: 653931.23,
-    avgPrice: 19.1077,
-    sourceId: "src-faturamento-maio-ate-05",
-    breakdown: [
-      { range: "01/05 a 05/05", weightKg: 26160.35, revenue: 501050.03 },
-      { range: "06/05",          weightKg: 5119.00,  revenue: 100193.27 },
-      { range: "07/05",          weightKg: 2944.49,  revenue: 52687.93  }
+    "startDate": "2026-05-02",
+    "endDate": "2026-05-12",
+    "weightKg": 82930.4,
+    "revenue": 1608779.95,
+    "avgPrice": 19.3992,
+    "sourceId": "src-fat-geral-11-05",
+    "breakdown": [
+        {
+            "range": "02/05",
+            "weightKg": 2544.0,
+            "revenue": 45018.75
+        },
+        {
+            "range": "04/05",
+            "weightKg": 16794.45,
+            "revenue": 355176.06
+        },
+        {
+            "range": "05/05",
+            "weightKg": 6821.9,
+            "revenue": 101439.22
+        },
+        {
+            "range": "06/05",
+            "weightKg": 5205.0,
+            "revenue": 102377.27
+        },
+        {
+            "range": "07/05",
+            "weightKg": 2884.35,
+            "revenue": 53002.93
+        },
+        {
+            "range": "08/05",
+            "weightKg": 16945.05,
+            "revenue": 327745.96
+        },
+        {
+            "range": "11/05",
+            "weightKg": 19040.25,
+            "revenue": 351683.71
+        },
+        {
+            "range": "12/05",
+            "weightKg": 12695.4,
+            "revenue": 272336.05
+        }
     ]
-  },
+},
   mayInvoices2026: {
-    period: { startDate: "2026-05-05", endDate: "2026-05-07" },
-    sourceId: "src-nf-vendas-finalidade-05-06",
-    totals: {
-      weightKg: 15011.38,
-      revenue: 254320.42,
-      avgPrice: 16.9418,
-      invoiceCount: 11,
-      lineCount: 32
+    "period": {
+        "startDate": "2026-05-02",
+        "endDate": "2026-05-12"
     },
-    daily: [
-      {
-        date: "2026-05-05",
-        weightKg: 6947.89,
-        revenue: 101439.22,
-        avgPrice: 14.5999,
-        invoiceCount: 2,
-        lineCount: 6,
-        notes: ["8808", "8809"]
-      },
-      {
-        date: "2026-05-06",
-        weightKg: 5119.00,
-        revenue: 100193.27,
-        avgPrice: 19.5728,
-        invoiceCount: 6,
-        lineCount: 22,
-        notes: ["8810", "8811", "8812", "8813", "8814", "8816"]
-      },
-      {
-        date: "2026-05-07",
-        weightKg: 2944.49,
-        revenue: 52687.93,
-        avgPrice: 17.8939,
-        invoiceCount: 3,
-        lineCount: 4,
-        notes: ["8817", "8818", "8819"]
-      }
+    "sourceId": "src-fat-geral-11-05",
+    "totals": {
+        "weightKg": 82930.4,
+        "revenue": 1608779.95,
+        "avgPrice": 19.3992,
+        "invoiceCount": 46,
+        "lineCount": 120
+    },
+    "daily": [
+        {
+            "date": "2026-05-02",
+            "weightKg": 2544.0,
+            "revenue": 45018.75,
+            "avgPrice": 17.696,
+            "invoiceCount": 1,
+            "lineCount": 1,
+            "notes": [
+                "8796"
+            ]
+        },
+        {
+            "date": "2026-05-04",
+            "weightKg": 16794.45,
+            "revenue": 355176.06,
+            "avgPrice": 21.1484,
+            "invoiceCount": 10,
+            "lineCount": 18,
+            "notes": [
+                "8797",
+                "8798",
+                "8799",
+                "8800",
+                "8801",
+                "8802",
+                "8803",
+                "8804",
+                "8805",
+                "8806"
+            ]
+        },
+        {
+            "date": "2026-05-05",
+            "weightKg": 6821.9,
+            "revenue": 101439.22,
+            "avgPrice": 14.8696,
+            "invoiceCount": 2,
+            "lineCount": 6,
+            "notes": [
+                "8808",
+                "8809"
+            ]
+        },
+        {
+            "date": "2026-05-06",
+            "weightKg": 5205.0,
+            "revenue": 102377.27,
+            "avgPrice": 19.669,
+            "invoiceCount": 7,
+            "lineCount": 25,
+            "notes": [
+                "8810",
+                "8811",
+                "8812",
+                "8813",
+                "8814",
+                "8815",
+                "8816"
+            ]
+        },
+        {
+            "date": "2026-05-07",
+            "weightKg": 2884.35,
+            "revenue": 53002.93,
+            "avgPrice": 18.376,
+            "invoiceCount": 4,
+            "lineCount": 5,
+            "notes": [
+                "8817",
+                "8818",
+                "8819",
+                "8820"
+            ]
+        },
+        {
+            "date": "2026-05-08",
+            "weightKg": 16945.05,
+            "revenue": 327745.96,
+            "avgPrice": 19.3417,
+            "invoiceCount": 7,
+            "lineCount": 13,
+            "notes": [
+                "8821",
+                "8822",
+                "8823",
+                "8824",
+                "8825",
+                "8826",
+                "8827"
+            ]
+        },
+        {
+            "date": "2026-05-11",
+            "weightKg": 19040.25,
+            "revenue": 351683.71,
+            "avgPrice": 18.4705,
+            "invoiceCount": 7,
+            "lineCount": 30,
+            "notes": [
+                "8828",
+                "8829",
+                "8830",
+                "8831",
+                "8832",
+                "8833",
+                "8834"
+            ]
+        },
+        {
+            "date": "2026-05-12",
+            "weightKg": 12695.4,
+            "revenue": 272336.05,
+            "avgPrice": 21.4516,
+            "invoiceCount": 8,
+            "lineCount": 22,
+            "notes": [
+                "8835",
+                "8836",
+                "8837",
+                "8838",
+                "8839",
+                "8840",
+                "8841",
+                "8842"
+            ]
+        }
     ],
-    invoices: [
-      { number: "8808", date: "2026-05-05", client: "FERGUILE ESTOFADOS",       city: "Arapongas",         state: "PR", representative: "RC MONTEMEZZO MGA PR", machines: ["Corte 1"],            weightKg: 4151.95, revenue: 60618.50 },
-      { number: "8809", date: "2026-05-05", client: "J J SILK S EMBALAGENS",    city: "Jaú",               state: "SP", representative: "VENDA INTERNA",        machines: ["Corte 1", "Corte 2"], weightKg: 2795.94, revenue: 40820.72 },
-      { number: "8810", date: "2026-05-06", client: "PRIME LONAS COMERCIO",     city: "Curitiba",          state: "PR", representative: "VENDA INT ADRIANA",    machines: ["Rebobinadeira"],      weightKg: 250.00,  revenue: 6971.88  },
-      { number: "8811", date: "2026-05-06", client: "PASSALACQUA & CIA",        city: "Franca",            state: "SP", representative: "RC DANILO VOTU SP",    machines: ["Corte 1"],            weightKg: 176.40,  revenue: 3510.36  },
-      { number: "8812", date: "2026-05-06", client: "PASSALACQUA & CIA",        city: "Londrina",          state: "PR", representative: "RC DANILO VOTU SP",    machines: ["Corte 1"],            weightKg: 517.10,  revenue: 10290.37 },
-      { number: "8813", date: "2026-05-06", client: "PASSALACQUA CIA SP",       city: "Ribeirão Preto",    state: "SP", representative: "RC DANILO VOTU SP",    machines: ["Corte 1"],            weightKg: 1701.00, revenue: 33849.90 },
-      { number: "8814", date: "2026-05-06", client: "PASSALACQUA CIA MG",       city: "Belo Horizonte",    state: "MG", representative: "RC DANILO VOTU SP",    machines: ["Corte 1"],            weightKg: 884.80,  revenue: 17607.52 },
-      { number: "8816", date: "2026-05-06", client: "EUROSONO",                 city: "Rio Preto Da Eva",  state: "AM", representative: "RC ANDRÉ ALVARENGA",   machines: ["Corte 2"],            weightKg: 1589.70, revenue: 27963.24 },
-      { number: "8817", date: "2026-05-07", client: "DTEC REVESTIMENTOS",       city: "Curitiba",          state: "PR", representative: "VENDA INTERNA 5",      machines: ["Corte 1"],            weightKg: 291.21,  revenue: 6790.95  },
-      { number: "8818", date: "2026-05-07", client: "RI INDUSTRIA ARTEFATOS",   city: "São Paulo",         state: "SP", representative: "RC RICARDO ALMEID SP", machines: ["Corte 1"],            weightKg: 1673.28, revenue: 25601.18 },
-      { number: "8819", date: "2026-05-07", client: "JJSAF",                    city: "Pinhais",           state: "PR", representative: "VENDA INTERNA 5",      machines: ["Corte 1"],            weightKg: 980.00,  revenue: 20295.80 }
+    "invoices": [
+        {
+            "number": "8796",
+            "date": "2026-05-02",
+            "client": "F HENRIQUE MELO DE",
+            "city": "São Paulo",
+            "state": "SP",
+            "representative": "VENDA DIRETA",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 2544.0,
+            "revenue": 45018.75
+        },
+        {
+            "number": "8797",
+            "date": "2026-05-04",
+            "client": "PRIME LONAS COMERCIO",
+            "city": "Curitiba",
+            "state": "PR",
+            "representative": "VENDA INT ADRIANA",
+            "machines": [
+                "Rebobinadeira"
+            ],
+            "weightKg": 106.0,
+            "revenue": 2231.0
+        },
+        {
+            "number": "8798",
+            "date": "2026-05-04",
+            "client": "FELTEX FABRICACAO DE",
+            "city": "Ferraz De Vasconcelo",
+            "state": "SP",
+            "representative": "RC SINESIO",
+            "machines": [
+                "Corte 2"
+            ],
+            "weightKg": 623.35,
+            "revenue": 13125.0
+        },
+        {
+            "number": "8799",
+            "date": "2026-05-04",
+            "client": "FELTEX FABRICACAO DE",
+            "city": "Ferraz De Vasconcelo",
+            "state": "SP",
+            "representative": "RC SINESIO",
+            "machines": [
+                "Corte 2"
+            ],
+            "weightKg": 627.0,
+            "revenue": 13125.0
+        },
+        {
+            "number": "8800",
+            "date": "2026-05-04",
+            "client": "INDUSTRIA E COMERCIO",
+            "city": "Vinhedo",
+            "state": "SP",
+            "representative": "VENDA DIRETA",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 570.5,
+            "revenue": 8532.06
+        },
+        {
+            "number": "8801",
+            "date": "2026-05-04",
+            "client": "FAVA",
+            "city": "Franco Da Rocha",
+            "state": "SP",
+            "representative": "RC SINESIO",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 1775.75,
+            "revenue": 38419.2
+        },
+        {
+            "number": "8802",
+            "date": "2026-05-04",
+            "client": "I G PALLETS",
+            "city": "São José dos Pinhais",
+            "state": "PR",
+            "representative": "SPUNFLEX",
+            "machines": [],
+            "weightKg": 0.0,
+            "revenue": 584.0,
+            "notes": "Transação interna sem peso (sucata/paletes)"
+        },
+        {
+            "number": "8803",
+            "date": "2026-05-04",
+            "client": "ATCO FILIAL",
+            "city": null,
+            "state": "SP",
+            "representative": "RC SINESIO",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 6119.05,
+            "revenue": 143308.15
+        },
+        {
+            "number": "8804",
+            "date": "2026-05-04",
+            "client": "SINTEMAIS COMERCIO D",
+            "city": "Novo Hamburgo",
+            "state": "RS",
+            "representative": "VENDA INTERNA",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 3699.8,
+            "revenue": 75273.61
+        },
+        {
+            "number": "8805",
+            "date": "2026-05-04",
+            "client": "ESTOFADOS BELLO",
+            "city": "Vitória da Conquista",
+            "state": "BA",
+            "representative": "RC MS SALV. BA",
+            "machines": [
+                "Corte 2"
+            ],
+            "weightKg": 1037.3,
+            "revenue": 21852.77
+        },
+        {
+            "number": "8806",
+            "date": "2026-05-04",
+            "client": "EUROSONO - MARANHÃO",
+            "city": "Bacabal",
+            "state": "MA",
+            "representative": "RC ANDRÉ ALVARENGA",
+            "machines": [
+                "Corte 2"
+            ],
+            "weightKg": 2235.7,
+            "revenue": 38725.27
+        },
+        {
+            "number": "8808",
+            "date": "2026-05-05",
+            "client": "FERGUILE ESTOFADOS E",
+            "city": "Arapongas",
+            "state": "PR",
+            "representative": "RC MONTEMEZZO MGA PR",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 4062.05,
+            "revenue": 60618.5
+        },
+        {
+            "number": "8809",
+            "date": "2026-05-05",
+            "client": "J J SILK S EMBALAG",
+            "city": "Jaú",
+            "state": "SP",
+            "representative": "VENDA INTERNA",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 2759.85,
+            "revenue": 40820.72
+        },
+        {
+            "number": "8810",
+            "date": "2026-05-06",
+            "client": "PRIME LONAS COMERCIO",
+            "city": "Curitiba",
+            "state": "PR",
+            "representative": "VENDA INT ADRIANA",
+            "machines": [
+                "Rebobinadeira"
+            ],
+            "weightKg": 350.0,
+            "revenue": 6971.88
+        },
+        {
+            "number": "8811",
+            "date": "2026-05-06",
+            "client": "PASSALACQUA CIA LT",
+            "city": "Franca",
+            "state": "SP",
+            "representative": "RC DANILO VOTU SP",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 176.85,
+            "revenue": 3510.36
+        },
+        {
+            "number": "8812",
+            "date": "2026-05-06",
+            "client": "PASSALACQUA CIA LT",
+            "city": "Londrina",
+            "state": "PR",
+            "representative": "RC DANILO VOTU SP",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 508.4,
+            "revenue": 10290.37
+        },
+        {
+            "number": "8813",
+            "date": "2026-05-06",
+            "client": "PASSALACQUA CIA SP",
+            "city": "Ribeirão Preto",
+            "state": "SP",
+            "representative": "RC DANILO VOTU SP",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 1694.0,
+            "revenue": 33849.9
+        },
+        {
+            "number": "8814",
+            "date": "2026-05-06",
+            "client": "PASSALACQUA CIA MG",
+            "city": "Belo Horizonte",
+            "state": "MG",
+            "representative": "RC DANILO VOTU SP",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 879.45,
+            "revenue": 17607.52
+        },
+        {
+            "number": "8815",
+            "date": "2026-05-06",
+            "client": "CICPLASTIC",
+            "city": "Curitiba",
+            "state": "PR",
+            "representative": "SPUNFLEX",
+            "machines": [],
+            "weightKg": 0.0,
+            "revenue": 2184.0,
+            "notes": "Transação interna sem peso (sucata/paletes)"
+        },
+        {
+            "number": "8816",
+            "date": "2026-05-06",
+            "client": "EUROSONO",
+            "city": "Rio Preto Da Eva",
+            "state": "AM",
+            "representative": "RC ANDRÉ ALVARENGA",
+            "machines": [
+                "Corte 2"
+            ],
+            "weightKg": 1596.3,
+            "revenue": 27963.24
+        },
+        {
+            "number": "8817",
+            "date": "2026-05-07",
+            "client": "DTEC REVESTIMENTOS L",
+            "city": "Curitiba",
+            "state": "PR",
+            "representative": "VENDA INTERNA 5",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 282.0,
+            "revenue": 6790.95
+        },
+        {
+            "number": "8818",
+            "date": "2026-05-07",
+            "client": "RI INDUSTRIA ARTEFAT",
+            "city": "São Paulo",
+            "state": "SP",
+            "representative": "RC RICARDO ALMEID SP",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 1658.2,
+            "revenue": 25601.18
+        },
+        {
+            "number": "8819",
+            "date": "2026-05-07",
+            "client": "JJSAF",
+            "city": "Pinhais",
+            "state": "PR",
+            "representative": "VENDA INTERNA 5",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 944.15,
+            "revenue": 20295.8
+        },
+        {
+            "number": "8820",
+            "date": "2026-05-07",
+            "client": "CICPLASTIC",
+            "city": "Curitiba",
+            "state": "PR",
+            "representative": "SPUNFLEX",
+            "machines": [],
+            "weightKg": 0.0,
+            "revenue": 315.0,
+            "notes": "Transação interna sem peso (sucata/paletes)"
+        },
+        {
+            "number": "8821",
+            "date": "2026-05-08",
+            "client": "LEOTEX COMERCIO DE F",
+            "city": "Guarulhos",
+            "state": "SP",
+            "representative": "RC SINESIO",
+            "machines": [
+                "Corte 1",
+                "Corte 2"
+            ],
+            "weightKg": 12977.4,
+            "revenue": 244498.12
+        },
+        {
+            "number": "8822",
+            "date": "2026-05-08",
+            "client": "EUCAPINUS COMERCIO D",
+            "city": "Duque De Caxias",
+            "state": "RJ",
+            "representative": "RC SIMAN RJ",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 798.0,
+            "revenue": 18282.08
+        },
+        {
+            "number": "8823",
+            "date": "2026-05-08",
+            "client": "JALMIR OLIVEIRA DANT",
+            "city": "Caicó",
+            "state": "RN",
+            "representative": "RC FRANCISCO RN",
+            "machines": [
+                "Corte 2"
+            ],
+            "weightKg": 1258.05,
+            "revenue": 27315.96
+        },
+        {
+            "number": "8824",
+            "date": "2026-05-08",
+            "client": "MERCANTIL NOVA ESTRE",
+            "city": "Santo André",
+            "state": "SP",
+            "representative": "VENDA INT ADRIANA",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 155.65,
+            "revenue": 3321.28
+        },
+        {
+            "number": "8825",
+            "date": "2026-05-08",
+            "client": "FERGUILE ESTOFADOS E",
+            "city": "Arapongas",
+            "state": "PR",
+            "representative": "RC MONTEMEZZO MGA PR",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 494.2,
+            "revenue": 10558.8
+        },
+        {
+            "number": "8826",
+            "date": "2026-05-08",
+            "client": "MATRIX",
+            "city": "Arapongas",
+            "state": "PR",
+            "representative": "RC MONTEMEZZO MGA PR",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 739.2,
+            "revenue": 15838.2
+        },
+        {
+            "number": "8827",
+            "date": "2026-05-08",
+            "client": "DANITHAIS",
+            "city": "Bela Vista do Paraís",
+            "state": "PR",
+            "representative": "RC MONTEMEZZO MGA PR",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 522.55,
+            "revenue": 7931.52
+        },
+        {
+            "number": "8828",
+            "date": "2026-05-11",
+            "client": "CRISTALFLEX",
+            "city": "Chapecó",
+            "state": "SC",
+            "representative": "RC RAFAEL PR SC OEST",
+            "machines": [
+                "Corte 1",
+                "Corte 2"
+            ],
+            "weightKg": 2131.7,
+            "revenue": 39812.47
+        },
+        {
+            "number": "8829",
+            "date": "2026-05-11",
+            "client": "ZEFLEX INDUSTRIA DE",
+            "city": "Jaguaruana",
+            "state": "CE",
+            "representative": "RC ANDRÉ ALVARENGA",
+            "machines": [
+                "Corte 2"
+            ],
+            "weightKg": 11637.95,
+            "revenue": 203571.48
+        },
+        {
+            "number": "8830",
+            "date": "2026-05-11",
+            "client": "PRIME LONAS COMERCIO",
+            "city": "Curitiba",
+            "state": "PR",
+            "representative": "VENDA INT ADRIANA",
+            "machines": [
+                "Rebobinadeira"
+            ],
+            "weightKg": 1260.0,
+            "revenue": 25098.77
+        },
+        {
+            "number": "8831",
+            "date": "2026-05-11",
+            "client": "MATRIX",
+            "city": "Arapongas",
+            "state": "PR",
+            "representative": "RC MONTEMEZZO MGA PR",
+            "machines": [
+                "Corte 1",
+                "Rebobinadeira"
+            ],
+            "weightKg": 1030.8,
+            "revenue": 23164.26
+        },
+        {
+            "number": "8832",
+            "date": "2026-05-11",
+            "client": "SINTEMAIS COMERCIO D",
+            "city": "Novo Hamburgo",
+            "state": "RS",
+            "representative": "VENDA INT LETICIA",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 2732.1,
+            "revenue": 55311.94
+        },
+        {
+            "number": "8833",
+            "date": "2026-05-11",
+            "client": "DAFNE",
+            "city": "Guarulhos",
+            "state": "SP",
+            "representative": "VENDA INT ADRIANA",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 92.9,
+            "revenue": 1748.25
+        },
+        {
+            "number": "8834",
+            "date": "2026-05-11",
+            "client": "DAFNE",
+            "city": "Guarulhos",
+            "state": "SP",
+            "representative": "VENDA INT ADRIANA",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 154.8,
+            "revenue": 2976.54
+        },
+        {
+            "number": "8835",
+            "date": "2026-05-12",
+            "client": "PALACIO DAS ESPUMAS",
+            "city": "Niterói",
+            "state": "RJ",
+            "representative": "RC SIMAN RJ",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 610.7,
+            "revenue": 13359.36
+        },
+        {
+            "number": "8836",
+            "date": "2026-05-12",
+            "client": "MAKO IND E COM DE EQ",
+            "city": "Rio Negro",
+            "state": "PR",
+            "representative": "VENDA INT ADRIANA",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 4256.65,
+            "revenue": 81470.51
+        },
+        {
+            "number": "8837",
+            "date": "2026-05-12",
+            "client": "MULTIPLUS COLCHOES L",
+            "city": "Maringá",
+            "state": "PR",
+            "representative": "RC MONTEMEZZO MGA PR",
+            "machines": [
+                "Corte 2"
+            ],
+            "weightKg": 593.6,
+            "revenue": 12989.27
+        },
+        {
+            "number": "8838",
+            "date": "2026-05-12",
+            "client": "SIMBAL BR",
+            "city": "Arapongas",
+            "state": "PR",
+            "representative": "RC MONTEMEZZO MGA PR",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 340.2,
+            "revenue": 8076.18
+        },
+        {
+            "number": "8839",
+            "date": "2026-05-12",
+            "client": "PILATI MOVEIS LTDA",
+            "city": "São Marcos",
+            "state": "RS",
+            "representative": "RC CESAR PABLOS",
+            "machines": [
+                "Corte 2"
+            ],
+            "weightKg": 302.3,
+            "revenue": 6575.31
+        },
+        {
+            "number": "8840",
+            "date": "2026-05-12",
+            "client": "PLAST LEO",
+            "city": "São Paulo",
+            "state": "SP",
+            "representative": "VENDA INTERNA 5",
+            "machines": [
+                "Corte 2"
+            ],
+            "weightKg": 500.75,
+            "revenue": 9767.52
+        },
+        {
+            "number": "8841",
+            "date": "2026-05-12",
+            "client": "CLEVER BRINDES PROMO",
+            "city": "São Paulo",
+            "state": "SP",
+            "representative": "VENDA INTERNA 5",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 201.45,
+            "revenue": 4269.16
+        },
+        {
+            "number": "8842",
+            "date": "2026-05-12",
+            "client": "BRACELL PAPEIS NORDE",
+            "city": "São Gonçalo dos Camp",
+            "state": "BA",
+            "representative": "RC CHRISTIAN COMPANY",
+            "machines": [
+                "Corte 1"
+            ],
+            "weightKg": 5889.75,
+            "revenue": 135828.74
+        }
     ],
-    representatives: [
-      { name: "RC DANILO VOTU SP",     weightKg: 3279.30, revenue: 65258.15, invoiceCount: 4 },
-      { name: "RC MONTEMEZZO MGA PR",  weightKg: 4151.95, revenue: 60618.50, invoiceCount: 1 },
-      { name: "VENDA INTERNA",         weightKg: 2795.94, revenue: 40820.72, invoiceCount: 1 },
-      { name: "RC ANDRÉ ALVARENGA",    weightKg: 1589.70, revenue: 27963.24, invoiceCount: 1 },
-      { name: "VENDA INTERNA 5",       weightKg: 1271.21, revenue: 27086.75, invoiceCount: 2 },
-      { name: "RC RICARDO ALMEID SP", weightKg: 1673.28, revenue: 25601.18, invoiceCount: 1 },
-      { name: "VENDA INT ADRIANA",     weightKg: 250.00,  revenue: 6971.88,  invoiceCount: 1 }
+    "representatives": [
+        {
+            "name": "RC SINESIO",
+            "weightKg": 22122.55,
+            "revenue": 452475.47,
+            "invoiceCount": 5
+        },
+        {
+            "name": "RC ANDRÉ ALVARENGA",
+            "weightKg": 15469.95,
+            "revenue": 270259.99,
+            "invoiceCount": 3
+        },
+        {
+            "name": "RC MONTEMEZZO MGA PR",
+            "weightKg": 7782.6,
+            "revenue": 139176.73,
+            "invoiceCount": 7
+        },
+        {
+            "name": "RC CHRISTIAN COMPANY",
+            "weightKg": 5889.75,
+            "revenue": 135828.74,
+            "invoiceCount": 1
+        },
+        {
+            "name": "VENDA INT ADRIANA",
+            "weightKg": 6376.0,
+            "revenue": 123818.23,
+            "invoiceCount": 7
+        },
+        {
+            "name": "VENDA INTERNA",
+            "weightKg": 6459.65,
+            "revenue": 116094.33,
+            "invoiceCount": 2
+        },
+        {
+            "name": "RC DANILO VOTU SP",
+            "weightKg": 3258.7,
+            "revenue": 65258.15,
+            "invoiceCount": 4
+        },
+        {
+            "name": "VENDA INT LETICIA",
+            "weightKg": 2732.1,
+            "revenue": 55311.94,
+            "invoiceCount": 1
+        },
+        {
+            "name": "VENDA DIRETA",
+            "weightKg": 3114.5,
+            "revenue": 53550.81,
+            "invoiceCount": 2
+        },
+        {
+            "name": "VENDA INTERNA 5",
+            "weightKg": 1928.35,
+            "revenue": 41123.43,
+            "invoiceCount": 4
+        },
+        {
+            "name": "RC RAFAEL PR SC OEST",
+            "weightKg": 2131.7,
+            "revenue": 39812.47,
+            "invoiceCount": 1
+        },
+        {
+            "name": "RC SIMAN RJ",
+            "weightKg": 1408.7,
+            "revenue": 31641.44,
+            "invoiceCount": 2
+        },
+        {
+            "name": "RC FRANCISCO RN",
+            "weightKg": 1258.05,
+            "revenue": 27315.96,
+            "invoiceCount": 1
+        },
+        {
+            "name": "RC RICARDO ALMEID SP",
+            "weightKg": 1658.2,
+            "revenue": 25601.18,
+            "invoiceCount": 1
+        },
+        {
+            "name": "RC MS SALV. BA",
+            "weightKg": 1037.3,
+            "revenue": 21852.77,
+            "invoiceCount": 1
+        },
+        {
+            "name": "RC CESAR PABLOS",
+            "weightKg": 302.3,
+            "revenue": 6575.31,
+            "invoiceCount": 1
+        },
+        {
+            "name": "SPUNFLEX",
+            "weightKg": 0.0,
+            "revenue": 3083.0,
+            "invoiceCount": 3,
+            "notes": "Transações internas sem peso"
+        }
     ],
-    machines: [
-      { name: "Corte 1",       weightKg: 12233.44, revenue: 205698.58 },
-      { name: "Corte 2",       weightKg: 2527.94,  revenue: 41649.96 },
-      { name: "Rebobinadeira", weightKg: 250.00,   revenue: 6971.88 }
+    "machines": [
+        {
+            "name": "Corte 1",
+            "weightKg": 47286.65,
+            "revenue": 938937.35
+        },
+        {
+            "name": "Corte 2",
+            "weightKg": 33524.55,
+            "revenue": 623123.87
+        },
+        {
+            "name": "Rebobinadeira",
+            "weightKg": 2119.2,
+            "revenue": 43635.73
+        }
     ]
-  },
+},
   currentMayOrders2026: {
-    date: "2026-05-05",
-    weightKg: 3474.02,
-    merchandiseValue: 73188.14,
-    avgPrice: 21.066,
-    status: "Pedidos cadastrados em 05/05/2026",
-    sourceId: "src-pedidos-maio-05"
-  },
+    "date": "2026-05-13",
+    "weightKg": 9532.261,
+    "merchandiseValue": 219779.41,
+    "avgPrice": 23.0564,
+    "status": "Pedidos cadastrados em 13/05/2026",
+    "sourceId": "src-carteira-13-05"
+},
 
   // -------------- ENTRADA DIÁRIA DE PEDIDOS (VENDAS) --------------
   // Cada item representa o total de pedidos capturados num dia.
@@ -208,15 +1105,78 @@ window.SpunflexData = {
   // dias pela própria página Vendas (persistido no localStorage).
   dailyOrders2026: [
     {
-      date: "2026-05-05",
-      weightKg: 3474.02,
-      revenue: 73188.14,
-      avgPrice: 21.066,
-      orderCount: null, // Quantidade de pedidos no dia (se disponível)
-      notes: "Pedidos cadastrados em 05/05/2026",
-      sourceId: "src-pedidos-maio-05"
+        "date": "2026-05-04",
+        "weightKg": 3727.25,
+        "revenue": 71948.58,
+        "avgPrice": 19.3034,
+        "orderCount": 3,
+        "notes": "Pedidos 7809, 7810, 7811 — 361 bobinas",
+        "sourceId": "src-carteira-04-05"
+    },
+    {
+        "date": "2026-05-05",
+        "weightKg": 5033.23,
+        "revenue": 100710.32,
+        "avgPrice": 20.0091,
+        "orderCount": 6,
+        "notes": "Pedidos 7812, 7813, 7814, 7816, 7817, 7818 — 177 bobinas",
+        "sourceId": "src-carteira-05-05"
+    },
+    {
+        "date": "2026-05-06",
+        "weightKg": 11075.53,
+        "revenue": 196979.43,
+        "avgPrice": 17.7851,
+        "orderCount": 4,
+        "notes": "Pedidos 7819, 7820, 7821, 7822 — 2390 bobinas",
+        "sourceId": "src-carteira-06-05"
+    },
+    {
+        "date": "2026-05-07",
+        "weightKg": 29294.46,
+        "revenue": 572475.5,
+        "avgPrice": 19.5421,
+        "orderCount": 13,
+        "notes": "Pedidos 7823, 7824, 7825, 7826, 7827, 7828, 7829, 7830, 7831, 7832, 7833, 7834, 7835 — 1138 bobinas",
+        "sourceId": "src-carteira-07-05"
+    },
+    {
+        "date": "2026-05-08",
+        "weightKg": 21612.49,
+        "revenue": 428862.23,
+        "avgPrice": 19.8433,
+        "orderCount": 8,
+        "notes": "Pedidos 7836, 7838, 7839, 7840, 7841, 7842, 7843, 7844 — 543 bobinas",
+        "sourceId": "src-carteira-08-05"
+    },
+    {
+        "date": "2026-05-11",
+        "weightKg": 8078.02,
+        "revenue": 160717.76,
+        "avgPrice": 19.8957,
+        "orderCount": 2,
+        "notes": "Pedidos 7845, 7846 — 256 bobinas",
+        "sourceId": "src-carteira-11-05"
+    },
+    {
+        "date": "2026-05-12",
+        "weightKg": 75463.917,
+        "revenue": 1356357.08,
+        "avgPrice": 17.9736,
+        "orderCount": 5,
+        "notes": "Pedidos 7847, 7848, 7849, 7850, 7851 — 2735 bobinas",
+        "sourceId": "src-carteira-13-05"
+    },
+    {
+        "date": "2026-05-13",
+        "weightKg": 9532.261,
+        "revenue": 219779.41,
+        "avgPrice": 23.0564,
+        "orderCount": 6,
+        "notes": "Pedidos 7852, 7853, 7854, 7855, 7856, 7857 — 439 bobinas",
+        "sourceId": "src-carteira-13-05"
     }
-  ],
+],
   monthlySales: [
     { year: 2023, month: 1, weightKg: 120178, revenue: 1890629 },
     { year: 2023, month: 2, weightKg: 106717, revenue: 1660497 },
@@ -258,7 +1218,7 @@ window.SpunflexData = {
     { year: 2026, month: 2, weightKg: 353719, revenue: 4789003.46 },
     { year: 2026, month: 3, weightKg: 364156, revenue: 5044090.44 },
     { year: 2026, month: 4, weightKg: 424143, revenue: 7033509.12 },
-    { year: 2026, month: 5, weightKg: 34223.84, revenue: 653931.23, partial: true, partialThrough: "2026-05-07" }
+    { year: 2026, month: 5, weightKg: 82930.40, revenue: 1608779.95, partial: true, partialThrough: "2026-05-12" }
   ],
   representativesApril2026: [
     { name: "RC MONTEMEZZO MGA PR", weightKg: 100184, revenue: 1425033 },
@@ -350,37 +1310,678 @@ window.SpunflexData = {
     {
       title: "Pedidos de maio separados do faturamento",
       detail: "A imagem de entrada de pedidos em 05/05/2026 soma R$ 73.188,14 e 3.474,02 kg. O sistema trata esse dado como carteira captada do dia, separado do faturamento por DataEmissao."
+    },
+    {
+      title: "Faturamento completo 02-12/05 carregado da planilha diária",
+      detail: "A planilha 'NF Vendas por Finalidade até 12.05.xlsx' forneceu 46 NFs (8796-8842, exceto 8807) com 120 linhas de itens. Período cobre 02, 04, 05, 06, 07, 08, 11 e 12/05/2026. Total: 82.930,40 kg / R$ 1.608.779,95. As NFs de 12/05 (8835-8842) agora estão individualizadas."
+    },
+    {
+      title: "NFs internas (SPUNFLEX rep) — paletes e sucata",
+      detail: "NFs 8802 (I G PALLETS, R$ 584,00), 8815 (CICPLASTIC sucata, R$ 2.184,00) e 8820 (CICPLASTIC sucata, R$ 315,00) possuem 0 kg e representante SPUNFLEX. São transações internas incluídas no total de NFs (R$ 3.083,00) mas excluídas do mix de produtos e do preço médio/kg."
+    },
+    {
+      title: "NF 8816 EUROSONO corrigida pela planilha geral",
+      detail: "Fonte anterior indicava NF 8816 (EUROSONO) como 1.589,70 kg / R$ 27.963,24. A planilha geral corrige para 1.596,30 kg / R$ 23.600,27. A diferença de R$ 4.362,97 impacta o total de 06/05 (de R$ 100.193,27 para R$ 98.014,30)."
+    },
+    {
+      title: "Atribuição de máquinas por NF é inferida quando a planilha não traz máquina explícita",
+      detail: "A planilha de NF não traz máquina explícita. A atribuição foi inferida pela largura do produto: largura acima de 1400mm → Corte 2; até 1400mm → Corte 1; TNT/FLEXNTE/BASE VELA ou itens marcados para refile → Rebobinadeira."
+    },
+    {
+      title: "productMix atualizado para cobrir 02-12/05",
+      detail: "O mix de produtos foi recalculado a partir da planilha diária (46 NFs, 02-12/05). Total verificado: 82.930,40 kg. Inclui os SKUs faturados em 12/05 nas NFs 8835-8842."
     }
   ],
 
-  // -------------- PRODUTOS / MIX (derivado das NFs 05-07/05) --------------
+  // -------------- PRODUTOS / MIX (derivado das NFs 02-12/05 — planilha diária) --------------
   productMix2026: {
-    period: { startDate: "2026-05-05", endDate: "2026-05-07" },
-    items: [
-      { description: "NTLD 1400MM PRETO 60GR 350MT",   line: "NTLD", width: 1400, color: "PRETO",          grammage: 60,  weightKg: 3310.10, revenue: 48730.87, pricePerKg: 14.72 },
-      { description: "NTLD 1400MM PRETO 40GR 350MT",   line: "NTLD", width: 1400, color: "PRETO",          grammage: 40,  weightKg: 1509.20, revenue: 30033.08, pricePerKg: 19.90 },
-      { description: "NTLD 1400MM PRETO 120GR 200MT",  line: "NTLD", width: 1400, color: "PRETO",          grammage: 120, weightKg: 1512.00, revenue: 22663.20, pricePerKg: 14.99 },
-      { description: "NTEI 1400MM BRANCO A4 40GR 2500MT", line: "NTEI", width: 1400, color: "BRANCO",       grammage: 40,  weightKg: 980.00,  revenue: 20295.80, pricePerKg: 20.71 },
-      { description: "NTED 1400MM PRETO 45GR 1000MT",  line: "NTED", width: 1400, color: "PRETO",          grammage: 45,  weightKg: 1260.00, revenue: 18396.00, pricePerKg: 14.60 },
-      { description: "NTLD 1400MM BRANCO 60GR 350MT",  line: "NTLD", width: 1400, color: "BRANCO",         grammage: 60,  weightKg: 848.40,  revenue: 16883.16, pricePerKg: 19.90 },
-      { description: "NTLD 2100MM PRETO 100GR 250MT",  line: "NTLD", width: 2100, color: "PRETO",          grammage: 100, weightKg: 833.70,  revenue: 14664.78, pricePerKg: 17.59 },
-      { description: "NTLD 1400MM BRANCO 40GR 350MT",  line: "NTLD", width: 1400, color: "BRANCO",         grammage: 40,  weightKg: 705.60,  revenue: 14041.44, pricePerKg: 19.90 },
-      { description: "NTED 420MM PRETO 45GR 2000MT",   line: "NTED", width: 420,  color: "PRETO",          grammage: 45,  weightKg: 937.44,  revenue: 13686.62, pricePerKg: 14.60 },
-      { description: "NTLD 1400MM BRANCO 120GR 200MT", line: "NTLD", width: 1400, color: "BRANCO",         grammage: 120, weightKg: 833.28,  revenue: 12749.18, pricePerKg: 15.30 },
-      { description: "NTED 2100MM PRETO 40GR 500MT",   line: "NTED", width: 2100, color: "PRETO",          grammage: 40,  weightKg: 504.00,  revenue: 8865.36,  pricePerKg: 17.59 },
-      { description: "NTEI 280MM PRETO 45GR 2000MT",   line: "NTEI", width: 280,  color: "PRETO",          grammage: 45,  weightKg: 598.50,  revenue: 8738.10,  pricePerKg: 14.60 },
-      { description: "NTEI 1400MM PRETO 35GR 1000MT",  line: "NTEI", width: 1400, color: "PRETO",          grammage: 35,  weightKg: 291.21,  revenue: 6790.95,  pricePerKg: 23.32 },
-      { description: "NTLD 2100MM BRANCO 12GR 2000MT", line: "NTLD", width: 2100, color: "BRANCO",         grammage: 12,  weightKg: 252.00,  revenue: 4433.10,  pricePerKg: 17.59 },
-      { description: "NTLD 1400MM BRANCO 30GR 750MT",  line: "NTLD", width: 1400, color: "BRANCO",         grammage: 30,  weightKg: 245.95,  revenue: 3590.90,  pricePerKg: 14.60 },
-      { description: "NTLD 1400MM PRETO 100GR 200MT",  line: "NTLD", width: 1400, color: "PRETO",          grammage: 100, weightKg: 140.00,  revenue: 2786.00,  pricePerKg: 19.90 },
-      { description: "TNT MARROM 40GR",                line: "TNT",  width: 1400, color: "MARROM",         grammage: 40,  weightKg: 60.00,   revenue: 1673.25,  pricePerKg: 27.89 },
-      { description: "TNT AZUL BABY 40GR",             line: "TNT",  width: 1400, color: "AZUL BABY",      grammage: 40,  weightKg: 60.00,   revenue: 1673.25,  pricePerKg: 27.89 },
-      { description: "TNT VERDE BANDEIRA 40GR",        line: "TNT",  width: 1400, color: "VERDE BANDEIRA", grammage: 40,  weightKg: 50.00,   revenue: 1394.38,  pricePerKg: 27.89 },
-      { description: "TNT PRETO 40GR",                 line: "TNT",  width: 1400, color: "PRETO",          grammage: 40,  weightKg: 42.00,   revenue: 1171.27,  pricePerKg: 27.89 },
-      { description: "TNT PINK 40GR",                  line: "TNT",  width: 1400, color: "PINK",           grammage: 40,  weightKg: 28.00,   revenue: 780.85,   pricePerKg: 27.89 },
-      { description: "TNT AZUL ROYAL 40GR",            line: "TNT",  width: 1400, color: "AZUL ROYAL",     grammage: 40,  weightKg: 10.00,   revenue: 278.88,   pricePerKg: 27.89 }
+    "period": {
+        "startDate": "2026-05-02",
+        "endDate": "2026-05-12"
+    },
+    "items": [
+        {
+            "description": "NTLD 1400MM PRETO 60GR 350MT",
+            "line": "NTLD",
+            "width": 1400,
+            "color": "PRETO",
+            "grammage": 60,
+            "weightKg": 8838.1,
+            "revenue": 162790.92,
+            "pricePerKg": 18.42
+        },
+        {
+            "description": "NTLD 2100MM PRETO 100GR 250MT",
+            "line": "NTLD",
+            "width": 2100,
+            "color": "PRETO",
+            "grammage": 100,
+            "weightKg": 8063.65,
+            "revenue": 142471.41,
+            "pricePerKg": 17.67
+        },
+        {
+            "description": "NTED 1600MM BRANCO 90GR 400MT",
+            "line": "NTED",
+            "width": 1600,
+            "color": "BRANCO",
+            "grammage": 90,
+            "weightKg": 5477.3,
+            "revenue": 104187.89,
+            "pricePerKg": 19.02
+        },
+        {
+            "description": "NTEI 1580MM BRANCO 140GR 300MT",
+            "line": "NTEI",
+            "width": 1580,
+            "color": "BRANCO",
+            "grammage": 140,
+            "weightKg": 3988.4,
+            "revenue": 75231.33,
+            "pricePerKg": 18.86
+        },
+        {
+            "description": "NTEI 1350MM BRANCO 30GR 2000MT",
+            "line": "NTEI",
+            "width": 1350,
+            "color": "BRANCO",
+            "grammage": 30,
+            "weightKg": 3391.15,
+            "revenue": 79420.73,
+            "pricePerKg": 23.42
+        },
+        {
+            "description": "NTLD 1400MM BRANCO 80GR 300MT",
+            "line": "NTLD",
+            "width": 1400,
+            "color": "BRANCO",
+            "grammage": 80,
+            "weightKg": 3326.6,
+            "revenue": 63585.69,
+            "pricePerKg": 19.11
+        },
+        {
+            "description": "NTEI 1050MM BRANCO 30GR 2000MT",
+            "line": "NTEI",
+            "width": 1050,
+            "color": "BRANCO",
+            "grammage": 30,
+            "weightKg": 2727.9,
+            "revenue": 63887.42,
+            "pricePerKg": 23.42
+        },
+        {
+            "description": "NTLD 1400MM BRANCO 30GR 750MT",
+            "line": "NTLD",
+            "width": 1400,
+            "color": "BRANCO",
+            "grammage": 30,
+            "weightKg": 2716.45,
+            "revenue": 54028.87,
+            "pricePerKg": 19.89
+        },
+        {
+            "description": "NTLD 2100MM BRANCO 100GR 250MT",
+            "line": "NTLD",
+            "width": 2100,
+            "color": "BRANCO",
+            "grammage": 100,
+            "weightKg": 2565.4,
+            "revenue": 44412.69,
+            "pricePerKg": 17.31
+        },
+        {
+            "description": "NTEI 1400MM PRETO 75GR 250MT",
+            "line": "NTEI",
+            "width": 1400,
+            "color": "PRETO",
+            "grammage": 75,
+            "weightKg": 2544.0,
+            "revenue": 45018.75,
+            "pricePerKg": 17.7
+        },
+        {
+            "description": "NTLD 1400MM PRETO 150GR 150MT",
+            "line": "NTLD",
+            "width": 1400,
+            "color": "PRETO",
+            "grammage": 150,
+            "weightKg": 2537.05,
+            "revenue": 48417.18,
+            "pricePerKg": 19.08
+        },
+        {
+            "description": "NTLD 1400MM BRANCO 40GR 350MT",
+            "line": "NTLD",
+            "width": 1400,
+            "color": "BRANCO",
+            "grammage": 40,
+            "weightKg": 1964.5,
+            "revenue": 39897.53,
+            "pricePerKg": 20.31
+        },
+        {
+            "description": "NTLD 1400MM PRETO 40GR 350MT",
+            "line": "NTLD",
+            "width": 1400,
+            "color": "PRETO",
+            "grammage": 40,
+            "weightKg": 1954.3,
+            "revenue": 39013.26,
+            "pricePerKg": 19.96
+        },
+        {
+            "description": "NTLD 2100MM BRANCO 12GR 2000MT",
+            "line": "NTLD",
+            "width": 2100,
+            "color": "BRANCO",
+            "grammage": 12,
+            "weightKg": 1950.95,
+            "revenue": 33765.91,
+            "pricePerKg": 17.31
+        },
+        {
+            "description": "NTLD 1400MM BRANCO 60GR 350MT",
+            "line": "NTLD",
+            "width": 1400,
+            "color": "BRANCO",
+            "grammage": 60,
+            "weightKg": 1820.9,
+            "revenue": 36912.3,
+            "pricePerKg": 20.27
+        },
+        {
+            "description": "NTEI 500MM BRANCO 12GR 4500MT",
+            "line": "NTEI",
+            "width": 500,
+            "color": "BRANCO",
+            "grammage": 12,
+            "weightKg": 1775.75,
+            "revenue": 38419.2,
+            "pricePerKg": 21.64
+        },
+        {
+            "description": "NTEI 1600MM BRANCO 70GR 500MT",
+            "line": "NTEI",
+            "width": 1600,
+            "color": "BRANCO",
+            "grammage": 70,
+            "weightKg": 1602.25,
+            "revenue": 30491.9,
+            "pricePerKg": 19.03
+        },
+        {
+            "description": "NTEH SMS 180MM BRANCO 13GR 9000MT",
+            "line": "NTEH SMS",
+            "width": 180,
+            "color": "BRANCO",
+            "grammage": 13,
+            "weightKg": 1580.3,
+            "revenue": 30058.13,
+            "pricePerKg": 19.02
+        },
+        {
+            "description": "NTLD 2100MM BRANCO 40GR 500MT",
+            "line": "NTLD",
+            "width": 2100,
+            "color": "BRANCO",
+            "grammage": 40,
+            "weightKg": 1538.05,
+            "revenue": 31620.29,
+            "pricePerKg": 20.56
+        },
+        {
+            "description": "NTLD 1400MM PRETO 120GR 200MT",
+            "line": "NTLD",
+            "width": 1400,
+            "color": "PRETO",
+            "grammage": 120,
+            "weightKg": 1498.6,
+            "revenue": 22663.2,
+            "pricePerKg": 15.12
+        },
+        {
+            "description": "NTEH SMS 130MM HFL BRANCO 10GR 10000MT",
+            "line": "NTEH SMS",
+            "width": 130,
+            "color": "BRANCO",
+            "grammage": 10,
+            "weightKg": 1347.45,
+            "revenue": 32160.96,
+            "pricePerKg": 23.87
+        },
+        {
+            "description": "NTEH SMS 160MM BRANCO 13GR 9000MT",
+            "line": "NTEH SMS",
+            "width": 160,
+            "color": "BRANCO",
+            "grammage": 13,
+            "weightKg": 1336.2,
+            "revenue": 33768.0,
+            "pricePerKg": 25.27
+        },
+        {
+            "description": "NTEI 2100MM BRANCO 15GR 1000MT",
+            "line": "NTEI",
+            "width": 2100,
+            "color": "BRANCO",
+            "grammage": 15,
+            "weightKg": 1250.35,
+            "revenue": 26250.0,
+            "pricePerKg": 20.99
+        },
+        {
+            "description": "NTED 1400MM PRETO 45GR 1000MT",
+            "line": "NTED",
+            "width": 1400,
+            "color": "PRETO",
+            "grammage": 45,
+            "weightKg": 1221.65,
+            "revenue": 18396.0,
+            "pricePerKg": 15.06
+        },
+        {
+            "description": "NTEI 1900MM PRETO 60GR 300MT",
+            "line": "NTEI",
+            "width": 1900,
+            "color": "PRETO",
+            "grammage": 60,
+            "weightKg": 1173.1,
+            "revenue": 21736.12,
+            "pricePerKg": 18.53
+        },
+        {
+            "description": "NTEH SMS 170MM HFL BRANCO 10GR 10000MT",
+            "line": "NTEH SMS",
+            "width": 170,
+            "color": "BRANCO",
+            "grammage": 10,
+            "weightKg": 1127.85,
+            "revenue": 27472.05,
+            "pricePerKg": 24.36
+        },
+        {
+            "description": "NTEI 2100MM BRANCO 50GR 350MT",
+            "line": "NTEI",
+            "width": 2100,
+            "color": "BRANCO",
+            "grammage": 50,
+            "weightKg": 1074.6,
+            "revenue": 18820.83,
+            "pricePerKg": 17.51
+        },
+        {
+            "description": "NTEI 2100MM PRETO 50GR 250MT",
+            "line": "NTEI",
+            "width": 2100,
+            "color": "PRETO",
+            "grammage": 50,
+            "weightKg": 1024.15,
+            "revenue": 17699.43,
+            "pricePerKg": 17.28
+        },
+        {
+            "description": "NTED 2100MM PRETO 40GR 500MT",
+            "line": "NTED",
+            "width": 2100,
+            "color": "PRETO",
+            "grammage": 40,
+            "weightKg": 1007.35,
+            "revenue": 17730.72,
+            "pricePerKg": 17.6
+        },
+        {
+            "description": "NTED 420MM PRETO 45GR 2000MT",
+            "line": "NTED",
+            "width": 420,
+            "color": "PRETO",
+            "grammage": 45,
+            "weightKg": 953.65,
+            "revenue": 13686.62,
+            "pricePerKg": 14.35
+        },
+        {
+            "description": "NTEI 1400MM BRANCO A4 40GR 2500MT",
+            "line": "NTEI",
+            "width": 1400,
+            "color": "BRANCO",
+            "grammage": 40,
+            "weightKg": 944.15,
+            "revenue": 20295.8,
+            "pricePerKg": 21.5
+        },
+        {
+            "description": "NTEI 1460MM PRETO 100GR 300MT",
+            "line": "NTEI",
+            "width": 1460,
+            "color": "PRETO",
+            "grammage": 100,
+            "weightKg": 871.2,
+            "revenue": 16465.81,
+            "pricePerKg": 18.9
+        },
+        {
+            "description": "NTLD 1400MM BRANCO 120GR 200MT",
+            "line": "NTLD",
+            "width": 1400,
+            "color": "BRANCO",
+            "grammage": 120,
+            "weightKg": 826.15,
+            "revenue": 12749.18,
+            "pricePerKg": 15.43
+        },
+        {
+            "description": "NTED 1600MM BRANCO 60GR 350MT",
+            "line": "NTED",
+            "width": 1600,
+            "color": "BRANCO",
+            "grammage": 60,
+            "weightKg": 645.55,
+            "revenue": 14098.56,
+            "pricePerKg": 21.84
+        },
+        {
+            "description": "NTEI 1500MM BRANCO 60GR 350MT",
+            "line": "NTEI",
+            "width": 1500,
+            "color": "BRANCO",
+            "grammage": 60,
+            "weightKg": 612.5,
+            "revenue": 13217.4,
+            "pricePerKg": 21.58
+        },
+        {
+            "description": "NTEI 280MM PRETO 45GR 2000MT",
+            "line": "NTEI",
+            "width": 280,
+            "color": "PRETO",
+            "grammage": 45,
+            "weightKg": 584.55,
+            "revenue": 8738.1,
+            "pricePerKg": 14.95
+        },
+        {
+            "description": "NTEI 1200MM PRETO 80GR 300MT",
+            "line": "NTEI",
+            "width": 1200,
+            "color": "PRETO",
+            "grammage": 80,
+            "weightKg": 522.55,
+            "revenue": 7931.52,
+            "pricePerKg": 15.18
+        },
+        {
+            "description": "NTEH SMS 200MM BRANCO 40GR 2000MT",
+            "line": "NTEH SMS",
+            "width": 200,
+            "color": "BRANCO",
+            "grammage": 40,
+            "weightKg": 497.95,
+            "revenue": 12369.6,
+            "pricePerKg": 24.84
+        },
+        {
+            "description": "NTEI 2100MM BRANCO 60GR 300MT",
+            "line": "NTEI",
+            "width": 2100,
+            "color": "BRANCO",
+            "grammage": 60,
+            "weightKg": 377.45,
+            "revenue": 8348.27,
+            "pricePerKg": 22.12
+        },
+        {
+            "description": "TNT PRETO 40GR",
+            "line": "TNT",
+            "width": 1400,
+            "color": "PRETO",
+            "grammage": 40,
+            "weightKg": 366.8,
+            "revenue": 7849.22,
+            "pricePerKg": 21.4
+        },
+        {
+            "description": "NTLD 2100MM BRANCO 60GR 350MT",
+            "line": "NTLD",
+            "width": 2100,
+            "color": "BRANCO",
+            "grammage": 60,
+            "weightKg": 302.3,
+            "revenue": 6575.31,
+            "pricePerKg": 21.75
+        },
+        {
+            "description": "NTEI 1400MM PRETO 35GR 1000MT",
+            "line": "NTEI",
+            "width": 1400,
+            "color": "PRETO",
+            "grammage": 35,
+            "weightKg": 282.0,
+            "revenue": 6790.95,
+            "pricePerKg": 24.08
+        },
+        {
+            "description": "TNT AZUL BABY 40GR",
+            "line": "TNT",
+            "width": 1400,
+            "color": "AZUL",
+            "grammage": 40,
+            "weightKg": 224.0,
+            "revenue": 4462.0,
+            "pricePerKg": 19.92
+        },
+        {
+            "description": "NTLD 1400MM PRETO 100GR 200MT",
+            "line": "NTLD",
+            "width": 1400,
+            "color": "PRETO",
+            "grammage": 100,
+            "weightKg": 221.25,
+            "revenue": 4575.2,
+            "pricePerKg": 20.68
+        },
+        {
+            "description": "TNT VERDE BANDEIRA 40GR",
+            "line": "TNT",
+            "width": 1400,
+            "color": "VERDE BANDEIRA",
+            "grammage": 40,
+            "weightKg": 210.0,
+            "revenue": 4183.14,
+            "pricePerKg": 19.92
+        },
+        {
+            "description": "NTLD 1400MM BRANCO 25GR 1500MT",
+            "line": "NTLD",
+            "width": 1400,
+            "color": "BRANCO",
+            "grammage": 25,
+            "weightKg": 201.45,
+            "revenue": 4269.16,
+            "pricePerKg": 21.19
+        },
+        {
+            "description": "NTLD 1400MM PRETO 80GR 300MT",
+            "line": "NTLD",
+            "width": 1400,
+            "color": "PRETO",
+            "grammage": 80,
+            "weightKg": 193.85,
+            "revenue": 4173.12,
+            "pricePerKg": 21.53
+        },
+        {
+            "description": "TNT PRETO 60GR",
+            "line": "TNT",
+            "width": 1400,
+            "color": "PRETO",
+            "grammage": 60,
+            "weightKg": 168.0,
+            "revenue": 3889.2,
+            "pricePerKg": 23.15
+        },
+        {
+            "description": "TNT AZUL ROYAL 40GR",
+            "line": "TNT",
+            "width": 1400,
+            "color": "AZUL ROYAL",
+            "grammage": 40,
+            "weightKg": 154.0,
+            "revenue": 3067.63,
+            "pricePerKg": 19.92
+        },
+        {
+            "description": "TNT AMARELO 40GR",
+            "line": "TNT",
+            "width": 1400,
+            "color": "AMARELO",
+            "grammage": 40,
+            "weightKg": 140.0,
+            "revenue": 2788.76,
+            "pricePerKg": 19.92
+        },
+        {
+            "description": "TNT AZUL MARINHO 40GR",
+            "line": "TNT",
+            "width": 1400,
+            "color": "AZUL MARINHO",
+            "grammage": 40,
+            "weightKg": 140.0,
+            "revenue": 2788.75,
+            "pricePerKg": 19.92
+        },
+        {
+            "description": "TNT BRANCO 40GR",
+            "line": "TNT",
+            "width": 1400,
+            "color": "BRANCO",
+            "grammage": 40,
+            "weightKg": 140.0,
+            "revenue": 2788.75,
+            "pricePerKg": 19.92
+        },
+        {
+            "description": "TNT LARANJA 40GR",
+            "line": "TNT",
+            "width": 1400,
+            "color": "LARANJA",
+            "grammage": 40,
+            "weightKg": 140.0,
+            "revenue": 2788.75,
+            "pricePerKg": 19.92
+        },
+        {
+            "description": "TNT VERMELHO 40GR",
+            "line": "TNT",
+            "width": 1400,
+            "color": "VERMELHO",
+            "grammage": 40,
+            "weightKg": 140.0,
+            "revenue": 2788.75,
+            "pricePerKg": 19.92
+        },
+        {
+            "description": "NTEI 1100MM PRETO 60GR 300MT",
+            "line": "NTEI",
+            "width": 1100,
+            "color": "PRETO",
+            "grammage": 60,
+            "weightKg": 138.15,
+            "revenue": 3250.17,
+            "pricePerKg": 23.53
+        },
+        {
+            "description": "NTEI 890MM PRETO 80GR 300MT",
+            "line": "NTEI",
+            "width": 890,
+            "color": "PRETO",
+            "grammage": 80,
+            "weightKg": 87.4,
+            "revenue": 1610.54,
+            "pricePerKg": 18.43
+        },
+        {
+            "description": "TNT MARROM 40GR",
+            "line": "TNT",
+            "width": 1400,
+            "color": "MARROM",
+            "grammage": 40,
+            "weightKg": 84.0,
+            "revenue": 1673.25,
+            "pricePerKg": 19.92
+        },
+        {
+            "description": "NTED 1400MM BRANCO 20GR 500MT",
+            "line": "NTED",
+            "width": 1400,
+            "color": "BRANCO",
+            "grammage": 20,
+            "weightKg": 69.5,
+            "revenue": 1394.4,
+            "pricePerKg": 20.06
+        },
+        {
+            "description": "TNT BRANCO 80GR",
+            "line": "TNT",
+            "width": 1400,
+            "color": "BRANCO",
+            "grammage": 80,
+            "weightKg": 56.0,
+            "revenue": 1115.5,
+            "pricePerKg": 19.92
+        },
+        {
+            "description": "NTLD 1400MM BRANCO 100GR 200MT",
+            "line": "NTLD",
+            "width": 1400,
+            "color": "BRANCO",
+            "grammage": 100,
+            "weightKg": 55.3,
+            "revenue": 1192.8,
+            "pricePerKg": 21.57
+        },
+        {
+            "description": "FLEXNTE 80GR PRETO 100MT",
+            "line": "FLEXNTE",
+            "width": null,
+            "color": "PRETO",
+            "grammage": 80,
+            "weightKg": 50.0,
+            "revenue": 1115.5,
+            "pricePerKg": 22.31
+        },
+        {
+            "description": "TNT PRETO 100GR",
+            "line": "TNT",
+            "width": 1400,
+            "color": "PRETO",
+            "grammage": 100,
+            "weightKg": 42.0,
+            "revenue": 972.3,
+            "pricePerKg": 23.15
+        },
+        {
+            "description": "TNT PINK 40GR",
+            "line": "TNT",
+            "width": 1400,
+            "color": "PINK",
+            "grammage": 40,
+            "weightKg": 39.2,
+            "revenue": 780.85,
+            "pricePerKg": 19.92
+        },
+        {
+            "description": "TNT BRANCO 60GR",
+            "line": "TNT",
+            "width": 1400,
+            "color": "BRANCO",
+            "grammage": 60,
+            "weightKg": 25.2,
+            "revenue": 583.38,
+            "pricePerKg": 23.15
+        }
     ]
-  },
+},
 
   // -------------- AGRUPAMENTO ECONÔMICO DE CLIENTES --------------
   // Mapeia razões sociais para um grupo único (mesmo CNPJ raiz).
@@ -393,14 +1994,3588 @@ window.SpunflexData = {
   // -------------- CONFIGURAÇÃO OPERACIONAL PADRÃO --------------
   // Valores iniciais; o admin pode editar pela aba Configurações
   // e a alteração é persistida em localStorage.
+  carteiraOrders2026: [
+    {
+        "pedido": 13,
+        "cliente": "MAGNA SEATING PABLO",
+        "representante": "VENDA DIRETA",
+        "dataPedido": "2026-03-04",
+        "dataEntrega": "2026-03-19",
+        "situacao": "Autorizado Faturamento",
+        "frete": "",
+        "condicaoPgto": "A VISTA",
+        "cidade": "BUENOS AIRES",
+        "estado": "EX",
+        "segmento": "ESTOFADOS",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 2200MM BRANCO 14GR",
+                "bobinas": 1,
+                "kg": 36.961,
+                "valor": 75.77,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 1,
+                "pedidoKg": 36.961,
+                "pedidoValor": 75.77,
+                "saldoKg": 36.961,
+                "saldoValor": 75.77,
+                "saldoBobinas": 1
+            }
+        ],
+        "totalKg": 36.961,
+        "totalValor": 75.77,
+        "totalBobinas": 1,
+        "pedidoKg": 36.961,
+        "pedidoValor": 75.77,
+        "pedidoBobinas": 1,
+        "saldoKg": 36.961,
+        "saldoValor": 75.77,
+        "saldoBobinas": 1
+    },
+    {
+        "pedido": 7475,
+        "cliente": "EMPRESA TURCA DE COM",
+        "representante": "RC SINESIO",
+        "dataPedido": "2026-03-10",
+        "dataEntrega": "2026-04-28",
+        "situacao": "Gerado Romaneio",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60/75/90 DD",
+        "cidade": "Diadema",
+        "estado": "SP",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 2,
+                "produto": "NTLD 1400MM PRETO 60GR",
+                "bobinas": 0,
+                "kg": 4410.018,
+                "valor": 62048.9533,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 150,
+                "pedidoKg": 4410.018,
+                "pedidoValor": 62048.7,
+                "saldoKg": 4410.018,
+                "saldoValor": 62048.9533,
+                "saldoBobinas": 0
+            }
+        ],
+        "totalKg": 4410.018,
+        "totalValor": 62048.9533,
+        "totalBobinas": 0,
+        "pedidoKg": 4410.018,
+        "pedidoValor": 62048.7,
+        "pedidoBobinas": 150,
+        "saldoKg": 4410.018,
+        "saldoValor": 62048.9533,
+        "saldoBobinas": 0
+    },
+    {
+        "pedido": 7512,
+        "cliente": "FA MARINGA LTDA",
+        "representante": "RC MONTEMEZZO MGA PR",
+        "dataPedido": "2026-03-12",
+        "dataEntrega": "2026-05-20",
+        "situacao": "Autorizado Faturamento",
+        "frete": "FOB",
+        "condicaoPgto": "45 DD",
+        "cidade": "Maringá",
+        "estado": "PR",
+        "segmento": "MOVELEIRO",
+        "linhas": [
+            {
+                "seq": 3,
+                "produto": "NTEI 2300MM BRANCO 40GR",
+                "bobinas": 120,
+                "kg": 5520,
+                "valor": 93840,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 120,
+                "pedidoKg": 5520,
+                "pedidoValor": 93840,
+                "saldoKg": 5520,
+                "saldoValor": 93840,
+                "saldoBobinas": 120
+            },
+            {
+                "seq": 4,
+                "produto": "NTEI 2200MM BRANCO 15GR",
+                "bobinas": 60,
+                "kg": 1980.002,
+                "valor": 33660.034,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 60,
+                "pedidoKg": 1980.002,
+                "pedidoValor": 33660,
+                "saldoKg": 1980.002,
+                "saldoValor": 33660.034,
+                "saldoBobinas": 60
+            }
+        ],
+        "totalKg": 7500.002,
+        "totalValor": 127500.034,
+        "totalBobinas": 180,
+        "pedidoKg": 7500.002,
+        "pedidoValor": 127500,
+        "pedidoBobinas": 180,
+        "saldoKg": 7500.002,
+        "saldoValor": 127500.034,
+        "saldoBobinas": 180
+    },
+    {
+        "pedido": 7703,
+        "cliente": "CRISTALFLEX",
+        "representante": "RC RAFAEL PR SC OEST",
+        "dataPedido": "2026-04-13",
+        "dataEntrega": "2026-05-25",
+        "situacao": "Cadastrada",
+        "frete": "FOB",
+        "condicaoPgto": "A VISTA",
+        "cidade": "Chapecó",
+        "estado": "SC",
+        "segmento": "COLCHÃO",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 1460MM PRETO 100GR",
+                "bobinas": 10,
+                "kg": 438,
+                "valor": 8256.3,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 10,
+                "pedidoKg": 438,
+                "pedidoValor": 8256.3,
+                "saldoKg": 438,
+                "saldoValor": 8256.3,
+                "saldoBobinas": 10
+            },
+            {
+                "seq": 2,
+                "produto": "NTEI 1900MM PRETO 60GR",
+                "bobinas": 34,
+                "kg": 1162.805,
+                "valor": 21918.8743,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 34,
+                "pedidoKg": 1162.805,
+                "pedidoValor": 21918.78,
+                "saldoKg": 1162.805,
+                "saldoValor": 21918.8743,
+                "saldoBobinas": 34
+            },
+            {
+                "seq": 3,
+                "produto": "NTEI 2050MM PRETO 60GR",
+                "bobinas": 7,
+                "kg": 258.301,
+                "valor": 4868.9739,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 7,
+                "pedidoKg": 258.301,
+                "pedidoValor": 4868.96,
+                "saldoKg": 258.301,
+                "saldoValor": 4868.9739,
+                "saldoBobinas": 7
+            },
+            {
+                "seq": 4,
+                "produto": "NTEI 1310MM PRETO 80GR",
+                "bobinas": 17,
+                "kg": 534.48,
+                "valor": 10074.948,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 17,
+                "pedidoKg": 534.48,
+                "pedidoValor": 10074.95,
+                "saldoKg": 534.48,
+                "saldoValor": 10074.948,
+                "saldoBobinas": 17
+            },
+            {
+                "seq": 5,
+                "produto": "NTEI 940MM PRETO 100GR",
+                "bobinas": 4,
+                "kg": 112.8,
+                "valor": 2126.28,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 4,
+                "pedidoKg": 112.8,
+                "pedidoValor": 2126.28,
+                "saldoKg": 112.8,
+                "saldoValor": 2126.28,
+                "saldoBobinas": 4
+            },
+            {
+                "seq": 6,
+                "produto": "NTEI 2050MM PRETO 100GR",
+                "bobinas": 4,
+                "kg": 205,
+                "valor": 3864.25,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 4,
+                "pedidoKg": 205,
+                "pedidoValor": 3864.25,
+                "saldoKg": 205,
+                "saldoValor": 3864.25,
+                "saldoBobinas": 4
+            },
+            {
+                "seq": 7,
+                "produto": "NTEI 890MM PRETO 80GR",
+                "bobinas": 4,
+                "kg": 85.44,
+                "valor": 1610.544,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 4,
+                "pedidoKg": 85.44,
+                "pedidoValor": 1610.54,
+                "saldoKg": 85.44,
+                "saldoValor": 1610.544,
+                "saldoBobinas": 4
+            }
+        ],
+        "totalKg": 2796.826,
+        "totalValor": 52720.1702,
+        "totalBobinas": 80,
+        "pedidoKg": 2796.826,
+        "pedidoValor": 52720.06,
+        "pedidoBobinas": 80,
+        "saldoKg": 2796.826,
+        "saldoValor": 52720.1702,
+        "saldoBobinas": 80
+    },
+    {
+        "pedido": 7704,
+        "cliente": "CRISTALFLEX",
+        "representante": "RC RAFAEL PR SC OEST",
+        "dataPedido": "2026-04-13",
+        "dataEntrega": "2026-05-18",
+        "situacao": "Autorizado Produção",
+        "frete": "FOB",
+        "condicaoPgto": "A VISTA",
+        "cidade": "Chapecó",
+        "estado": "SC",
+        "segmento": "COLCHÃO",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 1460MM PRETO 100GR",
+                "bobinas": 10,
+                "kg": 438,
+                "valor": 8256.3,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 10,
+                "pedidoKg": 438,
+                "pedidoValor": 8256.3,
+                "saldoKg": 438,
+                "saldoValor": 8256.3,
+                "saldoBobinas": 10
+            },
+            {
+                "seq": 2,
+                "produto": "NTEI 1900MM PRETO 60GR",
+                "bobinas": 34,
+                "kg": 1162.805,
+                "valor": 21918.8743,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 34,
+                "pedidoKg": 1162.805,
+                "pedidoValor": 21918.78,
+                "saldoKg": 1162.805,
+                "saldoValor": 21918.8743,
+                "saldoBobinas": 34
+            },
+            {
+                "seq": 3,
+                "produto": "NTEI 2050MM PRETO 60GR",
+                "bobinas": 7,
+                "kg": 258.301,
+                "valor": 4868.9739,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 7,
+                "pedidoKg": 258.301,
+                "pedidoValor": 4868.96,
+                "saldoKg": 258.301,
+                "saldoValor": 4868.9739,
+                "saldoBobinas": 7
+            },
+            {
+                "seq": 4,
+                "produto": "NTEI 1310MM PRETO 80GR",
+                "bobinas": 17,
+                "kg": 534.48,
+                "valor": 10074.948,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 17,
+                "pedidoKg": 534.48,
+                "pedidoValor": 10074.95,
+                "saldoKg": 534.48,
+                "saldoValor": 10074.948,
+                "saldoBobinas": 17
+            },
+            {
+                "seq": 5,
+                "produto": "NTEI 940MM PRETO 100GR",
+                "bobinas": 4,
+                "kg": 112.8,
+                "valor": 2126.28,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 4,
+                "pedidoKg": 112.8,
+                "pedidoValor": 2126.28,
+                "saldoKg": 112.8,
+                "saldoValor": 2126.28,
+                "saldoBobinas": 4
+            },
+            {
+                "seq": 6,
+                "produto": "NTEI 2050MM PRETO 100GR",
+                "bobinas": 4,
+                "kg": 205,
+                "valor": 3864.25,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 4,
+                "pedidoKg": 205,
+                "pedidoValor": 3864.25,
+                "saldoKg": 205,
+                "saldoValor": 3864.25,
+                "saldoBobinas": 4
+            },
+            {
+                "seq": 7,
+                "produto": "NTEI 890MM PRETO 80GR",
+                "bobinas": 4,
+                "kg": 85.44,
+                "valor": 1610.544,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 4,
+                "pedidoKg": 85.44,
+                "pedidoValor": 1610.54,
+                "saldoKg": 85.44,
+                "saldoValor": 1610.544,
+                "saldoBobinas": 4
+            }
+        ],
+        "totalKg": 2796.826,
+        "totalValor": 52720.1702,
+        "totalBobinas": 80,
+        "pedidoKg": 2796.826,
+        "pedidoValor": 52720.06,
+        "pedidoBobinas": 80,
+        "saldoKg": 2796.826,
+        "saldoValor": 52720.1702,
+        "saldoBobinas": 80
+    },
+    {
+        "pedido": 7726,
+        "cliente": "MEDCORP",
+        "representante": "VENDA DIRETA",
+        "dataPedido": "2026-04-16",
+        "dataEntrega": "2026-04-20",
+        "situacao": "Cadastrada",
+        "frete": "CIF",
+        "condicaoPgto": "ENT + FAT + 14+21",
+        "cidade": "Olinda",
+        "estado": "PE",
+        "segmento": "HOSPITALAR",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTED 2000MM BRANCO 18GR",
+                "bobinas": 0,
+                "kg": 16.2,
+                "valor": 292.5,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 100,
+                "pedidoKg": 3600.004,
+                "pedidoValor": 65000,
+                "saldoKg": 16.2,
+                "saldoValor": 292.5,
+                "saldoBobinas": 0
+            }
+        ],
+        "totalKg": 16.2,
+        "totalValor": 292.5,
+        "totalBobinas": 0,
+        "pedidoKg": 3600.004,
+        "pedidoValor": 65000,
+        "pedidoBobinas": 100,
+        "saldoKg": 16.2,
+        "saldoValor": 292.5,
+        "saldoBobinas": 0
+    },
+    {
+        "pedido": 7741,
+        "cliente": "CLEVER BRINDES PROMO",
+        "representante": "VENDA INTERNA 5",
+        "dataPedido": "2026-04-17",
+        "dataEntrega": "2026-05-18",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60 DD",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM BRANCO 25GR",
+                "bobinas": 4,
+                "kg": 210,
+                "valor": 4362.96,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 4,
+                "pedidoKg": 210,
+                "pedidoValor": 4362.96,
+                "saldoKg": 210,
+                "saldoValor": 4362.96,
+                "saldoBobinas": 4
+            }
+        ],
+        "totalKg": 210,
+        "totalValor": 4362.96,
+        "totalBobinas": 4,
+        "pedidoKg": 210,
+        "pedidoValor": 4362.96,
+        "pedidoBobinas": 4,
+        "saldoKg": 210,
+        "saldoValor": 4362.96,
+        "saldoBobinas": 4
+    },
+    {
+        "pedido": 7742,
+        "cliente": "CLEVER BRINDES PROMO",
+        "representante": "VENDA INTERNA 5",
+        "dataPedido": "2026-04-17",
+        "dataEntrega": "2026-06-01",
+        "situacao": "Cadastrada",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60 DD",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM BRANCO 25GR",
+                "bobinas": 4,
+                "kg": 210,
+                "valor": 4362.96,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 4,
+                "pedidoKg": 210,
+                "pedidoValor": 4362.96,
+                "saldoKg": 210,
+                "saldoValor": 4362.96,
+                "saldoBobinas": 4
+            }
+        ],
+        "totalKg": 210,
+        "totalValor": 4362.96,
+        "totalBobinas": 4,
+        "pedidoKg": 210,
+        "pedidoValor": 4362.96,
+        "pedidoBobinas": 4,
+        "saldoKg": 210,
+        "saldoValor": 4362.96,
+        "saldoBobinas": 4
+    },
+    {
+        "pedido": 7743,
+        "cliente": "CLEVER BRINDES PROMO",
+        "representante": "VENDA INTERNA 5",
+        "dataPedido": "2026-04-17",
+        "dataEntrega": "2026-06-15",
+        "situacao": "Cadastrada",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60 DD",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM BRANCO 25GR",
+                "bobinas": 2,
+                "kg": 105,
+                "valor": 2181.48,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 2,
+                "pedidoKg": 105,
+                "pedidoValor": 2181.48,
+                "saldoKg": 105,
+                "saldoValor": 2181.48,
+                "saldoBobinas": 2
+            }
+        ],
+        "totalKg": 105,
+        "totalValor": 2181.48,
+        "totalBobinas": 2,
+        "pedidoKg": 105,
+        "pedidoValor": 2181.48,
+        "pedidoBobinas": 2,
+        "saldoKg": 105,
+        "saldoValor": 2181.48,
+        "saldoBobinas": 2
+    },
+    {
+        "pedido": 7745,
+        "cliente": "CLEVER BRINDES PROMO",
+        "representante": "VENDA INTERNA 5",
+        "dataPedido": "2026-04-17",
+        "dataEntrega": "2026-05-25",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60 DD",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM BRANCO 25GR",
+                "bobinas": 4,
+                "kg": 210,
+                "valor": 4362.96,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 4,
+                "pedidoKg": 210,
+                "pedidoValor": 4362.96,
+                "saldoKg": 210,
+                "saldoValor": 4362.96,
+                "saldoBobinas": 4
+            }
+        ],
+        "totalKg": 210,
+        "totalValor": 4362.96,
+        "totalBobinas": 4,
+        "pedidoKg": 210,
+        "pedidoValor": 4362.96,
+        "pedidoBobinas": 4,
+        "saldoKg": 210,
+        "saldoValor": 4362.96,
+        "saldoBobinas": 4
+    },
+    {
+        "pedido": 7746,
+        "cliente": "CLEVER BRINDES PROMO",
+        "representante": "VENDA INTERNA 5",
+        "dataPedido": "2026-04-17",
+        "dataEntrega": "2026-06-08",
+        "situacao": "Cadastrada",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60 DD",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM BRANCO 25GR",
+                "bobinas": 3,
+                "kg": 157.5,
+                "valor": 3272.22,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 3,
+                "pedidoKg": 157.5,
+                "pedidoValor": 3272.22,
+                "saldoKg": 157.5,
+                "saldoValor": 3272.22,
+                "saldoBobinas": 3
+            }
+        ],
+        "totalKg": 157.5,
+        "totalValor": 3272.22,
+        "totalBobinas": 3,
+        "pedidoKg": 157.5,
+        "pedidoValor": 3272.22,
+        "pedidoBobinas": 3,
+        "saldoKg": 157.5,
+        "saldoValor": 3272.22,
+        "saldoBobinas": 3
+    },
+    {
+        "pedido": 7748,
+        "cliente": "COLCHOES GAZIN",
+        "representante": "VENDA DIRETA",
+        "dataPedido": "2026-04-17",
+        "dataEntrega": "2026-05-29",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "30/60/90DDL",
+        "cidade": "Douradina",
+        "estado": "PR",
+        "segmento": "ESTOFADOS",
+        "linhas": [
+            {
+                "seq": 4,
+                "produto": "NTEI 2180MM BRANCO 12GR",
+                "bobinas": 19,
+                "kg": 994.08,
+                "valor": 19136.04,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 19,
+                "pedidoKg": 994.08,
+                "pedidoValor": 19136.04,
+                "saldoKg": 994.08,
+                "saldoValor": 19136.04,
+                "saldoBobinas": 19
+            },
+            {
+                "seq": 5,
+                "produto": "NTEI 2000MM PRETO 100GR",
+                "bobinas": 120,
+                "kg": 7200,
+                "valor": 138600,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 120,
+                "pedidoKg": 7200,
+                "pedidoValor": 138600,
+                "saldoKg": 7200,
+                "saldoValor": 138600,
+                "saldoBobinas": 120
+            },
+            {
+                "seq": 6,
+                "produto": "NTED 2000MM PRETO 50GR",
+                "bobinas": 38,
+                "kg": 1900,
+                "valor": 36575,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 38,
+                "pedidoKg": 1900,
+                "pedidoValor": 36575,
+                "saldoKg": 1900,
+                "saldoValor": 36575,
+                "saldoBobinas": 38
+            }
+        ],
+        "totalKg": 10094.08,
+        "totalValor": 194311.04,
+        "totalBobinas": 177,
+        "pedidoKg": 10094.08,
+        "pedidoValor": 194311.04,
+        "pedidoBobinas": 177,
+        "saldoKg": 10094.08,
+        "saldoValor": 194311.04,
+        "saldoBobinas": 177
+    },
+    {
+        "pedido": 7750,
+        "cliente": "COLCHOES GAZIN",
+        "representante": "VENDA DIRETA",
+        "dataPedido": "2026-04-17",
+        "dataEntrega": "2026-05-19",
+        "situacao": "Autorizado Faturamento",
+        "frete": "CIF",
+        "condicaoPgto": "30/60/90DDL",
+        "cidade": "Douradina",
+        "estado": "PR",
+        "segmento": "COLCHÃO",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTED 2000MM PRETO 50GR",
+                "bobinas": 19,
+                "kg": 950,
+                "valor": 18287.5,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 19,
+                "pedidoKg": 950,
+                "pedidoValor": 18287.5,
+                "saldoKg": 950,
+                "saldoValor": 18287.5,
+                "saldoBobinas": 19
+            },
+            {
+                "seq": 2,
+                "produto": "NTEI 2180MM BRANCO 12GR",
+                "bobinas": 27,
+                "kg": 1412.641,
+                "valor": 27193.3393,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 27,
+                "pedidoKg": 1412.641,
+                "pedidoValor": 27193.32,
+                "saldoKg": 1412.641,
+                "saldoValor": 27193.3393,
+                "saldoBobinas": 27
+            },
+            {
+                "seq": 3,
+                "produto": "NTEI 2000MM PRETO 100GR",
+                "bobinas": 135,
+                "kg": 8100,
+                "valor": 155925,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 135,
+                "pedidoKg": 8100,
+                "pedidoValor": 155925,
+                "saldoKg": 8100,
+                "saldoValor": 155925,
+                "saldoBobinas": 135
+            }
+        ],
+        "totalKg": 10462.641,
+        "totalValor": 201405.8393,
+        "totalBobinas": 181,
+        "pedidoKg": 10462.641,
+        "pedidoValor": 201405.82,
+        "pedidoBobinas": 181,
+        "saldoKg": 10462.641,
+        "saldoValor": 201405.8393,
+        "saldoBobinas": 181
+    },
+    {
+        "pedido": 7751,
+        "cliente": "CRISTALFLEX",
+        "representante": "RC RAFAEL PR SC OEST",
+        "dataPedido": "2026-04-22",
+        "dataEntrega": "2026-06-02",
+        "situacao": "Cadastrada",
+        "frete": "FOB",
+        "condicaoPgto": "A VISTA",
+        "cidade": "Chapecó",
+        "estado": "SC",
+        "segmento": "COLCHÃO",
+        "linhas": [
+            {
+                "seq": 9,
+                "produto": "NTEI 1460MM PRETO 100GR",
+                "bobinas": 10,
+                "kg": 438,
+                "valor": 8256.3,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 10,
+                "pedidoKg": 438,
+                "pedidoValor": 8256.3,
+                "saldoKg": 438,
+                "saldoValor": 8256.3,
+                "saldoBobinas": 10
+            },
+            {
+                "seq": 10,
+                "produto": "NTEI 1900MM PRETO 60GR",
+                "bobinas": 34,
+                "kg": 1162.805,
+                "valor": 21918.8743,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 34,
+                "pedidoKg": 1162.805,
+                "pedidoValor": 21918.78,
+                "saldoKg": 1162.805,
+                "saldoValor": 21918.8743,
+                "saldoBobinas": 34
+            },
+            {
+                "seq": 11,
+                "produto": "NTEI 2050MM PRETO 60GR",
+                "bobinas": 7,
+                "kg": 258.301,
+                "valor": 4868.9739,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 7,
+                "pedidoKg": 258.301,
+                "pedidoValor": 4868.96,
+                "saldoKg": 258.301,
+                "saldoValor": 4868.9739,
+                "saldoBobinas": 7
+            },
+            {
+                "seq": 12,
+                "produto": "NTEI 1310MM PRETO 80GR",
+                "bobinas": 17,
+                "kg": 534.48,
+                "valor": 10074.948,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 17,
+                "pedidoKg": 534.48,
+                "pedidoValor": 10074.95,
+                "saldoKg": 534.48,
+                "saldoValor": 10074.948,
+                "saldoBobinas": 17
+            },
+            {
+                "seq": 13,
+                "produto": "NTEI 940MM PRETO 100GR",
+                "bobinas": 4,
+                "kg": 112.8,
+                "valor": 2126.28,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 4,
+                "pedidoKg": 112.8,
+                "pedidoValor": 2126.28,
+                "saldoKg": 112.8,
+                "saldoValor": 2126.28,
+                "saldoBobinas": 4
+            },
+            {
+                "seq": 14,
+                "produto": "NTEI 2050MM PRETO 100GR",
+                "bobinas": 4,
+                "kg": 205,
+                "valor": 3864.25,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 4,
+                "pedidoKg": 205,
+                "pedidoValor": 3864.25,
+                "saldoKg": 205,
+                "saldoValor": 3864.25,
+                "saldoBobinas": 4
+            },
+            {
+                "seq": 15,
+                "produto": "NTEI 890MM PRETO 80GR",
+                "bobinas": 4,
+                "kg": 85.44,
+                "valor": 1610.544,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 4,
+                "pedidoKg": 85.44,
+                "pedidoValor": 1610.54,
+                "saldoKg": 85.44,
+                "saldoValor": 1610.544,
+                "saldoBobinas": 4
+            },
+            {
+                "seq": 16,
+                "produto": "NTEI 800MM PRETO 80GR",
+                "bobinas": 1,
+                "kg": 64,
+                "valor": 1206.4,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 1,
+                "pedidoKg": 64,
+                "pedidoValor": 1206.4,
+                "saldoKg": 64,
+                "saldoValor": 1206.4,
+                "saldoBobinas": 1
+            }
+        ],
+        "totalKg": 2860.826,
+        "totalValor": 53926.5702,
+        "totalBobinas": 81,
+        "pedidoKg": 2860.826,
+        "pedidoValor": 53926.46,
+        "pedidoBobinas": 81,
+        "saldoKg": 2860.826,
+        "saldoValor": 53926.5702,
+        "saldoBobinas": 81
+    },
+    {
+        "pedido": 7752,
+        "cliente": "CRISTALFLEX",
+        "representante": "RC RAFAEL PR SC OEST",
+        "dataPedido": "2026-04-22",
+        "dataEntrega": "2026-06-16",
+        "situacao": "Cadastrada",
+        "frete": "FOB",
+        "condicaoPgto": "A VISTA",
+        "cidade": "Chapecó",
+        "estado": "SC",
+        "segmento": "COLCHÃO",
+        "linhas": [
+            {
+                "seq": 9,
+                "produto": "NTEI 1460MM PRETO 100GR",
+                "bobinas": 10,
+                "kg": 438,
+                "valor": 8256.3,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 10,
+                "pedidoKg": 438,
+                "pedidoValor": 8256.3,
+                "saldoKg": 438,
+                "saldoValor": 8256.3,
+                "saldoBobinas": 10
+            },
+            {
+                "seq": 10,
+                "produto": "NTEI 1900MM PRETO 60GR",
+                "bobinas": 34,
+                "kg": 1162.805,
+                "valor": 21918.8743,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 34,
+                "pedidoKg": 1162.805,
+                "pedidoValor": 21918.78,
+                "saldoKg": 1162.805,
+                "saldoValor": 21918.8743,
+                "saldoBobinas": 34
+            },
+            {
+                "seq": 11,
+                "produto": "NTEI 2050MM PRETO 60GR",
+                "bobinas": 7,
+                "kg": 258.301,
+                "valor": 4868.9739,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 7,
+                "pedidoKg": 258.301,
+                "pedidoValor": 4868.96,
+                "saldoKg": 258.301,
+                "saldoValor": 4868.9739,
+                "saldoBobinas": 7
+            },
+            {
+                "seq": 12,
+                "produto": "NTEI 1310MM PRETO 80GR",
+                "bobinas": 17,
+                "kg": 534.48,
+                "valor": 10074.948,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 17,
+                "pedidoKg": 534.48,
+                "pedidoValor": 10074.95,
+                "saldoKg": 534.48,
+                "saldoValor": 10074.948,
+                "saldoBobinas": 17
+            },
+            {
+                "seq": 13,
+                "produto": "NTEI 940MM PRETO 100GR",
+                "bobinas": 4,
+                "kg": 112.8,
+                "valor": 2126.28,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 4,
+                "pedidoKg": 112.8,
+                "pedidoValor": 2126.28,
+                "saldoKg": 112.8,
+                "saldoValor": 2126.28,
+                "saldoBobinas": 4
+            },
+            {
+                "seq": 14,
+                "produto": "NTEI 2050MM PRETO 100GR",
+                "bobinas": 4,
+                "kg": 205,
+                "valor": 3864.25,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 4,
+                "pedidoKg": 205,
+                "pedidoValor": 3864.25,
+                "saldoKg": 205,
+                "saldoValor": 3864.25,
+                "saldoBobinas": 4
+            },
+            {
+                "seq": 15,
+                "produto": "NTEI 890MM PRETO 80GR",
+                "bobinas": 4,
+                "kg": 85.44,
+                "valor": 1610.544,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 4,
+                "pedidoKg": 85.44,
+                "pedidoValor": 1610.54,
+                "saldoKg": 85.44,
+                "saldoValor": 1610.544,
+                "saldoBobinas": 4
+            },
+            {
+                "seq": 16,
+                "produto": "NTEI 800MM PRETO 80GR",
+                "bobinas": 1,
+                "kg": 64,
+                "valor": 1206.4,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 1,
+                "pedidoKg": 64,
+                "pedidoValor": 1206.4,
+                "saldoKg": 64,
+                "saldoValor": 1206.4,
+                "saldoBobinas": 1
+            }
+        ],
+        "totalKg": 2860.826,
+        "totalValor": 53926.5702,
+        "totalBobinas": 81,
+        "pedidoKg": 2860.826,
+        "pedidoValor": 53926.46,
+        "pedidoBobinas": 81,
+        "saldoKg": 2860.826,
+        "saldoValor": 53926.5702,
+        "saldoBobinas": 81
+    },
+    {
+        "pedido": 7753,
+        "cliente": "CRISTALFLEX",
+        "representante": "RC RAFAEL PR SC OEST",
+        "dataPedido": "2026-04-22",
+        "dataEntrega": "2026-06-09",
+        "situacao": "Cadastrada",
+        "frete": "FOB",
+        "condicaoPgto": "A VISTA",
+        "cidade": "Chapecó",
+        "estado": "SC",
+        "segmento": "COLCHÃO",
+        "linhas": [
+            {
+                "seq": 9,
+                "produto": "NTEI 1460MM PRETO 100GR",
+                "bobinas": 10,
+                "kg": 438,
+                "valor": 8256.3,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 10,
+                "pedidoKg": 438,
+                "pedidoValor": 8256.3,
+                "saldoKg": 438,
+                "saldoValor": 8256.3,
+                "saldoBobinas": 10
+            },
+            {
+                "seq": 10,
+                "produto": "NTEI 1900MM PRETO 60GR",
+                "bobinas": 34,
+                "kg": 1162.805,
+                "valor": 21918.8743,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 34,
+                "pedidoKg": 1162.805,
+                "pedidoValor": 21918.78,
+                "saldoKg": 1162.805,
+                "saldoValor": 21918.8743,
+                "saldoBobinas": 34
+            },
+            {
+                "seq": 11,
+                "produto": "NTEI 2050MM PRETO 60GR",
+                "bobinas": 7,
+                "kg": 258.301,
+                "valor": 4868.9739,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 7,
+                "pedidoKg": 258.301,
+                "pedidoValor": 4868.96,
+                "saldoKg": 258.301,
+                "saldoValor": 4868.9739,
+                "saldoBobinas": 7
+            },
+            {
+                "seq": 12,
+                "produto": "NTEI 1310MM PRETO 80GR",
+                "bobinas": 17,
+                "kg": 534.48,
+                "valor": 10074.948,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 17,
+                "pedidoKg": 534.48,
+                "pedidoValor": 10074.95,
+                "saldoKg": 534.48,
+                "saldoValor": 10074.948,
+                "saldoBobinas": 17
+            },
+            {
+                "seq": 13,
+                "produto": "NTEI 940MM PRETO 100GR",
+                "bobinas": 4,
+                "kg": 112.8,
+                "valor": 2126.28,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 4,
+                "pedidoKg": 112.8,
+                "pedidoValor": 2126.28,
+                "saldoKg": 112.8,
+                "saldoValor": 2126.28,
+                "saldoBobinas": 4
+            },
+            {
+                "seq": 14,
+                "produto": "NTEI 2050MM PRETO 100GR",
+                "bobinas": 4,
+                "kg": 205,
+                "valor": 3864.25,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 4,
+                "pedidoKg": 205,
+                "pedidoValor": 3864.25,
+                "saldoKg": 205,
+                "saldoValor": 3864.25,
+                "saldoBobinas": 4
+            },
+            {
+                "seq": 15,
+                "produto": "NTEI 890MM PRETO 80GR",
+                "bobinas": 4,
+                "kg": 85.44,
+                "valor": 1610.544,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 4,
+                "pedidoKg": 85.44,
+                "pedidoValor": 1610.54,
+                "saldoKg": 85.44,
+                "saldoValor": 1610.544,
+                "saldoBobinas": 4
+            },
+            {
+                "seq": 16,
+                "produto": "NTEI 800MM PRETO 80GR",
+                "bobinas": 1,
+                "kg": 64,
+                "valor": 1206.4,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 1,
+                "pedidoKg": 64,
+                "pedidoValor": 1206.4,
+                "saldoKg": 64,
+                "saldoValor": 1206.4,
+                "saldoBobinas": 1
+            }
+        ],
+        "totalKg": 2860.826,
+        "totalValor": 53926.5702,
+        "totalBobinas": 81,
+        "pedidoKg": 2860.826,
+        "pedidoValor": 53926.46,
+        "pedidoBobinas": 81,
+        "saldoKg": 2860.826,
+        "saldoValor": 53926.5702,
+        "saldoBobinas": 81
+    },
+    {
+        "pedido": 7755,
+        "cliente": "MARANHAO COLCHOES PE",
+        "representante": "VENDA DIRETA",
+        "dataPedido": "2026-04-22",
+        "dataEntrega": "2026-04-30",
+        "situacao": "Entrega Parcial",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60/75/90 DD",
+        "cidade": "Cabo De Santo Agosti",
+        "estado": "PE",
+        "segmento": "ESTOFADOS",
+        "linhas": [
+            {
+                "seq": 5,
+                "produto": "NTEI 2200MM PRETO 80GR",
+                "bobinas": 11,
+                "kg": 982.784,
+                "valor": 14004.672,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 80,
+                "pedidoKg": 7040,
+                "pedidoValor": 100320,
+                "saldoKg": 982.784,
+                "saldoValor": 14004.672,
+                "saldoBobinas": 11
+            }
+        ],
+        "totalKg": 982.784,
+        "totalValor": 14004.672,
+        "totalBobinas": 11,
+        "pedidoKg": 7040,
+        "pedidoValor": 100320,
+        "pedidoBobinas": 80,
+        "saldoKg": 982.784,
+        "saldoValor": 14004.672,
+        "saldoBobinas": 11
+    },
+    {
+        "pedido": 7764,
+        "cliente": "EUCAPINUS COMERCIO D",
+        "representante": "RC SIMAN RJ",
+        "dataPedido": "2026-04-24",
+        "dataEntrega": "2026-05-25",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60/75/90 DD",
+        "cidade": "Duque De Caxias",
+        "estado": "RJ",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM PRETO 60GR",
+                "bobinas": 28,
+                "kg": 823.203,
+                "valor": 18645.548,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 28,
+                "pedidoKg": 823.203,
+                "pedidoValor": 18645.48,
+                "saldoKg": 823.203,
+                "saldoValor": 18645.548,
+                "saldoBobinas": 28
+            }
+        ],
+        "totalKg": 823.203,
+        "totalValor": 18645.548,
+        "totalBobinas": 28,
+        "pedidoKg": 823.203,
+        "pedidoValor": 18645.48,
+        "pedidoBobinas": 28,
+        "saldoKg": 823.203,
+        "saldoValor": 18645.548,
+        "saldoBobinas": 28
+    },
+    {
+        "pedido": 7771,
+        "cliente": "ATCO FILIAL",
+        "representante": "RC SINESIO",
+        "dataPedido": "2026-04-27",
+        "dataEntrega": "2026-05-25",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "10 DD",
+        "cidade": "",
+        "estado": "SP",
+        "segmento": "BARREIRA",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 1260MM BRANCO 30GR",
+                "bobinas": 40,
+                "kg": 3024,
+                "valor": 70822.08,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 40,
+                "pedidoKg": 3024,
+                "pedidoValor": 70822.08,
+                "saldoKg": 3024,
+                "saldoValor": 70822.08,
+                "saldoBobinas": 40
+            },
+            {
+                "seq": 2,
+                "produto": "NTEI 1050MM BRANCO 30GR",
+                "bobinas": 10,
+                "kg": 630,
+                "valor": 14754.6,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 10,
+                "pedidoKg": 630,
+                "pedidoValor": 14754.6,
+                "saldoKg": 630,
+                "saldoValor": 14754.6,
+                "saldoBobinas": 10
+            }
+        ],
+        "totalKg": 3654,
+        "totalValor": 85576.68,
+        "totalBobinas": 50,
+        "pedidoKg": 3654,
+        "pedidoValor": 85576.68,
+        "pedidoBobinas": 50,
+        "saldoKg": 3654,
+        "saldoValor": 85576.68,
+        "saldoBobinas": 50
+    },
+    {
+        "pedido": 7781,
+        "cliente": "THS SILVA LTDA",
+        "representante": "VENDA INT ADRIANA",
+        "dataPedido": "2026-04-27",
+        "dataEntrega": "2026-05-11",
+        "situacao": "Gerado Romaneio",
+        "frete": "CIF",
+        "condicaoPgto": "45/60/75/90DDL",
+        "cidade": "Aparecida de Goiânia",
+        "estado": "GO",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM PRETO 20GR",
+                "bobinas": 0,
+                "kg": 560,
+                "valor": 11155.2,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 20,
+                "pedidoKg": 560,
+                "pedidoValor": 11155.2,
+                "saldoKg": 560,
+                "saldoValor": 11155.2,
+                "saldoBobinas": 0
+            }
+        ],
+        "totalKg": 560,
+        "totalValor": 11155.2,
+        "totalBobinas": 0,
+        "pedidoKg": 560,
+        "pedidoValor": 11155.2,
+        "pedidoBobinas": 20,
+        "saldoKg": 560,
+        "saldoValor": 11155.2,
+        "saldoBobinas": 0
+    },
+    {
+        "pedido": 7789,
+        "cliente": "S G A INDUSTRIA E CO",
+        "representante": "VENDA INT LETICIA",
+        "dataPedido": "2026-04-28",
+        "dataEntrega": "2026-05-18",
+        "situacao": "Conferida",
+        "frete": "CIF",
+        "condicaoPgto": "28 DD",
+        "cidade": "Curitiba",
+        "estado": "PR",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM BRANCO 100GR",
+                "bobinas": 38,
+                "kg": 1064,
+                "valor": 22450.4,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 38,
+                "pedidoKg": 1064,
+                "pedidoValor": 22450.4,
+                "saldoKg": 1064,
+                "saldoValor": 22450.4,
+                "saldoBobinas": 38
+            }
+        ],
+        "totalKg": 1064,
+        "totalValor": 22450.4,
+        "totalBobinas": 38,
+        "pedidoKg": 1064,
+        "pedidoValor": 22450.4,
+        "pedidoBobinas": 38,
+        "saldoKg": 1064,
+        "saldoValor": 22450.4,
+        "saldoBobinas": 38
+    },
+    {
+        "pedido": 7791,
+        "cliente": "CAMA INBOX FILIAL",
+        "representante": "RC MONTEMEZZO MGA PR",
+        "dataPedido": "2026-04-29",
+        "dataEntrega": "2026-05-18",
+        "situacao": "Produzido",
+        "frete": "CIF",
+        "condicaoPgto": "21/28/35/42/49 DD",
+        "cidade": "Umuarama",
+        "estado": "PR",
+        "segmento": "ESTOFADOS",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 1600MM PRETO 80GR",
+                "bobinas": 36,
+                "kg": 1152,
+                "valor": 23385.6,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 36,
+                "pedidoKg": 1152,
+                "pedidoValor": 23385.6,
+                "saldoKg": 1152,
+                "saldoValor": 23385.6,
+                "saldoBobinas": 36
+            }
+        ],
+        "totalKg": 1152,
+        "totalValor": 23385.6,
+        "totalBobinas": 36,
+        "pedidoKg": 1152,
+        "pedidoValor": 23385.6,
+        "pedidoBobinas": 36,
+        "saldoKg": 1152,
+        "saldoValor": 23385.6,
+        "saldoBobinas": 36
+    },
+    {
+        "pedido": 7792,
+        "cliente": "CAMA IN BOX",
+        "representante": "RC MONTEMEZZO MGA PR",
+        "dataPedido": "2026-04-29",
+        "dataEntrega": "2026-06-15",
+        "situacao": "Cadastrada",
+        "frete": "CIF",
+        "condicaoPgto": "21/28/35/42/49 DD",
+        "cidade": "Umuarama",
+        "estado": "PR",
+        "segmento": "ESTOFADOS",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 1130MM BRANCO 80GR",
+                "bobinas": 100,
+                "kg": 2712,
+                "valor": 55053.6,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 100,
+                "pedidoKg": 2712,
+                "pedidoValor": 55053.6,
+                "saldoKg": 2712,
+                "saldoValor": 55053.6,
+                "saldoBobinas": 100
+            },
+            {
+                "seq": 2,
+                "produto": "NTLD 1400MM PRETO 50GR",
+                "bobinas": 20,
+                "kg": 490,
+                "valor": 9947,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 20,
+                "pedidoKg": 490,
+                "pedidoValor": 9947,
+                "saldoKg": 490,
+                "saldoValor": 9947,
+                "saldoBobinas": 20
+            },
+            {
+                "seq": 3,
+                "produto": "NTEI 800MM PRETO 50GR",
+                "bobinas": 60,
+                "kg": 1800,
+                "valor": 36540,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 60,
+                "pedidoKg": 1800,
+                "pedidoValor": 36540,
+                "saldoKg": 1800,
+                "saldoValor": 36540,
+                "saldoBobinas": 60
+            },
+            {
+                "seq": 4,
+                "produto": "NTLD 1400MM BRANCO 80GR",
+                "bobinas": 50,
+                "kg": 1680,
+                "valor": 34104,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 50,
+                "pedidoKg": 1680,
+                "pedidoValor": 34104,
+                "saldoKg": 1680,
+                "saldoValor": 34104,
+                "saldoBobinas": 50
+            },
+            {
+                "seq": 5,
+                "produto": "NTLD 1400MM PRETO 80GR",
+                "bobinas": 20,
+                "kg": 672,
+                "valor": 13641.6,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 20,
+                "pedidoKg": 672,
+                "pedidoValor": 13641.6,
+                "saldoKg": 672,
+                "saldoValor": 13641.6,
+                "saldoBobinas": 20
+            },
+            {
+                "seq": 6,
+                "produto": "NTLD 1400MM BRANCO 12GR",
+                "bobinas": 30,
+                "kg": 1512,
+                "valor": 30693.6,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 30,
+                "pedidoKg": 1512,
+                "pedidoValor": 30693.6,
+                "saldoKg": 1512,
+                "saldoValor": 30693.6,
+                "saldoBobinas": 30
+            },
+            {
+                "seq": 7,
+                "produto": "NTEI 1150MM PRETO 50GR",
+                "bobinas": 20,
+                "kg": 862.5,
+                "valor": 17508.75,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 20,
+                "pedidoKg": 862.5,
+                "pedidoValor": 17508.75,
+                "saldoKg": 862.5,
+                "saldoValor": 17508.75,
+                "saldoBobinas": 20
+            }
+        ],
+        "totalKg": 9728.5,
+        "totalValor": 197488.55,
+        "totalBobinas": 300,
+        "pedidoKg": 9728.5,
+        "pedidoValor": 197488.55,
+        "pedidoBobinas": 300,
+        "saldoKg": 9728.5,
+        "saldoValor": 197488.55,
+        "saldoBobinas": 300
+    },
+    {
+        "pedido": 7793,
+        "cliente": "CAMA IN BOX",
+        "representante": "RC MONTEMEZZO MGA PR",
+        "dataPedido": "2026-04-29",
+        "dataEntrega": "2026-06-15",
+        "situacao": "Cadastrada",
+        "frete": "CIF",
+        "condicaoPgto": "21/28/35/42/49 DD",
+        "cidade": "Umuarama",
+        "estado": "PR",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM BRANCO 50GR",
+                "bobinas": 30,
+                "kg": 735,
+                "valor": 14920.5,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 30,
+                "pedidoKg": 735,
+                "pedidoValor": 14920.5,
+                "saldoKg": 735,
+                "saldoValor": 14920.5,
+                "saldoBobinas": 30
+            }
+        ],
+        "totalKg": 735,
+        "totalValor": 14920.5,
+        "totalBobinas": 30,
+        "pedidoKg": 735,
+        "pedidoValor": 14920.5,
+        "pedidoBobinas": 30,
+        "saldoKg": 735,
+        "saldoValor": 14920.5,
+        "saldoBobinas": 30
+    },
+    {
+        "pedido": 7794,
+        "cliente": "CAMA IN BOX",
+        "representante": "RC MONTEMEZZO MGA PR",
+        "dataPedido": "2026-04-29",
+        "dataEntrega": "2026-06-15",
+        "situacao": "Cadastrada",
+        "frete": "CIF",
+        "condicaoPgto": "21/28/35/42/49 DD",
+        "cidade": "Umuarama",
+        "estado": "PR",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM BRANCO 80GR",
+                "bobinas": 20,
+                "kg": 672,
+                "valor": 13641.6,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 20,
+                "pedidoKg": 672,
+                "pedidoValor": 13641.6,
+                "saldoKg": 672,
+                "saldoValor": 13641.6,
+                "saldoBobinas": 20
+            },
+            {
+                "seq": 2,
+                "produto": "NTEI 1130MM BRANCO 80GR",
+                "bobinas": 70,
+                "kg": 1898.4,
+                "valor": 38537.52,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 70,
+                "pedidoKg": 1898.4,
+                "pedidoValor": 38537.52,
+                "saldoKg": 1898.4,
+                "saldoValor": 38537.52,
+                "saldoBobinas": 70
+            }
+        ],
+        "totalKg": 2570.4,
+        "totalValor": 52179.12,
+        "totalBobinas": 90,
+        "pedidoKg": 2570.4,
+        "pedidoValor": 52179.12,
+        "pedidoBobinas": 90,
+        "saldoKg": 2570.4,
+        "saldoValor": 52179.12,
+        "saldoBobinas": 90
+    },
+    {
+        "pedido": 7802,
+        "cliente": "MATRIX",
+        "representante": "RC MONTEMEZZO MGA PR",
+        "dataPedido": "2026-04-30",
+        "dataEntrega": "2026-05-15",
+        "situacao": "Gerado Romaneio",
+        "frete": "CIF",
+        "condicaoPgto": "A VISTA",
+        "cidade": "Arapongas",
+        "estado": "PR",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM PRETO 60GR",
+                "bobinas": 0,
+                "kg": 1822.807,
+                "valor": 40284.0347,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 62,
+                "pedidoKg": 1822.807,
+                "pedidoValor": 40283.88,
+                "saldoKg": 1822.807,
+                "saldoValor": 40284.0347,
+                "saldoBobinas": 0
+            },
+            {
+                "seq": 2,
+                "produto": "NTLD 1400MM BRANCO 30GR",
+                "bobinas": 0,
+                "kg": 630.001,
+                "valor": 13923.0221,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 20,
+                "pedidoKg": 630.001,
+                "pedidoValor": 13923,
+                "saldoKg": 630.001,
+                "saldoValor": 13923.0221,
+                "saldoBobinas": 0
+            }
+        ],
+        "totalKg": 2452.808,
+        "totalValor": 54207.0568,
+        "totalBobinas": 0,
+        "pedidoKg": 2452.808,
+        "pedidoValor": 54206.88,
+        "pedidoBobinas": 82,
+        "saldoKg": 2452.808,
+        "saldoValor": 54207.0568,
+        "saldoBobinas": 0
+    },
+    {
+        "pedido": 7807,
+        "cliente": "SAN MARCO CONFECCOES",
+        "representante": "RC SIMAN RJ",
+        "dataPedido": "2026-04-30",
+        "dataEntrega": "2026-05-13",
+        "situacao": "Entrega Parcial",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60 DD",
+        "cidade": "São Gonçalo",
+        "estado": "RJ",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM BRANCO 50GR",
+                "bobinas": 2,
+                "kg": 49,
+                "valor": 1058.4,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 5,
+                "pedidoKg": 122.5,
+                "pedidoValor": 2646,
+                "saldoKg": 49,
+                "saldoValor": 1058.4,
+                "saldoBobinas": 2
+            },
+            {
+                "seq": 2,
+                "produto": "NTLD 1400MM PRETO 60GR",
+                "bobinas": 0,
+                "kg": 176.401,
+                "valor": 3810.2616,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 6,
+                "pedidoKg": 176.401,
+                "pedidoValor": 3810.24,
+                "saldoKg": 176.401,
+                "saldoValor": 3810.2616,
+                "saldoBobinas": 0
+            }
+        ],
+        "totalKg": 225.401,
+        "totalValor": 4868.6616,
+        "totalBobinas": 2,
+        "pedidoKg": 298.901,
+        "pedidoValor": 6456.24,
+        "pedidoBobinas": 11,
+        "saldoKg": 225.401,
+        "saldoValor": 4868.6616,
+        "saldoBobinas": 2
+    },
+    {
+        "pedido": 7809,
+        "cliente": "ANTUARTE COMERCIO DE",
+        "representante": "VENDA INTERNA 5",
+        "dataPedido": "2026-05-04",
+        "dataEntrega": "2026-05-08",
+        "situacao": "Conferida",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60/75/90 DD",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "segmento": "VELA",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "TNT BRANCO 40GR",
+                "bobinas": 100,
+                "kg": 560,
+                "valor": 10248,
+                "maquina": "Rebobinadeira",
+                "pedidoBobinas": 100,
+                "pedidoKg": 560,
+                "pedidoValor": 10248,
+                "saldoKg": 560,
+                "saldoValor": 10248,
+                "saldoBobinas": 100
+            },
+            {
+                "seq": 2,
+                "produto": "TNT PRETO 40GR",
+                "bobinas": 100,
+                "kg": 560,
+                "valor": 10248,
+                "maquina": "Rebobinadeira",
+                "pedidoBobinas": 100,
+                "pedidoKg": 560,
+                "pedidoValor": 10248,
+                "saldoKg": 560,
+                "saldoValor": 10248,
+                "saldoBobinas": 100
+            },
+            {
+                "seq": 3,
+                "produto": "TNT BRANCO 60GR",
+                "bobinas": 25,
+                "kg": 210,
+                "valor": 3843,
+                "maquina": "Rebobinadeira",
+                "pedidoBobinas": 25,
+                "pedidoKg": 210,
+                "pedidoValor": 3843,
+                "saldoKg": 210,
+                "saldoValor": 3843,
+                "saldoBobinas": 25
+            },
+            {
+                "seq": 4,
+                "produto": "TNT PRETO 60GR",
+                "bobinas": 35,
+                "kg": 294,
+                "valor": 5380.2,
+                "maquina": "Rebobinadeira",
+                "pedidoBobinas": 35,
+                "pedidoKg": 294,
+                "pedidoValor": 5380.2,
+                "saldoKg": 294,
+                "saldoValor": 5380.2,
+                "saldoBobinas": 35
+            },
+            {
+                "seq": 5,
+                "produto": "TNT BRANCO 80GR",
+                "bobinas": 30,
+                "kg": 336,
+                "valor": 6148.8,
+                "maquina": "Rebobinadeira",
+                "pedidoBobinas": 30,
+                "pedidoKg": 336,
+                "pedidoValor": 6148.8,
+                "saldoKg": 336,
+                "saldoValor": 6148.8,
+                "saldoBobinas": 30
+            },
+            {
+                "seq": 6,
+                "produto": "TNT PRETO 80GR",
+                "bobinas": 35,
+                "kg": 392,
+                "valor": 7173.6,
+                "maquina": "Rebobinadeira",
+                "pedidoBobinas": 35,
+                "pedidoKg": 392,
+                "pedidoValor": 7173.6,
+                "saldoKg": 392,
+                "saldoValor": 7173.6,
+                "saldoBobinas": 35
+            }
+        ],
+        "totalKg": 2352,
+        "totalValor": 43041.6,
+        "totalBobinas": 325,
+        "pedidoKg": 2352,
+        "pedidoValor": 43041.6,
+        "pedidoBobinas": 325,
+        "saldoKg": 2352,
+        "saldoValor": 43041.6,
+        "saldoBobinas": 325
+    },
+    {
+        "pedido": 7810,
+        "cliente": "RAFAELLA NATAL MURAR",
+        "representante": "VENDA INT KELLY",
+        "dataPedido": "2026-05-04",
+        "dataEntrega": "2026-05-15",
+        "situacao": "Conferida",
+        "frete": "CIF",
+        "condicaoPgto": "ENTRADA/28/56 DIAS",
+        "cidade": "Curitiba",
+        "estado": "PR",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 1400MM PRETO 55GR",
+                "bobinas": 20,
+                "kg": 539.001,
+                "valor": 10736.8999,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 20,
+                "pedidoKg": 539.001,
+                "pedidoValor": 10736.88,
+                "saldoKg": 539.001,
+                "saldoValor": 10736.8999,
+                "saldoBobinas": 20
+            },
+            {
+                "seq": 2,
+                "produto": "NTEI 2100MM PRETO 55GR",
+                "bobinas": 10,
+                "kg": 404.25,
+                "valor": 8052.66,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 10,
+                "pedidoKg": 404.25,
+                "pedidoValor": 8052.66,
+                "saldoKg": 404.25,
+                "saldoValor": 8052.66,
+                "saldoBobinas": 10
+            }
+        ],
+        "totalKg": 943.251,
+        "totalValor": 18789.5599,
+        "totalBobinas": 30,
+        "pedidoKg": 943.251,
+        "pedidoValor": 18789.54,
+        "pedidoBobinas": 30,
+        "saldoKg": 943.251,
+        "saldoValor": 18789.5599,
+        "saldoBobinas": 30
+    },
+    {
+        "pedido": 7812,
+        "cliente": "TESSUTI ESTOFADOS IM",
+        "representante": "RC MONTEMEZZO MGA PR",
+        "dataPedido": "2026-05-05",
+        "dataEntrega": "2026-05-31",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "28/42/56 DD",
+        "cidade": "Paiçandu",
+        "estado": "PR",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM BRANCO 40GR",
+                "bobinas": 8,
+                "kg": 224,
+                "valor": 4950.4,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 8,
+                "pedidoKg": 224,
+                "pedidoValor": 4950.4,
+                "saldoKg": 224,
+                "saldoValor": 4950.4,
+                "saldoBobinas": 8
+            },
+            {
+                "seq": 2,
+                "produto": "NTLD 1400MM PRETO 60GR",
+                "bobinas": 8,
+                "kg": 235.201,
+                "valor": 5197.9421,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 8,
+                "pedidoKg": 235.201,
+                "pedidoValor": 5197.92,
+                "saldoKg": 235.201,
+                "saldoValor": 5197.9421,
+                "saldoBobinas": 8
+            },
+            {
+                "seq": 3,
+                "produto": "NTLD 1400MM PRETO 80GR",
+                "bobinas": 7,
+                "kg": 235.2,
+                "valor": 5197.92,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 7,
+                "pedidoKg": 235.2,
+                "pedidoValor": 5197.92,
+                "saldoKg": 235.2,
+                "saldoValor": 5197.92,
+                "saldoBobinas": 7
+            }
+        ],
+        "totalKg": 694.401,
+        "totalValor": 15346.2621,
+        "totalBobinas": 23,
+        "pedidoKg": 694.401,
+        "pedidoValor": 15346.24,
+        "pedidoBobinas": 23,
+        "saldoKg": 694.401,
+        "saldoValor": 15346.2621,
+        "saldoBobinas": 23
+    },
+    {
+        "pedido": 7820,
+        "cliente": "MERCEARIA CASTRO",
+        "representante": "RC FRANCISCO RN",
+        "dataPedido": "2026-05-06",
+        "dataEntrega": "2026-05-15",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "A VISTA",
+        "cidade": "Parnarama",
+        "estado": "MA",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTED 1600MM BRANCO 60GR",
+                "bobinas": 10,
+                "kg": 336.001,
+                "valor": 6780.5002,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 10,
+                "pedidoKg": 336.001,
+                "pedidoValor": 6780.48,
+                "saldoKg": 336.001,
+                "saldoValor": 6780.5002,
+                "saldoBobinas": 10
+            },
+            {
+                "seq": 2,
+                "produto": "NTEI 1500MM BRANCO 60GR",
+                "bobinas": 10,
+                "kg": 315.001,
+                "valor": 6356.7202,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 10,
+                "pedidoKg": 315.001,
+                "pedidoValor": 6356.7,
+                "saldoKg": 315.001,
+                "saldoValor": 6356.7202,
+                "saldoBobinas": 10
+            },
+            {
+                "seq": 3,
+                "produto": "NTEI 1600MM BRANCO 70GR",
+                "bobinas": 15,
+                "kg": 588.029,
+                "valor": 11866.4252,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 15,
+                "pedidoKg": 588.029,
+                "pedidoValor": 11865.84,
+                "saldoKg": 588.029,
+                "saldoValor": 11866.4252,
+                "saldoBobinas": 15
+            },
+            {
+                "seq": 4,
+                "produto": "NTEI 1500 BRANCO 70GR",
+                "bobinas": 10,
+                "kg": 367.5,
+                "valor": 7416.15,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 10,
+                "pedidoKg": 367.5,
+                "pedidoValor": 7416.15,
+                "saldoKg": 367.5,
+                "saldoValor": 7416.15,
+                "saldoBobinas": 10
+            },
+            {
+                "seq": 5,
+                "produto": "NTEI 1500MM BRANCO 80GR",
+                "bobinas": 25,
+                "kg": 900,
+                "valor": 18162,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 25,
+                "pedidoKg": 900,
+                "pedidoValor": 18162,
+                "saldoKg": 900,
+                "saldoValor": 18162,
+                "saldoBobinas": 25
+            },
+            {
+                "seq": 6,
+                "produto": "NTEI 1600MM BRANCO 80GR",
+                "bobinas": 15,
+                "kg": 672,
+                "valor": 13560.96,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 15,
+                "pedidoKg": 672,
+                "pedidoValor": 13560.96,
+                "saldoKg": 672,
+                "saldoValor": 13560.96,
+                "saldoBobinas": 15
+            }
+        ],
+        "totalKg": 3178.531,
+        "totalValor": 64142.7556,
+        "totalBobinas": 85,
+        "pedidoKg": 3178.531,
+        "pedidoValor": 64142.13,
+        "pedidoBobinas": 85,
+        "saldoKg": 3178.531,
+        "saldoValor": 64142.7556,
+        "saldoBobinas": 85
+    },
+    {
+        "pedido": 7821,
+        "cliente": "FABRIL SCAVONE",
+        "representante": "VENDA INTERNA 5",
+        "dataPedido": "2026-05-06",
+        "dataEntrega": "2026-05-15",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "28 DD",
+        "cidade": "Itatiba",
+        "estado": "SP",
+        "segmento": "INDUSTRIAL",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 1500MM BRANCO 20GR",
+                "bobinas": 34,
+                "kg": 1530,
+                "valor": 36276.3,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 34,
+                "pedidoKg": 1530,
+                "pedidoValor": 36276.3,
+                "saldoKg": 1530,
+                "saldoValor": 36276.3,
+                "saldoBobinas": 34
+            },
+            {
+                "seq": 2,
+                "produto": "NTEI 1500MM BRANCO 40GR",
+                "bobinas": 17,
+                "kg": 1530,
+                "valor": 36276.3,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 17,
+                "pedidoKg": 1530,
+                "pedidoValor": 36276.3,
+                "saldoKg": 1530,
+                "saldoValor": 36276.3,
+                "saldoBobinas": 17
+            }
+        ],
+        "totalKg": 3060,
+        "totalValor": 72552.6,
+        "totalBobinas": 51,
+        "pedidoKg": 3060,
+        "pedidoValor": 72552.6,
+        "pedidoBobinas": 51,
+        "saldoKg": 3060,
+        "saldoValor": 72552.6,
+        "saldoBobinas": 51
+    },
+    {
+        "pedido": 7824,
+        "cliente": "VICTORY CONFECCOES D",
+        "representante": "VENDA INTERNA 5",
+        "dataPedido": "2026-05-07",
+        "dataEntrega": "2026-05-15",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "A VISTA",
+        "cidade": "Itaperuna",
+        "estado": "RJ",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTED 1550MM BRANCO 35GR",
+                "bobinas": 40,
+                "kg": 1085.001,
+                "valor": 21591.5199,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 40,
+                "pedidoKg": 1085.001,
+                "pedidoValor": 21591.5,
+                "saldoKg": 1085.001,
+                "saldoValor": 21591.5199,
+                "saldoBobinas": 40
+            }
+        ],
+        "totalKg": 1085.001,
+        "totalValor": 21591.5199,
+        "totalBobinas": 40,
+        "pedidoKg": 1085.001,
+        "pedidoValor": 21591.5,
+        "pedidoBobinas": 40,
+        "saldoKg": 1085.001,
+        "saldoValor": 21591.5199,
+        "saldoBobinas": 40
+    },
+    {
+        "pedido": 7826,
+        "cliente": "MAXI BORDADOS",
+        "representante": "VENDA INTERNA 5",
+        "dataPedido": "2026-05-07",
+        "dataEntrega": "2026-05-14",
+        "situacao": "Gerado Romaneio",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60/75/90 DD",
+        "cidade": "Curitiba",
+        "estado": "PR",
+        "segmento": "COLCHÃO",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTED 2100MM PRETO 60GR",
+                "bobinas": 0,
+                "kg": 1890.008,
+                "valor": 39690.168,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 60,
+                "pedidoKg": 1890.008,
+                "pedidoValor": 39690,
+                "saldoKg": 1890.008,
+                "saldoValor": 39690.168,
+                "saldoBobinas": 0
+            },
+            {
+                "seq": 2,
+                "produto": "NTLD 2100MM PRETO 40GR",
+                "bobinas": 0,
+                "kg": 840,
+                "valor": 17640,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 20,
+                "pedidoKg": 840,
+                "pedidoValor": 17640,
+                "saldoKg": 840,
+                "saldoValor": 17640,
+                "saldoBobinas": 0
+            },
+            {
+                "seq": 3,
+                "produto": "NTED 2100MM PRETO 80GR",
+                "bobinas": 0,
+                "kg": 1008,
+                "valor": 21168,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 20,
+                "pedidoKg": 1008,
+                "pedidoValor": 21168,
+                "saldoKg": 1008,
+                "saldoValor": 21168,
+                "saldoBobinas": 0
+            }
+        ],
+        "totalKg": 3738.008,
+        "totalValor": 78498.168,
+        "totalBobinas": 0,
+        "pedidoKg": 3738.008,
+        "pedidoValor": 78498,
+        "pedidoBobinas": 100,
+        "saldoKg": 3738.008,
+        "saldoValor": 78498.168,
+        "saldoBobinas": 0
+    },
+    {
+        "pedido": 7827,
+        "cliente": "REAL FLEX MOVEIS",
+        "representante": "VENDA INTERNA 5",
+        "dataPedido": "2026-05-07",
+        "dataEntrega": "2026-05-14",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60/75/90 DD",
+        "cidade": "Pinhais",
+        "estado": "PR",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 1550MM BRANCO 12GR",
+                "bobinas": 60,
+                "kg": 2232.001,
+                "valor": 46872.021,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 60,
+                "pedidoKg": 2232.001,
+                "pedidoValor": 46872,
+                "saldoKg": 2232.001,
+                "saldoValor": 46872.021,
+                "saldoBobinas": 60
+            }
+        ],
+        "totalKg": 2232.001,
+        "totalValor": 46872.021,
+        "totalBobinas": 60,
+        "pedidoKg": 2232.001,
+        "pedidoValor": 46872,
+        "pedidoBobinas": 60,
+        "saldoKg": 2232.001,
+        "saldoValor": 46872.021,
+        "saldoBobinas": 60
+    },
+    {
+        "pedido": 7830,
+        "cliente": "N E COMERCIO E INDUS",
+        "representante": "RC LASALVIA PE/PB",
+        "dataPedido": "2026-05-07",
+        "dataEntrega": "2026-05-19",
+        "situacao": "Conferida",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60 DD",
+        "cidade": "Bezerros",
+        "estado": "PE",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 2000MM BRANCO 12GR",
+                "bobinas": 2,
+                "kg": 96,
+                "valor": 2044.8,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 2,
+                "pedidoKg": 96,
+                "pedidoValor": 2044.8,
+                "saldoKg": 96,
+                "saldoValor": 2044.8,
+                "saldoBobinas": 2
+            },
+            {
+                "seq": 2,
+                "produto": "NTLD 1400MM PRETO 35GR",
+                "bobinas": 9,
+                "kg": 220.5,
+                "valor": 4696.65,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 9,
+                "pedidoKg": 220.5,
+                "pedidoValor": 4696.65,
+                "saldoKg": 220.5,
+                "saldoValor": 4696.65,
+                "saldoBobinas": 9
+            }
+        ],
+        "totalKg": 316.5,
+        "totalValor": 6741.45,
+        "totalBobinas": 11,
+        "pedidoKg": 316.5,
+        "pedidoValor": 6741.45,
+        "pedidoBobinas": 11,
+        "saldoKg": 316.5,
+        "saldoValor": 6741.45,
+        "saldoBobinas": 11
+    },
+    {
+        "pedido": 7831,
+        "cliente": "UG DA AMAZONIA",
+        "representante": "VENDA INTERNA 5",
+        "dataPedido": "2026-05-07",
+        "dataEntrega": "2026-05-18",
+        "situacao": "Produzido",
+        "frete": "FOB",
+        "condicaoPgto": "30/45/60/75/90 DD",
+        "cidade": "Manaus",
+        "estado": "AM",
+        "segmento": "MOVELEIRO",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 2100MM PRETO 80GR",
+                "bobinas": 67,
+                "kg": 2814,
+                "valor": 53466,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 67,
+                "pedidoKg": 2814,
+                "pedidoValor": 53466,
+                "saldoKg": 2814,
+                "saldoValor": 53466,
+                "saldoBobinas": 67
+            },
+            {
+                "seq": 2,
+                "produto": "NTEI 1200MM PRETO 80GR",
+                "bobinas": 30,
+                "kg": 864,
+                "valor": 16416,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 30,
+                "pedidoKg": 864,
+                "pedidoValor": 16416,
+                "saldoKg": 864,
+                "saldoValor": 16416,
+                "saldoBobinas": 30
+            },
+            {
+                "seq": 3,
+                "produto": "NTEI 2000MM PRETO 80GR",
+                "bobinas": 75,
+                "kg": 3600,
+                "valor": 68400,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 75,
+                "pedidoKg": 3600,
+                "pedidoValor": 68400,
+                "saldoKg": 3600,
+                "saldoValor": 68400,
+                "saldoBobinas": 75
+            },
+            {
+                "seq": 4,
+                "produto": "NTLD 2000MM BRANCO 12GR",
+                "bobinas": 26,
+                "kg": 1248,
+                "valor": 23712,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 26,
+                "pedidoKg": 1248,
+                "pedidoValor": 23712,
+                "saldoKg": 1248,
+                "saldoValor": 23712,
+                "saldoBobinas": 26
+            },
+            {
+                "seq": 5,
+                "produto": "NTLD 1400MM PRETO 80GR",
+                "bobinas": 48,
+                "kg": 1612.8,
+                "valor": 30643.2,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 48,
+                "pedidoKg": 1612.8,
+                "pedidoValor": 30643.2,
+                "saldoKg": 1612.8,
+                "saldoValor": 30643.2,
+                "saldoBobinas": 48
+            }
+        ],
+        "totalKg": 10138.8,
+        "totalValor": 192637.2,
+        "totalBobinas": 246,
+        "pedidoKg": 10138.8,
+        "pedidoValor": 192637.2,
+        "pedidoBobinas": 246,
+        "saldoKg": 10138.8,
+        "saldoValor": 192637.2,
+        "saldoBobinas": 246
+    },
+    {
+        "pedido": 7833,
+        "cliente": "DAFNE",
+        "representante": "VENDA INT ADRIANA",
+        "dataPedido": "2026-05-07",
+        "dataEntrega": "2026-05-11",
+        "situacao": "Produzido",
+        "frete": "FOB",
+        "condicaoPgto": "30/45/60 DD",
+        "cidade": "Guarulhos",
+        "estado": "SP",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM BRANCO 80GR",
+                "bobinas": 0,
+                "kg": 0,
+                "valor": 0,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 1,
+                "pedidoKg": 33.6,
+                "pedidoValor": 626.64,
+                "saldoKg": 0,
+                "saldoValor": 0,
+                "saldoBobinas": 0
+            },
+            {
+                "seq": 2,
+                "produto": "NTLD 1400MM BRANCO 30GR",
+                "bobinas": 0,
+                "kg": 0,
+                "valor": 0,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 4,
+                "pedidoKg": 126,
+                "pedidoValor": 2349.9,
+                "saldoKg": 0,
+                "saldoValor": 0,
+                "saldoBobinas": 0
+            }
+        ],
+        "totalKg": 0,
+        "totalValor": 0,
+        "totalBobinas": 0,
+        "pedidoKg": 159.6,
+        "pedidoValor": 2976.54,
+        "pedidoBobinas": 5,
+        "saldoKg": 0,
+        "saldoValor": 0,
+        "saldoBobinas": 0
+    },
+    {
+        "pedido": 7835,
+        "cliente": "DA TERRA SOLUCOES AG",
+        "representante": "VENDA DIRETA JOAO",
+        "dataPedido": "2026-05-07",
+        "dataEntrega": "2026-05-11",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60 DD",
+        "cidade": "São José dos Pinhais",
+        "estado": "PR",
+        "segmento": "AGRICULTUR",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "DS NTEI 2100MM BRANCO UV 23GR",
+                "bobinas": 61,
+                "kg": 1473.149,
+                "valor": 36828.725,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 61,
+                "pedidoKg": 1473.149,
+                "pedidoValor": 36828.75,
+                "saldoKg": 1473.149,
+                "saldoValor": 36828.725,
+                "saldoBobinas": 61
+            }
+        ],
+        "totalKg": 1473.149,
+        "totalValor": 36828.725,
+        "totalBobinas": 61,
+        "pedidoKg": 1473.149,
+        "pedidoValor": 36828.75,
+        "pedidoBobinas": 61,
+        "saldoKg": 1473.149,
+        "saldoValor": 36828.725,
+        "saldoBobinas": 61
+    },
+    {
+        "pedido": 7839,
+        "cliente": "D LARA ESTOFADOS",
+        "representante": "RC RAFAEL PR SC OEST",
+        "dataPedido": "2026-05-08",
+        "dataEntrega": "2026-05-15",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "30/60/90DDL",
+        "cidade": "Santa Lúcia",
+        "estado": "PR",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM PRETO 80GR",
+                "bobinas": 4,
+                "kg": 134.4,
+                "valor": 2837.184,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 4,
+                "pedidoKg": 134.4,
+                "pedidoValor": 2837.18,
+                "saldoKg": 134.4,
+                "saldoValor": 2837.184,
+                "saldoBobinas": 4
+            },
+            {
+                "seq": 2,
+                "produto": "NTLD 1400MM BRANCO 30GR",
+                "bobinas": 5,
+                "kg": 157.5,
+                "valor": 3324.825,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 5,
+                "pedidoKg": 157.5,
+                "pedidoValor": 3324.82,
+                "saldoKg": 157.5,
+                "saldoValor": 3324.825,
+                "saldoBobinas": 5
+            },
+            {
+                "seq": 3,
+                "produto": "NTLD 1400MM PRETO 60GR",
+                "bobinas": 3,
+                "kg": 75.6,
+                "valor": 1595.916,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 3,
+                "pedidoKg": 75.6,
+                "pedidoValor": 1595.92,
+                "saldoKg": 75.6,
+                "saldoValor": 1595.916,
+                "saldoBobinas": 3
+            },
+            {
+                "seq": 4,
+                "produto": "NTLD 1400MM PRETO 40GR",
+                "bobinas": 3,
+                "kg": 58.8,
+                "valor": 1241.268,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 3,
+                "pedidoKg": 58.8,
+                "pedidoValor": 1241.27,
+                "saldoKg": 58.8,
+                "saldoValor": 1241.268,
+                "saldoBobinas": 3
+            }
+        ],
+        "totalKg": 426.3,
+        "totalValor": 8999.193,
+        "totalBobinas": 15,
+        "pedidoKg": 426.3,
+        "pedidoValor": 8999.19,
+        "pedidoBobinas": 15,
+        "saldoKg": 426.3,
+        "saldoValor": 8999.193,
+        "saldoBobinas": 15
+    },
+    {
+        "pedido": 7841,
+        "cliente": "MARANHAO COLCHOES PE",
+        "representante": "VENDA DIRETA",
+        "dataPedido": "2026-05-08",
+        "dataEntrega": "2026-05-15",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60/75/90 DD",
+        "cidade": "Cabo De Santo Agosti",
+        "estado": "PE",
+        "segmento": "MOLA",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEM 360MM BRANCO 60GR",
+                "bobinas": 90,
+                "kg": 2916.012,
+                "valor": 55316.7476,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 90,
+                "pedidoKg": 2916.012,
+                "pedidoValor": 55316.52,
+                "saldoKg": 2916.012,
+                "saldoValor": 55316.7476,
+                "saldoBobinas": 90
+            },
+            {
+                "seq": 2,
+                "produto": "NTEM 540MM BRANCO 60GR",
+                "bobinas": 12,
+                "kg": 583.223,
+                "valor": 11063.7403,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 12,
+                "pedidoKg": 583.223,
+                "pedidoValor": 11063.3,
+                "saldoKg": 583.223,
+                "saldoValor": 11063.7403,
+                "saldoBobinas": 12
+            },
+            {
+                "seq": 3,
+                "produto": "NTLD 2100MM BRANCO 60GR",
+                "bobinas": 114,
+                "kg": 5027.42,
+                "valor": 95370.1574,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 114,
+                "pedidoKg": 5027.42,
+                "pedidoValor": 95369.78,
+                "saldoKg": 5027.42,
+                "saldoValor": 95370.1574,
+                "saldoBobinas": 114
+            },
+            {
+                "seq": 4,
+                "produto": "NTEI 2200MM PRETO 80GR",
+                "bobinas": 70,
+                "kg": 6160,
+                "valor": 116855.2,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 70,
+                "pedidoKg": 6160,
+                "pedidoValor": 116855.2,
+                "saldoKg": 6160,
+                "saldoValor": 116855.2,
+                "saldoBobinas": 70
+            },
+            {
+                "seq": 5,
+                "produto": "NTEM 420MM BRANCO 60GR",
+                "bobinas": 36,
+                "kg": 1360.797,
+                "valor": 25814.3191,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 36,
+                "pedidoKg": 1360.797,
+                "pedidoValor": 25814.38,
+                "saldoKg": 1360.797,
+                "saldoValor": 25814.3191,
+                "saldoBobinas": 36
+            }
+        ],
+        "totalKg": 16047.452,
+        "totalValor": 304420.1644,
+        "totalBobinas": 322,
+        "pedidoKg": 16047.452,
+        "pedidoValor": 304419.18,
+        "pedidoBobinas": 322,
+        "saldoKg": 16047.452,
+        "saldoValor": 304420.1644,
+        "saldoBobinas": 322
+    },
+    {
+        "pedido": 7843,
+        "cliente": "IDEALE TECNOLOGIA",
+        "representante": "RC FAVALE SP SP",
+        "dataPedido": "2026-05-08",
+        "dataEntrega": "2026-05-18",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "A VISTA",
+        "cidade": "São Caetano do Sul",
+        "estado": "SP",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM BRANCO 20GR",
+                "bobinas": 105,
+                "kg": 2940,
+                "valor": 64386,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 105,
+                "pedidoKg": 2940,
+                "pedidoValor": 64386,
+                "saldoKg": 2940,
+                "saldoValor": 64386,
+                "saldoBobinas": 105
+            }
+        ],
+        "totalKg": 2940,
+        "totalValor": 64386,
+        "totalBobinas": 105,
+        "pedidoKg": 2940,
+        "pedidoValor": 64386,
+        "pedidoBobinas": 105,
+        "saldoKg": 2940,
+        "saldoValor": 64386,
+        "saldoBobinas": 105
+    },
+    {
+        "pedido": 7844,
+        "cliente": "WARE HOUSE COMERCIO",
+        "representante": "RC ANDRÉ ALVARENGA",
+        "dataPedido": "2026-05-08",
+        "dataEntrega": "2026-05-22",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60 DD",
+        "cidade": "Marco",
+        "estado": "CE",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM PRETO 70GR",
+                "bobinas": 20,
+                "kg": 588,
+                "valor": 12436.2,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 20,
+                "pedidoKg": 588,
+                "pedidoValor": 12436.2,
+                "saldoKg": 588,
+                "saldoValor": 12436.2,
+                "saldoBobinas": 20
+            }
+        ],
+        "totalKg": 588,
+        "totalValor": 12436.2,
+        "totalBobinas": 20,
+        "pedidoKg": 588,
+        "pedidoValor": 12436.2,
+        "pedidoBobinas": 20,
+        "saldoKg": 588,
+        "saldoValor": 12436.2,
+        "saldoBobinas": 20
+    },
+    {
+        "pedido": 7845,
+        "cliente": "ATCO FILIAL",
+        "representante": "RC SINESIO",
+        "dataPedido": "2026-05-11",
+        "dataEntrega": "2026-05-22",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "10 DD",
+        "cidade": "",
+        "estado": "SP",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 1050MM BRANCO 30GR",
+                "bobinas": 36,
+                "kg": 2268,
+                "valor": 53116.56,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 36,
+                "pedidoKg": 2268,
+                "pedidoValor": 53116.56,
+                "saldoKg": 2268,
+                "saldoValor": 53116.56,
+                "saldoBobinas": 36
+            }
+        ],
+        "totalKg": 2268,
+        "totalValor": 53116.56,
+        "totalBobinas": 36,
+        "pedidoKg": 2268,
+        "pedidoValor": 53116.56,
+        "pedidoBobinas": 36,
+        "saldoKg": 2268,
+        "saldoValor": 53116.56,
+        "saldoBobinas": 36
+    },
+    {
+        "pedido": 7846,
+        "cliente": "BEQAA CAMA BOX LTDA",
+        "representante": "RC SINESIO",
+        "dataPedido": "2026-05-11",
+        "dataEntrega": "2026-05-22",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60/75/90 DD",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM PRETO 60GR",
+                "bobinas": 150,
+                "kg": 4410.018,
+                "valor": 81673.5334,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 150,
+                "pedidoKg": 4410.018,
+                "pedidoValor": 81673.2,
+                "saldoKg": 4410.018,
+                "saldoValor": 81673.5334,
+                "saldoBobinas": 150
+            },
+            {
+                "seq": 2,
+                "produto": "NTLD 1400MM PRETO 40GR",
+                "bobinas": 50,
+                "kg": 980,
+                "valor": 18149.6,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 50,
+                "pedidoKg": 980,
+                "pedidoValor": 18149.6,
+                "saldoKg": 980,
+                "saldoValor": 18149.6,
+                "saldoBobinas": 50
+            },
+            {
+                "seq": 3,
+                "produto": "NTED 1000MM PRETO 60GR",
+                "bobinas": 20,
+                "kg": 420.002,
+                "valor": 7778.437,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 20,
+                "pedidoKg": 420.002,
+                "pedidoValor": 7778.4,
+                "saldoKg": 420.002,
+                "saldoValor": 7778.437,
+                "saldoBobinas": 20
+            }
+        ],
+        "totalKg": 5810.02,
+        "totalValor": 107601.5704,
+        "totalBobinas": 220,
+        "pedidoKg": 5810.02,
+        "pedidoValor": 107601.2,
+        "pedidoBobinas": 220,
+        "saldoKg": 5810.02,
+        "saldoValor": 107601.5704,
+        "saldoBobinas": 220
+    },
+    {
+        "pedido": 7847,
+        "cliente": "BEQAA CAMA BOX LTDA",
+        "representante": "RC SINESIO",
+        "dataPedido": "2026-05-12",
+        "dataEntrega": "2026-05-22",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60/75/90 DD",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM PRETO 60GR",
+                "bobinas": 100,
+                "kg": 2940.012,
+                "valor": 51009.2082,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 100,
+                "pedidoKg": 2940.012,
+                "pedidoValor": 51009,
+                "saldoKg": 2940.012,
+                "saldoValor": 51009.2082,
+                "saldoBobinas": 100
+            },
+            {
+                "seq": 2,
+                "produto": "NTLD 1400MM PRETO 40GR",
+                "bobinas": 100,
+                "kg": 1960,
+                "valor": 34006,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 100,
+                "pedidoKg": 1960,
+                "pedidoValor": 34006,
+                "saldoKg": 1960,
+                "saldoValor": 34006,
+                "saldoBobinas": 100
+            },
+            {
+                "seq": 3,
+                "produto": "NTED 1000MM PRETO 60GR",
+                "bobinas": 100,
+                "kg": 2100.008,
+                "valor": 36435.1388,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 100,
+                "pedidoKg": 2100.008,
+                "pedidoValor": 36435,
+                "saldoKg": 2100.008,
+                "saldoValor": 36435.1388,
+                "saldoBobinas": 100
+            },
+            {
+                "seq": 4,
+                "produto": "NTEI 400MM PRETO 60GR",
+                "bobinas": 152,
+                "kg": 1276.805,
+                "valor": 22152.5668,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 152,
+                "pedidoKg": 1276.805,
+                "pedidoValor": 22152.48,
+                "saldoKg": 1276.805,
+                "saldoValor": 22152.5668,
+                "saldoBobinas": 152
+            },
+            {
+                "seq": 5,
+                "produto": "NTEI 1000MM PRETO 40GR",
+                "bobinas": 100,
+                "kg": 2000,
+                "valor": 34700,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 100,
+                "pedidoKg": 2000,
+                "pedidoValor": 34700,
+                "saldoKg": 2000,
+                "saldoValor": 34700,
+                "saldoBobinas": 100
+            }
+        ],
+        "totalKg": 10276.825,
+        "totalValor": 178302.9138,
+        "totalBobinas": 552,
+        "pedidoKg": 10276.825,
+        "pedidoValor": 178302.48,
+        "pedidoBobinas": 552,
+        "saldoKg": 10276.825,
+        "saldoValor": 178302.9138,
+        "saldoBobinas": 552
+    },
+    {
+        "pedido": 7848,
+        "cliente": "CAMA INBOX FILIAL",
+        "representante": "RC MONTEMEZZO MGA PR",
+        "dataPedido": "2026-05-12",
+        "dataEntrega": "2026-05-28",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60/75/90 DD",
+        "cidade": "Umuarama",
+        "estado": "PR",
+        "segmento": "ESTOFADOS",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 2180MM BRANCO 12GR",
+                "bobinas": 20,
+                "kg": 1046.4,
+                "valor": 20736.16,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 20,
+                "pedidoKg": 1046.4,
+                "pedidoValor": 20736.16,
+                "saldoKg": 1046.4,
+                "saldoValor": 20736.16,
+                "saldoBobinas": 20
+            },
+            {
+                "seq": 2,
+                "produto": "NTEI 2100MM PRETO 50GR",
+                "bobinas": 25,
+                "kg": 656.25,
+                "valor": 13006.875,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 25,
+                "pedidoKg": 656.25,
+                "pedidoValor": 13006.88,
+                "saldoKg": 656.25,
+                "saldoValor": 13006.875,
+                "saldoBobinas": 25
+            },
+            {
+                "seq": 3,
+                "produto": "NTEM 350MM BRANCO 70GR",
+                "bobinas": 72,
+                "kg": 3528.004,
+                "valor": 69925.0393,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 72,
+                "pedidoKg": 3528.004,
+                "pedidoValor": 69924.96,
+                "saldoKg": 3528.004,
+                "saldoValor": 69925.0393,
+                "saldoBobinas": 72
+            }
+        ],
+        "totalKg": 5230.654,
+        "totalValor": 103668.0743,
+        "totalBobinas": 117,
+        "pedidoKg": 5230.654,
+        "pedidoValor": 103668,
+        "pedidoBobinas": 117,
+        "saldoKg": 5230.654,
+        "saldoValor": 103668.0743,
+        "saldoBobinas": 117
+    },
+    {
+        "pedido": 7849,
+        "cliente": "CAMA IN BOX",
+        "representante": "RC MONTEMEZZO MGA PR",
+        "dataPedido": "2026-05-12",
+        "dataEntrega": "2026-05-30",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "21/28/35/42/49 DD",
+        "cidade": "Umuarama",
+        "estado": "PR",
+        "segmento": "ESTOFADOS",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 1130MM BRANCO 80GR",
+                "bobinas": 150,
+                "kg": 4068,
+                "valor": 80627.76,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 150,
+                "pedidoKg": 4068,
+                "pedidoValor": 80627.76,
+                "saldoKg": 4068,
+                "saldoValor": 80627.76,
+                "saldoBobinas": 150
+            },
+            {
+                "seq": 2,
+                "produto": "NTLD 1400MM BRANCO 80GR",
+                "bobinas": 70,
+                "kg": 2352,
+                "valor": 46616.64,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 70,
+                "pedidoKg": 2352,
+                "pedidoValor": 46616.64,
+                "saldoKg": 2352,
+                "saldoValor": 46616.64,
+                "saldoBobinas": 70
+            },
+            {
+                "seq": 3,
+                "produto": "NTEI 800MM PRETO 50GR",
+                "bobinas": 80,
+                "kg": 2400,
+                "valor": 47568,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 80,
+                "pedidoKg": 2400,
+                "pedidoValor": 47568,
+                "saldoKg": 2400,
+                "saldoValor": 47568,
+                "saldoBobinas": 80
+            }
+        ],
+        "totalKg": 8820,
+        "totalValor": 174812.4,
+        "totalBobinas": 300,
+        "pedidoKg": 8820,
+        "pedidoValor": 174812.4,
+        "pedidoBobinas": 300,
+        "saldoKg": 8820,
+        "saldoValor": 174812.4,
+        "saldoBobinas": 300
+    },
+    {
+        "pedido": 7850,
+        "cliente": "RI INDUSTRIA ARTEFAT",
+        "representante": "RC RICARDO ALMEID SP",
+        "dataPedido": "2026-05-12",
+        "dataEntrega": "2026-06-02",
+        "situacao": "Cadastrada",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60 DD",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM BRANCO 120GR",
+                "bobinas": 15,
+                "kg": 504.002,
+                "valor": 11163.6443,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 15,
+                "pedidoKg": 504.002,
+                "pedidoValor": 11163.6,
+                "saldoKg": 504.002,
+                "saldoValor": 11163.6443,
+                "saldoBobinas": 15
+            },
+            {
+                "seq": 2,
+                "produto": "NTLD 1400MM PRETO 120GR",
+                "bobinas": 15,
+                "kg": 504.002,
+                "valor": 11163.6443,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 15,
+                "pedidoKg": 504.002,
+                "pedidoValor": 11163.6,
+                "saldoKg": 504.002,
+                "saldoValor": 11163.6443,
+                "saldoBobinas": 15
+            }
+        ],
+        "totalKg": 1008.004,
+        "totalValor": 22327.2886,
+        "totalBobinas": 30,
+        "pedidoKg": 1008.004,
+        "pedidoValor": 22327.2,
+        "pedidoBobinas": 30,
+        "saldoKg": 1008.004,
+        "saldoValor": 22327.2886,
+        "saldoBobinas": 30
+    },
+    {
+        "pedido": 7851,
+        "cliente": "F HENRIQUE MELO DE",
+        "representante": "VENDA DIRETA JOAO",
+        "dataPedido": "2026-05-12",
+        "dataEntrega": "2026-05-20",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "28/35/42/49/56 DD",
+        "cidade": "São Paulo",
+        "estado": "SP",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM BRANCO 40GR",
+                "bobinas": 800,
+                "kg": 22400,
+                "valor": 392000,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 800,
+                "pedidoKg": 22400,
+                "pedidoValor": 392000,
+                "saldoKg": 22400,
+                "saldoValor": 392000,
+                "saldoBobinas": 800
+            },
+            {
+                "seq": 2,
+                "produto": "NTLD 1400MM PRETO 60GR",
+                "bobinas": 286,
+                "kg": 8408.434,
+                "valor": 147147.595,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 286,
+                "pedidoKg": 8408.434,
+                "pedidoValor": 147147,
+                "saldoKg": 8408.434,
+                "saldoValor": 147147.595,
+                "saldoBobinas": 286
+            },
+            {
+                "seq": 3,
+                "produto": "NTLD 1400MM PRETO 80GR",
+                "bobinas": 200,
+                "kg": 6720,
+                "valor": 117600,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 200,
+                "pedidoKg": 6720,
+                "pedidoValor": 117600,
+                "saldoKg": 6720,
+                "saldoValor": 117600,
+                "saldoBobinas": 200
+            },
+            {
+                "seq": 4,
+                "produto": "NTLD 1400MM BRANCO 20GR",
+                "bobinas": 250,
+                "kg": 7000,
+                "valor": 122500,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 250,
+                "pedidoKg": 7000,
+                "pedidoValor": 122500,
+                "saldoKg": 7000,
+                "saldoValor": 122500,
+                "saldoBobinas": 250
+            },
+            {
+                "seq": 5,
+                "produto": "NTLD 1400MM PRETO 40GR",
+                "bobinas": 200,
+                "kg": 5600,
+                "valor": 98000,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 200,
+                "pedidoKg": 5600,
+                "pedidoValor": 98000,
+                "saldoKg": 5600,
+                "saldoValor": 98000,
+                "saldoBobinas": 200
+            }
+        ],
+        "totalKg": 50128.434,
+        "totalValor": 877247.595,
+        "totalBobinas": 1736,
+        "pedidoKg": 50128.434,
+        "pedidoValor": 877247,
+        "pedidoBobinas": 1736,
+        "saldoKg": 50128.434,
+        "saldoValor": 877247.595,
+        "saldoBobinas": 1736
+    },
+    {
+        "pedido": 7852,
+        "cliente": "CIA DO ESTOFADO",
+        "representante": "RC RAFAEL PR SC OEST",
+        "dataPedido": "2026-05-13",
+        "dataEntrega": "2026-05-20",
+        "situacao": "Autorizado Produção",
+        "frete": "CIF",
+        "condicaoPgto": "30/60/90DDL",
+        "cidade": "Mondaí",
+        "estado": "SC",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTLD 1400MM BRANCO 50GR",
+                "bobinas": 8,
+                "kg": 196,
+                "valor": 4374.72,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 8,
+                "pedidoKg": 196,
+                "pedidoValor": 4374.72,
+                "saldoKg": 196,
+                "saldoValor": 4374.72,
+                "saldoBobinas": 8
+            },
+            {
+                "seq": 2,
+                "produto": "NTLD 1400MM PRETO 80GR",
+                "bobinas": 5,
+                "kg": 168,
+                "valor": 3749.76,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 5,
+                "pedidoKg": 168,
+                "pedidoValor": 3749.76,
+                "saldoKg": 168,
+                "saldoValor": 3749.76,
+                "saldoBobinas": 5
+            },
+            {
+                "seq": 3,
+                "produto": "NTLD 1400MM BRANCO 35GR",
+                "bobinas": 5,
+                "kg": 122.5,
+                "valor": 2734.2,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 5,
+                "pedidoKg": 122.5,
+                "pedidoValor": 2734.2,
+                "saldoKg": 122.5,
+                "saldoValor": 2734.2,
+                "saldoBobinas": 5
+            },
+            {
+                "seq": 4,
+                "produto": "NTED 1050MM BRANCO 35GR",
+                "bobinas": 4,
+                "kg": 73.5,
+                "valor": 1640.52,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 4,
+                "pedidoKg": 73.5,
+                "pedidoValor": 1640.52,
+                "saldoKg": 73.5,
+                "saldoValor": 1640.52,
+                "saldoBobinas": 4
+            },
+            {
+                "seq": 5,
+                "produto": "NTED 350MM BRANCO 35GR",
+                "bobinas": 4,
+                "kg": 24.5,
+                "valor": 546.84,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 4,
+                "pedidoKg": 24.5,
+                "pedidoValor": 546.84,
+                "saldoKg": 24.5,
+                "saldoValor": 546.84,
+                "saldoBobinas": 4
+            }
+        ],
+        "totalKg": 584.5,
+        "totalValor": 13046.04,
+        "totalBobinas": 26,
+        "pedidoKg": 584.5,
+        "pedidoValor": 13046.04,
+        "pedidoBobinas": 26,
+        "saldoKg": 584.5,
+        "saldoValor": 13046.04,
+        "saldoBobinas": 26
+    },
+    {
+        "pedido": 7853,
+        "cliente": "MAXFLEX",
+        "representante": "VENDA INTERNA 5",
+        "dataPedido": "2026-05-13",
+        "dataEntrega": "2026-05-18",
+        "situacao": "Cadastrada",
+        "frete": "CIF",
+        "condicaoPgto": "30/45/60 DD",
+        "cidade": "Curitiba",
+        "estado": "PR",
+        "segmento": "MOLA",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEM 620MM BRANCO 70GR",
+                "bobinas": 17,
+                "kg": 1475.601,
+                "valor": 30707.2568,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 17,
+                "pedidoKg": 1475.601,
+                "pedidoValor": 30707.24,
+                "saldoKg": 1475.601,
+                "saldoValor": 30707.2568,
+                "saldoBobinas": 17
+            }
+        ],
+        "totalKg": 1475.601,
+        "totalValor": 30707.2568,
+        "totalBobinas": 17,
+        "pedidoKg": 1475.601,
+        "pedidoValor": 30707.24,
+        "pedidoBobinas": 17,
+        "saldoKg": 1475.601,
+        "saldoValor": 30707.2568,
+        "saldoBobinas": 17
+    },
+    {
+        "pedido": 7854,
+        "cliente": "CHAPEUS GARCIA",
+        "representante": "RC FRANCISCO RN",
+        "dataPedido": "2026-05-13",
+        "dataEntrega": "2026-05-25",
+        "situacao": "Cadastrada",
+        "frete": "CIF",
+        "condicaoPgto": "30/60/90DDL",
+        "cidade": "Caicó",
+        "estado": "RN",
+        "segmento": "DISTRIBUIÇ",
+        "linhas": [
+            {
+                "seq": 1,
+                "produto": "NTEI 1600MM BRANCO 80GR",
+                "bobinas": 30,
+                "kg": 1344,
+                "valor": 27121.92,
+                "maquina": "Corte 1",
+                "pedidoBobinas": 30,
+                "pedidoKg": 1344,
+                "pedidoValor": 27121.92,
+                "saldoKg": 1344,
+                "saldoValor": 27121.92,
+                "saldoBobinas": 30
+            }
+        ],
+        "totalKg": 1344,
+        "totalValor": 27121.92,
+        "totalBobinas": 30,
+        "pedidoKg": 1344,
+        "pedidoValor": 27121.92,
+        "pedidoBobinas": 30,
+        "saldoKg": 1344,
+        "saldoValor": 27121.92,
+        "saldoBobinas": 30
+    },
+    {
+        "pedido": 7855,
+        "cliente": "BRACELL PAPEIS NORDE",
+        "representante": "RC CHRISTIAN COMPANY",
+        "dataPedido": "2026-05-13",
+        "dataEntrega": "2026-05-15",
+        "situacao": "Cadastrada",
+        "frete": "FOB",
+        "condicaoPgto": "A VISTA",
+        "cidade": "Pombos",
+        "estado": "PE",
+        "segmento": "BARREIRA",
+        "linhas": [
+            {
+                "seq": 3,
+                "produto": "NTEH 160MM BRANCO 13GR",
+                "bobinas": 60,
+                "kg": 1123.2,
+                "valor": 28944,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 60,
+                "pedidoKg": 1123.2,
+                "pedidoValor": 28944,
+                "saldoKg": 1123.2,
+                "saldoValor": 28944,
+                "saldoBobinas": 60
+            },
+            {
+                "seq": 4,
+                "produto": "NTEH 180MM BRANCO 13GR",
+                "bobinas": 72,
+                "kg": 1516.32,
+                "valor": 39075.5664,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 72,
+                "pedidoKg": 1516.32,
+                "pedidoValor": 30058.13,
+                "saldoKg": 1516.32,
+                "saldoValor": 39075.5664,
+                "saldoBobinas": 72
+            },
+            {
+                "seq": 5,
+                "produto": "NTEH 200MM BRANCO 40GR",
+                "bobinas": 20,
+                "kg": 320,
+                "valor": 8246.4,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 20,
+                "pedidoKg": 320,
+                "pedidoValor": 8246.4,
+                "saldoKg": 320,
+                "saldoValor": 8246.4,
+                "saldoBobinas": 20
+            },
+            {
+                "seq": 6,
+                "produto": "NTEH 130MM HFL BRANCO 10GR",
+                "bobinas": 90,
+                "kg": 1170,
+                "valor": 30150.9,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 90,
+                "pedidoKg": 1170,
+                "pedidoValor": 30150.9,
+                "saldoKg": 1170,
+                "saldoValor": 30150.9,
+                "saldoBobinas": 90
+            },
+            {
+                "seq": 7,
+                "produto": "NTEH 170MM HFL BRANCO 10GR",
+                "bobinas": 60,
+                "kg": 1020,
+                "valor": 26285.4,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 60,
+                "pedidoKg": 1020,
+                "pedidoValor": 26285.4,
+                "saldoKg": 1020,
+                "saldoValor": 26285.4,
+                "saldoBobinas": 60
+            }
+        ],
+        "totalKg": 5149.52,
+        "totalValor": 132702.2664,
+        "totalBobinas": 302,
+        "pedidoKg": 5149.52,
+        "pedidoValor": 123684.83,
+        "pedidoBobinas": 302,
+        "saldoKg": 5149.52,
+        "saldoValor": 132702.2664,
+        "saldoBobinas": 302
+    },
+    {
+        "pedido": 7856,
+        "cliente": "BRACELL PAPEIS NORDE",
+        "representante": "RC CHRISTIAN COMPANY",
+        "dataPedido": "2026-05-13",
+        "dataEntrega": "2026-05-12",
+        "situacao": "Cadastrada",
+        "frete": "FOB",
+        "condicaoPgto": "A VISTA",
+        "cidade": "Pombos",
+        "estado": "PE",
+        "segmento": "FRALDA",
+        "linhas": [
+            {
+                "seq": 6,
+                "produto": "NTEH 130MM HFL BRANCO 10GR",
+                "bobinas": 15,
+                "kg": 195,
+                "valor": 5025.15,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 15,
+                "pedidoKg": 195,
+                "pedidoValor": 5025.15,
+                "saldoKg": 195,
+                "saldoValor": 5025.15,
+                "saldoBobinas": 15
+            }
+        ],
+        "totalKg": 195,
+        "totalValor": 5025.15,
+        "totalBobinas": 15,
+        "pedidoKg": 195,
+        "pedidoValor": 5025.15,
+        "pedidoBobinas": 15,
+        "saldoKg": 195,
+        "saldoValor": 5025.15,
+        "saldoBobinas": 15
+    },
+    {
+        "pedido": 7857,
+        "cliente": "BRACELL PAPEIS NORDE",
+        "representante": "RC CHRISTIAN COMPANY",
+        "dataPedido": "2026-05-13",
+        "dataEntrega": "2026-05-12",
+        "situacao": "Cadastrada",
+        "frete": "FOB",
+        "condicaoPgto": "A VISTA",
+        "cidade": "Pombos",
+        "estado": "PE",
+        "segmento": "BARREIRA",
+        "linhas": [
+            {
+                "seq": 3,
+                "produto": "NTEH 160MM BRANCO 13GR",
+                "bobinas": 12,
+                "kg": 224.64,
+                "valor": 5788.8,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 12,
+                "pedidoKg": 224.64,
+                "pedidoValor": 5788.8,
+                "saldoKg": 224.64,
+                "saldoValor": 5788.8,
+                "saldoBobinas": 12
+            },
+            {
+                "seq": 5,
+                "produto": "NTEH 200MM BRANCO 40GR",
+                "bobinas": 10,
+                "kg": 160,
+                "valor": 4123.2,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 10,
+                "pedidoKg": 160,
+                "pedidoValor": 4123.2,
+                "saldoKg": 160,
+                "saldoValor": 4123.2,
+                "saldoBobinas": 10
+            },
+            {
+                "seq": 6,
+                "produto": "NTEH 130MM HFL BRANCO 10GR",
+                "bobinas": 15,
+                "kg": 195,
+                "valor": 5025.15,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 15,
+                "pedidoKg": 195,
+                "pedidoValor": 5025.15,
+                "saldoKg": 195,
+                "saldoValor": 5025.15,
+                "saldoBobinas": 15
+            },
+            {
+                "seq": 7,
+                "produto": "NTEH 170MM HFL BRANCO 10GR",
+                "bobinas": 12,
+                "kg": 204,
+                "valor": 5257.08,
+                "maquina": "Corte 2",
+                "pedidoBobinas": 12,
+                "pedidoKg": 204,
+                "pedidoValor": 5257.08,
+                "saldoKg": 204,
+                "saldoValor": 5257.08,
+                "saldoBobinas": 12
+            }
+        ],
+        "totalKg": 783.64,
+        "totalValor": 20194.23,
+        "totalBobinas": 49,
+        "pedidoKg": 783.64,
+        "pedidoValor": 20194.23,
+        "pedidoBobinas": 49,
+        "saldoKg": 783.64,
+        "saldoValor": 20194.23,
+        "saldoBobinas": 49
+    }
+]
+,
+
   defaultConfig: {
     costPerKg: 12.50,              // R$/kg de custo médio estimado da matéria-prima + produção
     fixedCostMonthly: 1800000,     // R$/mês de custo fixo da operação (estimativa inicial)
     commissionPercent: 0.05,       // 5% comissão padrão sobre representante externo
     machineCapacityKg: {
-      "Corte 1": 200000,           // capacidade nominal kg/mês
-      "Corte 2": 300000,
-      "Rebobinadeira": 50000
+      "Corte 1": 7000,             // capacidade produtiva kg/dia
+      "Corte 2": 9000,
+      "Rebobinadeira": 0           // acabamento, sem meta produtiva
     },
     monthlyTargetKg: 450000,       // meta mensal padrão
     monthlyTargetRevenue: 8000000, // meta mensal padrão de faturamento (acima do recorde de abril)

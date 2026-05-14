@@ -1,0 +1,4 @@
+ID,Nome,Grupo,Cidade,Estado,Contato,Email,Status,Data Cadastro
+CLI-001,CLIENTE A LTDA,VAREJO,São Paulo,SP,11999999999,contato@clientea.com.br,ativo,2026-01-15
+CLI-002,CLIENTE B IND,INDÚSTRIA,Santo André,SP,11988888888,vendas@clienteb.com.br,ativo,2026-02-20
+CLI-003,CLIENTE C DIST,DISTRIBUIDOR,Campinas,SP,19977777777,compras@clientec.com.br,ativo,2026-03-10

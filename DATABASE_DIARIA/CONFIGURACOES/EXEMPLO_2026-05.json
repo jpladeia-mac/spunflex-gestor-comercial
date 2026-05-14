@@ -1,0 +1,31 @@
+{
+  "data": "2026-05",
+  "mes": "maio",
+  "descricao": "Configurações, metas e parâmetros mensais",
+  "metas": {
+    "meta_kg_mensal": 5000,
+    "meta_receita_mensal": 50000,
+    "meta_numero_nf": 30,
+    "meta_numero_clientes": 15
+  },
+  "custos": {
+    "custo_operacional_diario": 500,
+    "custo_fixo_mensal": 10000,
+    "custo_variavel_kg": 8.50,
+    "margem_lucro_percentual": 25
+  },
+  "capacidades": {
+    "capacidade_producao_diaria_kg": 500,
+    "capacidade_estoque_total_kg": 5000,
+    "numero_clientes_maxima": 50
+  },
+  "prazos": {
+    "prazo_entrega_padrao_dias": 7,
+    "prazo_pagamento_padrao_dias": 30
+  },
+  "percentuais": {
+    "desconto_maximo_autorizado": 10,
+    "comissao_vendedor": 5,
+    "taxa_imposto": 15
+  }
+}

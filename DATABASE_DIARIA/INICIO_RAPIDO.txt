@@ -1,0 +1,55 @@
+GUIA RÁPIDO: DATABASE DIÁRIA
+========================================
+
+📌 O QUE É ISSO?
+Pasta para você enviar seus dados diários (vendas, estoque, clientes)
+que o sistema automaticamente atualiza o projeto Spunflex.
+
+🚀 COMO USAR (3 PASSOS)
+
+1️⃣  PREPARAR OS DADOS
+   - Crie ou atualize seu arquivo Excel, CSV ou JSON
+   - Use os exemplos como referência (veja EXEMPLO_*.json)
+
+2️⃣  COLOCAR NA PASTA CERTA
+   Vendas          → DATABASE_DIARIA/VENDAS/seu_arquivo.json
+   Estoque         → DATABASE_DIARIA/ESTOQUE/seu_arquivo.json
+   Clientes        → DATABASE_DIARIA/CLIENTES/seu_arquivo.json
+   Configurações   → DATABASE_DIARIA/CONFIGURACOES/seu_arquivo.json
+
+3️⃣  SINCRONIZAR
+   No terminal:
+   $ npm run sync-database
+
+   ✨ Pronto! Seus dados foram atualizados automaticamente!
+
+📋 EXEMPLOS DE NOMES DE ARQUIVO
+   ✅ VENDAS_2026-05-12.json
+   ✅ estoque-2026-05-12.json
+   ✅ clientes_2026-05-12.json
+   ✅ config_maio_2026.json
+
+   ❌ vendas.json (sem data)
+   ❌ dados_novo.json (ambíguo)
+   ❌ arquivo.txt (formato errado)
+
+🔍 VISUALIZAR O QUE SERÁ SINCRONIZADO
+   $ npm run sync-preview
+   (Mostra tudo sem fazer alterações)
+
+💾 FAZER BACKUP
+   $ npm run backup-database
+   (Cria pasta BACKUPS_DADOS com cópia completa)
+
+🆘 ESTRUTURA DOS DADOS
+   Veja os arquivos EXEMPLO_*.json nesta pasta
+   para entender o formato correto
+
+📞 SUPORTE
+   - Verifique se o arquivo está em JSON válido
+   - Confirme os nomes dos campos nos exemplos
+   - Use --verbose para mais detalhes:
+     $ npm run sync-database -- --verbose
+
+========================================
+Última atualização: 12 de maio de 2026

@@ -1,0 +1,11 @@
+ACESSO ONLINE FIXO - SPUNFLEX
+
+Link unico do projeto:
+https://spunflex-gestor-comercial.netlify.app
+
+Use sempre esse endereco para acessar o sistema online.
+
+Observacao de seguranca:
+O site possui uma barreira de acesso no Netlify antes do login do painel.
+A credencial dessa barreira fica configurada no Netlify em SPUNFLEX_BASIC_AUTH
+e nao deve ser salva em arquivo de texto no projeto.

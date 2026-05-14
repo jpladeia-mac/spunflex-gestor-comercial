@@ -1,0 +1,40 @@
+{
+  "data": "2026-05-12",
+  "descricao": "Quantidade em estoque de todos os produtos",
+  "atualizacao_hora": "14:30",
+  "items": [
+    {
+      "product": "FITA POLIAMIDA",
+      "quantity": 1500,
+      "unit": "kg",
+      "warehouse": "PRINCIPAL",
+      "estoque_minimo": 500,
+      "estoque_maximo": 3000,
+      "status": "ok"
+    },
+    {
+      "product": "FITA POLIPROPILENO",
+      "quantity": 2200,
+      "unit": "kg",
+      "warehouse": "PRINCIPAL",
+      "estoque_minimo": 400,
+      "estoque_maximo": 2500,
+      "status": "ok"
+    },
+    {
+      "product": "FITA PVC",
+      "quantity": 800,
+      "unit": "kg",
+      "warehouse": "PRINCIPAL",
+      "estoque_minimo": 300,
+      "estoque_maximo": 1500,
+      "status": "ok"
+    }
+  ],
+  "resumo": {
+    "quantidade_total_kg": 4500,
+    "numero_produtos": 3,
+    "produtos_baixos_estoque": 0,
+    "data_ultima_auditoria": "2026-05-12"
+  }
+}

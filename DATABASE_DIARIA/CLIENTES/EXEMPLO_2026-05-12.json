@@ -1,0 +1,49 @@
+{
+  "data": "2026-05-12",
+  "descricao": "Cadastro atualizado de clientes",
+  "customers": [
+    {
+      "id": "CLI-001",
+      "name": "CLIENTE A LTDA",
+      "group": "VAREJO",
+      "city": "São Paulo",
+      "state": "SP",
+      "contact": "11999999999",
+      "email": "contato@clientea.com.br",
+      "status": "ativo",
+      "data_cadastro": "2026-01-15"
+    },
+    {
+      "id": "CLI-002",
+      "name": "CLIENTE B IND",
+      "group": "INDÚSTRIA",
+      "city": "Santo André",
+      "state": "SP",
+      "contact": "11988888888",
+      "email": "vendas@clienteb.com.br",
+      "status": "ativo",
+      "data_cadastro": "2026-02-20"
+    },
+    {
+      "id": "CLI-003",
+      "name": "CLIENTE C DIST",
+      "group": "DISTRIBUIDOR",
+      "city": "Campinas",
+      "state": "SP",
+      "contact": "19977777777",
+      "email": "compras@clientec.com.br",
+      "status": "ativo",
+      "data_cadastro": "2026-03-10"
+    }
+  ],
+  "resumo": {
+    "total_clientes": 3,
+    "clientes_ativos": 3,
+    "clientes_inativos": 0,
+    "grupos": {
+      "VAREJO": 1,
+      "INDÚSTRIA": 1,
+      "DISTRIBUIDOR": 1
+    }
+  }
+}

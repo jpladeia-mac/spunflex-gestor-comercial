@@ -1,6 +1,9 @@
 # Editor / OS
 .DS_Store
 *.swp
+.env
+.env.*
+!.env.example
 
 # Claude config (local only)
 .claude/
@@ -22,5 +25,11 @@ CORRECOES_SEGURANCA.js
 !assets/*.jpg
 
 # Pacotes / build / deploy artifacts
+node_modules/
 *.zip
 spunflex-deploy/
+dist/
+security-runtime.js
+
+# Local Netlify folder
+.netlify

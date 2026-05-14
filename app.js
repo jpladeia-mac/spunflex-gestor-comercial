@@ -61,11 +61,21 @@ function saveBacklog(list) {
 
 // ---- Entrada diária de pedidos (Vendas) ----
 function getDailyOrders() {
+  const baseRows = Array.isArray(data.dailyOrders2026) ? data.dailyOrders2026 : [];
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.dailyOrders) || "null");
-    if (Array.isArray(stored)) return stored;
+    if (Array.isArray(stored)) {
+      const merged = new Map();
+      stored.forEach((row) => {
+        if (row?.date) merged.set(row.date, row);
+      });
+      baseRows.forEach((row) => {
+        if (row?.date) merged.set(row.date, row);
+      });
+      return [...merged.values()].sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+    }
   } catch {/* fall through */}
-  return data.dailyOrders2026 || [];
+  return baseRows;
 }
 
 function saveDailyOrders(list) {
@@ -174,11 +184,13 @@ const VIEW_DEFINITIONS = [
   { id: "sales", label: "Vendas" },
   { id: "customers", label: "Clientes" },
   { id: "products", label: "Produtos" },
+  { id: "prices", label: "Preços" },
   { id: "representatives", label: "Representantes" },
   { id: "operations", label: "Operação" },
+  { id: "inventory", label: "Estoque" },
   { id: "backlog", label: "Carteira" },
+  { id: "freights", label: "Fretes" },
   { id: "goals", label: "Metas" },
-  { id: "entries", label: "Entradas" },
   { id: "finance", label: "Financeiro" },
   { id: "sources", label: "Fontes" },
   { id: "admin", label: "Admin" }
@@ -220,9 +232,25 @@ const state = {
   entryMetric: "totalValue",
   lastCreatedAccess: null,
   editingUserId: null,
-  invoiceFilters: { rep: "all", state: "all", machine: "all" },
+  invoiceFilters: { date: "", rep: "all", state: "all", machine: "all" },
   customerQuery: "",
-  productQuery: ""
+  productQuery: "",
+  inventoryFilters: {
+    query: "",
+    line: "all",
+    width: "all",
+    grammage: "all",
+    color: "all",
+    profile: "all",
+    machine: "all",
+    minKg: ""
+  },
+  freightFilters: {
+    minKg: "1000",
+    maxStops: "5",
+    route: "all",
+    readiness: "all"
+  }
 };
 
 const app = document.querySelector("#app");
@@ -451,23 +479,73 @@ function closeConfirmModal(accepted) {
   confirmCallback = null;
 }
 
+function latestIsoDate(...dates) {
+  return dates.filter(Boolean).sort().at(-1) || "2026-05-12";
+}
+
+function getBacklogReferenceDate() {
+  return data.backlogSnapshotDate || data.baseDate || data.currentMayBilling2026?.endDate || "2026-05-12";
+}
+
+function formatIsoShort(iso) {
+  return iso ? new Date(iso + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "";
+}
+
+function machineForProductionFocus(machine) {
+  const name = String(machine || "").trim();
+  return name.toUpperCase() === "REBOBINADEIRA" ? "Corte 1" : name || "Sem máquina";
+}
+
+function displayMachineLabels(value) {
+  return String(value ?? "")
+    .replace(/\bCorte\s*1\b/gi, "MAQ1")
+    .replace(/\bCorte\s*2\b/gi, "MAQ2");
+}
+
+function applyMachineDisplayLabels(root = app) {
+  if (!root || typeof document === "undefined" || typeof NodeFilter === "undefined") return;
+
+  const skipTags = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA"]);
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const parent = node.parentElement;
+      if (!parent || skipTags.has(parent.tagName)) return NodeFilter.FILTER_REJECT;
+      return /Corte\s*[12]/i.test(node.nodeValue || "") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+    }
+  });
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach((node) => {
+    node.nodeValue = displayMachineLabels(node.nodeValue);
+  });
+
+  const attrs = ["title", "aria-label", "alt", "placeholder"];
+  root.querySelectorAll?.("[title],[aria-label],[alt],[placeholder]").forEach((el) => {
+    attrs.forEach((attr) => {
+      const current = el.getAttribute(attr);
+      if (/Corte\s*[12]/i.test(current || "")) el.setAttribute(attr, displayMachineLabels(current));
+    });
+  });
+}
+
 function updateSidebarMeta() {
   const dateEl = document.querySelector("#sidebar-update-date");
   const detailEl = document.querySelector("#sidebar-update-detail");
   if (!dateEl || !detailEl) return;
 
-  // Pega a data mais recente coberta pelos dados (endDate do faturamento parcial do mês)
   const billing = data.currentMayBilling2026;
   const invoices = data.mayInvoices2026;
-  const latestIso = billing?.endDate || invoices?.period?.endDate || data.baseDate;
+  const latestIso = latestIsoDate(data.baseDate, data.backlogSnapshotDate, billing?.endDate, invoices?.period?.endDate);
   const latestDate = new Date(latestIso + "T12:00:00");
 
   dateEl.textContent = latestDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
   const nfCount = invoices?.totals?.invoiceCount || 0;
-  const detail = nfCount
-    ? `${nfCount} NFs · faturamento parcial maio`
-    : "Dados consolidados";
+  const backlogDate = data.backlogSnapshotDate ? formatIsoShort(data.backlogSnapshotDate) : "";
+  const detail = [
+    nfCount ? `${nfCount} NFs até ${formatIsoShort(invoices?.period?.endDate || billing?.endDate)}` : "Dados consolidados",
+    backlogDate ? `carteira ${backlogDate}` : ""
+  ].filter(Boolean).join(" · ");
   detailEl.textContent = detail;
 }
 
@@ -1339,8 +1417,43 @@ function handleClick(event) {
   // -------- Filtros NFs --------
   const clearInvoiceFilter = event.target.closest('[data-invoice-filter="clear"]');
   if (clearInvoiceFilter) {
-    state.invoiceFilters = { rep: "all", state: "all", machine: "all" };
+    state.invoiceFilters = { date: "", rep: "all", state: "all", machine: "all" };
     render();
+    return;
+  }
+
+  const clearInventoryFilters = event.target.closest("[data-inventory-clear]");
+  if (clearInventoryFilters) {
+    state.inventoryFilters = {
+      query: "",
+      line: "all",
+      width: "all",
+      grammage: "all",
+      color: "all",
+      profile: "all",
+      machine: "all",
+      minKg: ""
+    };
+    render();
+    return;
+  }
+
+  const clearFreightFilters = event.target.closest("[data-freight-clear]");
+  if (clearFreightFilters) {
+    state.freightFilters = { minKg: "1000", maxStops: "5", route: "all", readiness: "all" };
+    render();
+    return;
+  }
+
+  const exportFreight = event.target.closest("[data-export-freight]");
+  if (exportFreight) {
+    exportFreightPdf(exportFreight.dataset.exportFreight);
+    return;
+  }
+
+  const exportGoalsPdf = event.target.closest("[data-export-goals-pdf]");
+  if (exportGoalsPdf) {
+    exportGoalsSalesPdf();
     return;
   }
 
@@ -1352,8 +1465,7 @@ function handleClick(event) {
     const monthlyTargetKg = Number(document.querySelector("#config-target-kg")?.value);
     const cap1 = Number(document.querySelector("#config-cap-corte1")?.value);
     const cap2 = Number(document.querySelector("#config-cap-corte2")?.value);
-    const cap3 = Number(document.querySelector("#config-cap-rebo")?.value);
-    const valid = [costPerKg, fixedCostMonthly, monthlyTargetKg, cap1, cap2, cap3].every((v) => Number.isFinite(v) && v >= 0);
+    const valid = [costPerKg, fixedCostMonthly, monthlyTargetKg, cap1, cap2].every((v) => Number.isFinite(v) && v >= 0);
     if (!valid) {
       showToast("Valores inválidos", "Verifique os campos — todos devem ser números positivos.", "error");
       return;
@@ -1362,7 +1474,7 @@ function handleClick(event) {
       costPerKg,
       fixedCostMonthly,
       monthlyTargetKg,
-      machineCapacityKg: { "Corte 1": cap1, "Corte 2": cap2, "Rebobinadeira": cap3 }
+      machineCapacityKg: { "Corte 1": cap1, "Corte 2": cap2, "Rebobinadeira": 0 }
     });
     showToast("Configurações salvas", "Todos os indicadores foram recalculados com os novos valores.", "success", 2800);
     render();
@@ -1458,6 +1570,12 @@ function handleClick(event) {
   }
 
   // -------- Carteira (backlog) --------
+  const exportLateBacklog = event.target.closest("[data-export-late-backlog]");
+  if (exportLateBacklog) {
+    exportLateBacklogPdf();
+    return;
+  }
+
   const addBacklog = event.target.closest("#add-backlog");
   if (addBacklog) {
     const client = document.querySelector("#backlog-client")?.value.trim();
@@ -1544,9 +1662,32 @@ function handleInput(event) {
     return;
   }
 
-  // Filtros de NFs (selects)
+  const inventoryFilter = event.target.closest("[data-inventory-filter]");
+  if (inventoryFilter) {
+    const key = inventoryFilter.dataset.inventoryFilter;
+    state.inventoryFilters = {
+      ...state.inventoryFilters,
+      [key]: inventoryFilter.value
+    };
+    if (key === "query" || key === "minKg") debouncedRender();
+    else render();
+    return;
+  }
+
+  const freightFilter = event.target.closest("[data-freight-filter]");
+  if (freightFilter) {
+    const key = freightFilter.dataset.freightFilter;
+    state.freightFilters = {
+      ...state.freightFilters,
+      [key]: freightFilter.value
+    };
+    render();
+    return;
+  }
+
+  // Filtros de NFs
   const invoiceFilter = event.target.closest("[data-invoice-filter]");
-  if (invoiceFilter && invoiceFilter.tagName === "SELECT") {
+  if (invoiceFilter && (invoiceFilter.tagName === "SELECT" || invoiceFilter.matches('input[type="date"]'))) {
     const key = invoiceFilter.dataset.invoiceFilter;
     state.invoiceFilters = { ...state.invoiceFilters, [key]: invoiceFilter.value };
     render();
@@ -1683,6 +1824,7 @@ function render() {
       viewTitle.textContent = "Acesso restrito";
       updateNavigationAccess();
       app.innerHTML = renderAccessDenied();
+      applyMachineDisplayLabels(app);
       return;
     }
     state.view = fallbackView;
@@ -1694,9 +1836,12 @@ function render() {
     sales: "Vendas (entrada de pedidos)",
     customers: "Clientes",
     products: "Produtos",
+    prices: "Precificação",
     representatives: "Representantes",
     operations: "Operação",
+    inventory: "Estoque de produtos acabados",
     backlog: "Carteira (a faturar)",
+    freights: "Fretes",
     goals: "Metas",
     entries: "Entradas",
     finance: "Financeiro",
@@ -1714,11 +1859,13 @@ function render() {
     sales: renderSales,
     customers: renderCustomers,
     products: renderProducts,
+    prices: renderPrices,
     representatives: renderRepresentatives,
     operations: renderOperations,
+    inventory: renderInventory,
     backlog: renderBacklog,
+    freights: renderFreights,
     goals: renderGoals,
-    entries: renderEntries,
     finance: renderFinance,
     sources: renderSources,
     admin: renderAdmin
@@ -1726,6 +1873,7 @@ function render() {
 
   showLoadingBar(true);
   app.innerHTML = views[state.view] ? views[state.view]() : renderAccessDenied();
+  applyMachineDisplayLabels(app);
   app.style.animation = "none";
   // force reflow to restart the entry animation on each render
   void app.offsetWidth;
@@ -1741,23 +1889,79 @@ function renderOverview() {
   const aprilSales = salesRecord(2026, 4);
   const aprilEntries = data.monthlyEntries2026.find((row) => row.month === 4);
   const mayBilling = data.currentMayBilling2026;
-  const mayOrders = data.currentMayOrders2026;
   const mayTargetKg = 450000;
-  const mayRevenueTarget = mayTargetKg * (aprilSales.revenue / aprilSales.weightKg);
-  const repTotals = totalRepresentatives();
+  const aprilAvgPrice = aprilSales.revenue / aprilSales.weightKg;
+  const mayTargetRevenue = mayTargetKg * aprilAvgPrice;
   const forecast = (ytd.revenue / throughMonth) * 12;
   const forecastGrowth = change(forecast, total2025.revenue);
   const ytdGrowth = change(ytd.revenue, prevYtd.revenue);
-  const ytdWeightGrowth = change(ytd.weightKg, prevYtd.weightKg);
   const avgPrice2026 = ytd.revenue / ytd.weightKg;
-  const avgPrice2025 = total2025.revenue / total2025.weightKg;
-  const aprilAvgPrice = aprilSales.revenue / aprilSales.weightKg;
   const concentration = representativeConcentration();
   const direct = directChannels();
   const reconciliation = {
     revenue: aprilSales.revenue - aprilEntries.merchandiseValue,
     weight: aprilSales.weightKg - aprilEntries.weightKg
   };
+
+  const mayEndDate = new Date(mayBilling.endDate + "T12:00:00");
+  const monthStart = new Date(mayBilling.startDate + "T12:00:00");
+  const monthEnd = new Date(mayEndDate.getFullYear(), mayEndDate.getMonth() + 1, 0);
+  const daysInMonth = monthEnd.getDate();
+  const daysElapsed = Math.max(1, Math.round((mayEndDate - monthStart) / 86400000) + 1);
+  const daysRemaining = Math.max(daysInMonth - daysElapsed, 0);
+  const monthProgressPct = daysElapsed / daysInMonth;
+  const mayEndLabel = mayEndDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const linearProjectionRevenue = (mayBilling.revenue / daysElapsed) * daysInMonth;
+  const linearProjectionKg = (mayBilling.weightKg / daysElapsed) * daysInMonth;
+  const projectionVsApril = change(linearProjectionRevenue, aprilSales.revenue);
+
+  const dashboardToday = getBacklogReferenceDate();
+  const dashboardTodayLabel = formatIsoShort(dashboardToday);
+  const carteiraAll = data.carteiraOrders2026 || [];
+  const isActiveOrder = (order) => order.situacao !== "Cancelado" && order.situacao !== "Nota Gerada";
+  const carteiraAtivos = carteiraAll.filter(isActiveOrder);
+  const carteiraAtrasados = carteiraAtivos.filter((order) => order.dataEntrega < dashboardToday);
+  const carteiraHoje = carteiraAtivos.filter((order) => order.dataEntrega === dashboardToday);
+  const carteiraSem1 = carteiraAtivos.filter((order) => order.dataEntrega > dashboardToday && order.dataEntrega <= "2026-05-15");
+  const carteiraSem2 = carteiraAtivos.filter((order) => order.dataEntrega >= "2026-05-18" && order.dataEntrega <= "2026-05-22");
+  const carteiraFim = carteiraAtivos.filter((order) => order.dataEntrega >= "2026-05-23");
+  const sumCart = (orders) => orders.reduce((acc, order) => ({
+    val: acc.val + (Number(order.totalValor) || 0),
+    kg: acc.kg + (Number(order.totalKg) || 0)
+  }), { val: 0, kg: 0 });
+  const ctAtivo = sumCart(carteiraAtivos);
+  const ctAtr = sumCart(carteiraAtrasados);
+  const ctHoje = sumCart(carteiraHoje);
+  const ctSem1 = sumCart(carteiraSem1);
+  const ctSem2 = sumCart(carteiraSem2);
+  const ctFim = sumCart(carteiraFim);
+
+  const securedRevenue = mayBilling.revenue + ctAtivo.val;
+  const securedKg = mayBilling.weightKg + ctAtivo.kg;
+  const securedCoverage = securedRevenue / mayTargetRevenue;
+  const gapAfterBacklog = Math.max(mayTargetRevenue - securedRevenue, 0);
+  const billedCoverage = mayBilling.revenue / mayTargetRevenue;
+  const backlogCoverage = ctAtivo.val / mayTargetRevenue;
+  const riskRevenue = ctAtr.val;
+  const urgentRevenue = ctAtr.val + ctHoje.val;
+  const currentWeekRevenue = ctHoje.val + ctSem1.val;
+  const mayAvgPrice = mayBilling.weightKg ? mayBilling.revenue / mayBilling.weightKg : 0;
+  const priceVsApril = change(mayAvgPrice, aprilAvgPrice);
+  const requiredDailyRevenue = gapAfterBacklog / Math.max(daysRemaining, 1);
+  const requiredDailyKg = Math.max(mayTargetKg - securedKg, 0) / Math.max(daysRemaining, 1);
+  const avgBacklogTicket = carteiraAtivos.length ? ctAtivo.val / carteiraAtivos.length : 0;
+  const activeStates = new Set(carteiraAtivos.map((order) => order.estado).filter(Boolean));
+  const monthStatus = gapAfterBacklog <= 0 ? "Meta coberta" : securedCoverage >= 0.75 ? "Fechamento próximo" : "Acelerar carteira";
+  const monthStatusTone = gapAfterBacklog <= 0 ? "" : securedCoverage >= 0.75 ? "amber" : "red";
+
+  const orderRows = getDailyOrders();
+  const mayOrderRows = orderRows.filter((order) => order.date?.startsWith("2026-05"));
+  const orderTotals = mayOrderRows.reduce((acc, order) => ({
+    revenue: acc.revenue + (Number(order.revenue) || 0),
+    weightKg: acc.weightKg + (Number(order.weightKg) || 0),
+    days: acc.days + 1
+  }), { revenue: 0, weightKg: 0, days: 0 });
+  const orderAvgPrice = orderTotals.weightKg ? orderTotals.revenue / orderTotals.weightKg : 0;
 
   const monthRows = data.monthlySales
     .filter((row) => row.year === 2026)
@@ -1768,117 +1972,132 @@ function renderOverview() {
       color: row.month === 4 ? "amber" : (row.partial ? "blue" : "")
     }));
 
-  // Current-month tracking (parcial)
-  const mayEndDate = new Date(mayBilling.endDate + "T12:00:00");
-  const monthStart = new Date(mayBilling.startDate + "T12:00:00");
-  const monthEnd = new Date(mayEndDate.getFullYear(), mayEndDate.getMonth() + 1, 0);
-  const daysInMonth = monthEnd.getDate();
-  const daysElapsed = Math.max(1, Math.round((mayEndDate - monthStart) / 86400000) + 1);
-  const monthProgressPct = daysElapsed / daysInMonth;
-  const linearProjectionRevenue = (mayBilling.revenue / daysElapsed) * daysInMonth;
-  const linearProjectionKg = (mayBilling.weightKg / daysElapsed) * daysInMonth;
-  const aprilRef = aprilSales.revenue;
-  const projectionVsApril = change(linearProjectionRevenue, aprilRef);
-  const mayTargetRevenue = mayRevenueTarget;
-  const mayTargetProgress = mayBilling.weightKg / mayTargetKg;
-  const mayEndLabel = mayEndDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-
-  // Margem (usa custo R$/kg configurado)
-  const config = getConfig();
-  const costPerKg = config.costPerKg;
-  const mayCostTotal = mayBilling.weightKg * costPerKg;
-  const mayGrossMargin = mayBilling.revenue - mayCostTotal;
-  const mayGrossMarginPct = mayBilling.revenue ? mayGrossMargin / mayBilling.revenue : 0;
-
-  const mayOperationRows = [
-    {
-      label: "Faturamento acumulado",
-      value: mayBilling.revenue,
-      valueLabel: `${formatBRL(mayBilling.revenue)} | ${formatKg(mayBilling.weightKg, 2)}`,
-      color: "blue"
-    },
-    {
-      label: "Pedidos captados em 05/05",
-      value: mayOrders.merchandiseValue,
-      valueLabel: `${formatBRL(mayOrders.merchandiseValue)} | ${formatKg(mayOrders.weightKg, 2)}`,
-      color: "amber"
-    },
-    {
-      label: "Saldo financeiro estimado",
-      value: Math.max(mayRevenueTarget - mayBilling.revenue, 0),
-      valueLabel: formatBRL(Math.max(mayRevenueTarget - mayBilling.revenue, 0)),
-      color: "red"
-    }
+  const currentWeekLabel = `Até ${formatIsoShort("2026-05-15")}`;
+  const pipelineRows = [
+    { label: "Atrasados", helper: "Entrega vencida", orders: carteiraAtrasados, total: ctAtr, tone: "red" },
+    { label: `Hoje · ${dashboardTodayLabel}`, helper: "Faturar e expedir", orders: carteiraHoje, total: ctHoje, tone: "blue" },
+    { label: currentWeekLabel, helper: "Semana corrente", orders: carteiraSem1, total: ctSem1, tone: "" },
+    { label: "18-22/05", helper: "Próxima semana", orders: carteiraSem2, total: ctSem2, tone: "" },
+    { label: "23-31/05", helper: "Fim do mês", orders: carteiraFim, total: ctFim, tone: "amber" }
   ];
 
-  const strategicRows = [
-    {
-      indicator: "Fechamento mensal",
-      status: ytdGrowth >= 0.3 ? "Forte" : "Acompanhar",
-      target: `Referência: ${formatBRL(aprilSales.revenue)}/mês`,
-      trigger: "Abaixo de 90% da referência até a semana 3",
-      action: "Revisar carteira, pedidos em aberto e negociações travadas."
-    },
-    {
-      indicator: "R$/kg mínimo",
-      status: aprilAvgPrice > avgPrice2026 ? "Melhorando" : "Pressão",
-      target: `Referência: ${formatBRL(aprilAvgPrice)}/kg`,
-      trigger: `Abaixo da média parcial de 2026: ${formatBRL(avgPrice2026)}/kg`,
-      action: "Bloquear desconto fora da política ou aprovar exceção formal."
-    },
-    {
-      indicator: "Dependência Top 5",
-      status: concentration.top5Share > 0.6 ? "Risco" : "Saudável",
-      target: "Meta sugerida: até 58% do faturamento mensal",
-      trigger: `Atual: ${formatPercent(concentration.top5Share)}`,
-      action: "Acelerar representantes intermediários e mapear clientes concentrados."
-    },
-    {
-      indicator: "Força interna",
-      status: "Alavanca",
-      target: `Manter acima de 30% do mês`,
-      trigger: `Atual: ${formatPercent(direct.share)}`,
-      action: "Separar recompra, prospecção e carteira ativa da venda interna."
-    },
-    {
-      indicator: "Conciliação operacional",
-      status: "Conciliar",
-      target: "Fechar divergências por DataEmissao x Data de Entrada",
-      trigger: `${formatBRL(reconciliation.revenue)} e ${formatKg(reconciliation.weight, 2)} em abril`,
-      action: "Criar rotina de conciliação entre comercial, operação e financeiro."
-    }
-  ];
-
-  // Backlog / carteira a entregar: pedidos captados - faturado a partir desses pedidos.
-  // Não há mapping direto pedido->NF, então usamos como aproximação o saldo: pedidos do dia + saldo p/ meta.
-  const backlogRevenueEstimate = mayOrders.merchandiseValue;
-  const backlogKgEstimate = mayOrders.weightKg;
-
-  const may = data.mayInvoices2026;
-  const repsCurrent = may?.representatives ? [...may.representatives].sort((a, b) => b.revenue - a.revenue) : [];
-  const dailyCurrent = may?.daily || [];
-  const topRepCurrent = repsCurrent[0];
-
-  const repRowsCurrent = repsCurrent.map((rep) => {
-    const share = may.totals.revenue ? rep.revenue / may.totals.revenue : 0;
-    const width = Math.max(2, Math.round(share * 100));
+  const pipelineTableRows = pipelineRows.map((bucket) => {
+    const statusText = [...new Set(bucket.orders.map((order) => order.situacao).filter(Boolean))].slice(0, 3).join(", ") || "-";
     return `
-      <div class="bar-row">
-        <div class="bar-label">${rep.name}<br><small style="color:var(--muted)">${rep.invoiceCount} NF${rep.invoiceCount > 1 ? "s" : ""}</small></div>
-        <div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div>
-        <div class="bar-value">${formatBRL(rep.revenue)}<br><small style="color:var(--muted)">${formatKg(rep.weightKg, 2)}</small></div>
+      <tr class="${bucket.tone ? `commercial-row-${bucket.tone}` : ""}">
+        <td style="text-align:left"><strong>${escapeHtml(bucket.label)}</strong><br><small>${escapeHtml(bucket.helper)}</small></td>
+        <td>${bucket.orders.length}</td>
+        <td>${formatKg(bucket.total.kg, 0)}</td>
+        <td>${formatBRL(bucket.total.val)}</td>
+        <td>${formatPercent(bucket.total.val / mayTargetRevenue)}</td>
+        <td style="text-align:left">${escapeHtml(statusText)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const topOpportunityRows = [...carteiraAtivos]
+    .sort((a, b) => (Number(b.totalValor) || 0) - (Number(a.totalValor) || 0))
+    .slice(0, 6)
+    .map((order) => {
+      const delivery = order.dataEntrega
+        ? new Date(order.dataEntrega + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
+        : "-";
+      const tone = order.dataEntrega < dashboardToday ? "red" : order.dataEntrega === dashboardToday ? "blue" : "amber";
+      return `
+        <tr>
+          <td style="text-align:left"><strong>#${escapeHtml(order.pedido)}</strong><br><small>${escapeHtml(delivery)}</small></td>
+          <td style="text-align:left">${escapeHtml(order.cliente || "-")}<br><small>${escapeHtml(`${order.cidade || "-"} / ${order.estado || "-"}`)}</small></td>
+          <td style="text-align:left">${escapeHtml(order.representante || "-")}</td>
+          <td>${formatKg(Number(order.totalKg) || 0, 0)}</td>
+          <td>${formatBRL(Number(order.totalValor) || 0)}</td>
+          <td><span class="status-pill ${tone}">${escapeHtml(order.situacao || "-")}</span></td>
+        </tr>
+      `;
+    }).join("");
+
+  const repMap = new Map();
+  const ensureRep = (name) => {
+    const key = name || "Sem representante";
+    if (!repMap.has(key)) {
+      repMap.set(key, { name: key, billedVal: 0, billedKg: 0, invoices: 0, backlogVal: 0, backlogKg: 0, orders: 0, lateVal: 0 });
+    }
+    return repMap.get(key);
+  };
+
+  (data.mayInvoices2026?.invoices || []).forEach((invoice) => {
+    const rep = ensureRep(invoice.representative);
+    rep.billedVal += invoice.revenue || 0;
+    rep.billedKg += invoice.weightKg || 0;
+    rep.invoices += 1;
+  });
+
+  carteiraAtivos.forEach((order) => {
+    const rep = ensureRep(order.representante);
+    rep.backlogVal += order.totalValor || 0;
+    rep.backlogKg += order.totalKg || 0;
+    rep.orders += 1;
+    if (order.dataEntrega < dashboardToday) rep.lateVal += order.totalValor || 0;
+  });
+
+  const commercialReps = [...repMap.values()]
+    .map((rep) => ({
+      ...rep,
+      totalVal: rep.billedVal + rep.backlogVal,
+      totalKg: rep.billedKg + rep.backlogKg
+    }))
+    .filter((rep) => rep.totalVal > 0)
+    .sort((a, b) => b.totalVal - a.totalVal);
+
+  const topRep = commercialReps[0];
+  const repPotentialRows = commercialReps.slice(0, 8).map((rep, index) => {
+    const avg = rep.totalKg ? rep.totalVal / rep.totalKg : 0;
+    const share = securedRevenue ? rep.totalVal / securedRevenue : 0;
+    const tone = rep.lateVal ? "red" : rep.backlogVal > rep.billedVal ? "amber" : "blue";
+    const status = rep.lateVal ? "Risco" : rep.backlogVal > rep.billedVal ? "Converter" : "Faturando";
+    return `
+      <tr>
+        <td>${index + 1}</td>
+        <td style="text-align:left"><strong>${escapeHtml(rep.name)}</strong><br><small>${formatPercent(share)} do total protegido</small></td>
+        <td>${formatBRL(rep.billedVal, 0)}<br><small>${rep.invoices} NF${rep.invoices !== 1 ? "s" : ""}</small></td>
+        <td>${formatBRL(rep.backlogVal, 0)}<br><small>${rep.orders} pedido${rep.orders !== 1 ? "s" : ""}</small></td>
+        <td>${formatBRL(rep.totalVal, 0)}<br><small>${formatKg(rep.totalKg, 0)}</small></td>
+        <td>${formatBRL(avg)}/kg</td>
+        <td><span class="status-pill ${tone}">${status}</span></td>
+      </tr>
+    `;
+  }).join("");
+
+  const repPotentialBars = commercialReps.slice(0, 8).map((rep) => ({
+    label: rep.name,
+    value: rep.totalVal,
+    valueLabel: `${formatBRL(rep.totalVal, 0)} | ${formatKg(rep.totalKg, 0)}`,
+    color: rep.lateVal ? "red" : rep.backlogVal > rep.billedVal ? "amber" : "blue"
+  }));
+  const channelMax = Math.max(...commercialReps.slice(0, 8).map((rep) => rep.totalVal), 1);
+  const channelRows = commercialReps.slice(0, 8).map((rep) => {
+    const width = Math.max(2, Math.min(100, (rep.totalVal / channelMax) * 100));
+    const tone = rep.lateVal ? "red" : rep.backlogVal > rep.billedVal ? "amber" : "blue";
+    return `
+      <div class="commercial-channel-row">
+        <div class="commercial-channel-head">
+          <strong title="${escapeHtml(rep.name)}">${escapeHtml(rep.name)}</strong>
+          <span>${formatBRL(rep.totalVal, 0)}</span>
+        </div>
+        <div class="commercial-channel-track" aria-hidden="true">
+          <span class="${tone}" style="width:${width.toFixed(1)}%"></span>
+        </div>
+        <small>${formatKg(rep.totalKg, 0)} · ${rep.orders} pedido${rep.orders !== 1 ? "s" : ""} · ${rep.invoices} NF${rep.invoices !== 1 ? "s" : ""}</small>
       </div>
     `;
   }).join("");
 
-  const dailyRowsCurrent = dailyCurrent.map((day) => {
+  const dailyRowsCurrent = (data.mayInvoices2026?.daily || []).map((day) => {
     const dt = new Date(day.date + "T12:00:00");
     const label = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
     return `
       <tr>
-        <td>${label}</td>
+        <td style="text-align:left">${label}</td>
         <td>${day.invoiceCount}</td>
-        <td>${day.lineCount}</td>
         <td>${formatKg(day.weightKg, 2)}</td>
         <td>${formatBRL(day.revenue)}</td>
         <td>${formatBRL(day.avgPrice)}/kg</td>
@@ -1886,141 +2105,319 @@ function renderOverview() {
     `;
   }).join("");
 
-  const monthStatus = projectionVsApril >= 0 ? "Ritmo forte" : (projectionVsApril >= -0.2 ? "Acompanhar" : "Atenção");
-  const monthStatusTone = projectionVsApril >= 0 ? "" : (projectionVsApril >= -0.2 ? "amber" : "red");
-  const pricePressure = avgPrice2026 < aprilAvgPrice ? "Pressão" : "Saudável";
-  const ytdMonthlyAvg = ytd.revenue / throughMonth;
+  const strategicRows = [
+    {
+      indicator: "Fechamento de maio",
+      status: gapAfterBacklog <= 0 ? "Forte" : "Acompanhar",
+      target: `${formatPercent(securedCoverage)} da meta já coberto entre faturado e carteira`,
+      trigger: `Gap pós-carteira: ${formatBRL(gapAfterBacklog)}`,
+      action: gapAfterBacklog > 0 ? `Gerar ${formatBRL(requiredDailyRevenue, 0)}/dia adicional até o fim do mês.` : "Proteger prazo de entrega e preço médio para não perder cobertura."
+    },
+    {
+      indicator: "Risco de carteira",
+      status: carteiraAtrasados.length ? "Risco" : "Forte",
+      target: `${carteiraAtrasados.length} pedido${carteiraAtrasados.length !== 1 ? "s" : ""} atrasado${carteiraAtrasados.length !== 1 ? "s" : ""}`,
+      trigger: `${formatBRL(riskRevenue)} ainda sem faturamento`,
+      action: carteiraAtrasados.length ? "Atacar motivo do atraso: produção, crédito, logística ou negociação." : "Manter follow-up diário da carteira de curto prazo."
+    },
+    {
+      indicator: "Preço médio",
+      status: priceVsApril >= 0 ? "Melhorando" : "Pressão",
+      target: `${formatBRL(mayAvgPrice)}/kg em maio vs ${formatBRL(aprilAvgPrice)}/kg em abril`,
+      trigger: `${formatPercent(priceVsApril)} de variação`,
+      action: "Travar desconto fora da política e priorizar pedidos acima do preço médio."
+    },
+    {
+      indicator: "Concentração comercial",
+      status: concentration.top5Share > 0.6 ? "Risco" : "Acompanhar",
+      target: `Top 5 em ${formatPercent(concentration.top5Share)} do faturamento`,
+      trigger: `${concentration.top1.name} lidera com ${formatPercent(concentration.top1Share)}`,
+      action: "Aumentar carteira de representantes intermediários e reduzir dependência de grandes contas."
+    },
+    {
+      indicator: "Venda interna",
+      status: "Alavanca",
+      target: `${formatPercent(direct.share)} no ranking de abril`,
+      trigger: "Canal direto com potencial de recompras e giro rápido",
+      action: "Separar rotina de recompra, recuperação de inativos e clientes novos."
+    }
+  ];
+
+  const macroStats = [
+    { label: "Jan-abr 2026", value: formatBRL(ytd.revenue), note: `${formatPercent(ytdGrowth)} vs 2025`, tone: "" },
+    { label: "Forecast 2026", value: formatBRL(forecast), note: `${formatPercent(forecastGrowth)} vs 2025`, tone: "blue" },
+    { label: "Preço 2026", value: formatBRL(avgPrice2026), note: `Abril ${formatBRL(aprilAvgPrice)}/kg`, tone: "amber" },
+    { label: "Top 5 reps", value: formatPercent(concentration.top5Share), note: "Concentração comercial", tone: "red" }
+  ];
+
+  const heroMetrics = [
+    { label: "Faturado", value: formatBRL(mayBilling.revenue, 0), note: `${formatPercent(billedCoverage)} da meta`, tone: "blue" },
+    { label: "Carteira", value: formatBRL(ctAtivo.val, 0), note: `${carteiraAtivos.length} pedidos ativos`, tone: "navy" },
+    { label: "Gap", value: gapAfterBacklog > 0 ? formatBRL(gapAfterBacklog, 0) : "Coberto", note: `${formatBRL(requiredDailyRevenue, 0)}/dia`, tone: gapAfterBacklog > 0 ? "red" : "green" },
+    { label: "Risco", value: formatBRL(urgentRevenue, 0), note: `${carteiraAtrasados.length + carteiraHoje.length} pedidos críticos`, tone: urgentRevenue ? "red" : "green" }
+  ];
 
   return `
-    <div class="section-grid">
-      <!-- ============== MÊS ATUAL ============== -->
-      <article class="panel span-12 current-tracker">
-        <div class="panel-header">
-          <div>
-            <h2>Mês atual · Maio em andamento</h2>
-            <p>Faturamento parcial até ${mayEndLabel} · ${daysElapsed} de ${daysInMonth} dias corridos (${formatPercent(monthProgressPct)} do mês).</p>
+    <div class="section-grid commercial-dashboard">
+      <article class="panel span-12 commercial-hero">
+        <div class="commercial-hero-main">
+          <div class="commercial-hero-copy">
+            <span class="commercial-eyebrow">Diretoria comercial · fechamento de maio</span>
+            <h2>Receita protegida: ${formatBRL(securedRevenue)}</h2>
+            <p>Faturado até ${mayEndLabel} mais carteira ativa ref. ${dashboardTodayLabel}. A leitura principal é converter carteira em NF sem perder preço.</p>
+            <div class="commercial-hero-metrics" aria-label="Resumo executivo comercial">
+              ${heroMetrics.map((item) => `
+                <div class="commercial-hero-metric ${item.tone}">
+                  <span>${escapeHtml(item.label)}</span>
+                  <strong>${item.value}</strong>
+                  <small>${escapeHtml(item.note)}</small>
+                </div>
+              `).join("")}
+            </div>
+            <div class="commercial-hero-actions">
+              <span class="status-pill ${monthStatusTone}">${monthStatus}</span>
+              <button class="ghost-button" type="button" data-view-jump="backlog">Abrir carteira</button>
+              <button class="ghost-button" type="button" data-view-jump="invoices">Ver faturamento</button>
+            </div>
           </div>
-          <span class="status-pill blue">Atualizado em ${mayEndLabel}</span>
-        </div>
-        <div class="section-grid" style="gap:14px">
-          ${kpiCard("Faturamento maio", formatBRL(mayBilling.revenue), `${formatKg(mayBilling.weightKg, 2)} · R$ ${(mayBilling.revenue / mayBilling.weightKg).toFixed(2)}/kg`, "green")}
-          ${kpiCard("Margem bruta estimada", formatBRL(mayGrossMargin), `${formatPercent(mayGrossMarginPct)} sobre receita · custo R$ ${costPerKg.toFixed(2)}/kg`, "blue")}
-          ${kpiCard("Entradas de pedido", formatBRL(mayOrders.merchandiseValue), `${formatKg(mayOrders.weightKg, 2)} captados em ${new Date(mayOrders.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`, "amber")}
-          ${kpiCard("Saldo p/ meta de R$", formatBRL(Math.max(mayTargetRevenue - mayBilling.revenue, 0)), `Meta sugerida ${formatBRL(mayTargetRevenue, 0)} (${formatKg(mayTargetKg, 0)} · preço de abril)`, "red")}
+
+          <div class="commercial-progress-box">
+            <div class="commercial-progress-head">
+              <span>Cobertura da meta</span>
+              <strong>${formatPercent(securedCoverage)}</strong>
+            </div>
+            <div class="commercial-progress-track" aria-hidden="true">
+              <span class="commercial-progress-fill billed" style="width:${Math.min(billedCoverage * 100, 100).toFixed(1)}%"></span>
+              <span class="commercial-progress-fill backlog" style="left:${Math.min(billedCoverage * 100, 100).toFixed(1)}%;width:${Math.min(backlogCoverage * 100, Math.max(100 - billedCoverage * 100, 0)).toFixed(1)}%"></span>
+            </div>
+            <div class="commercial-progress-legend">
+              <span><i class="legend-billed"></i>Faturado ${formatBRL(mayBilling.revenue, 0)}</span>
+              <span><i class="legend-backlog"></i>Carteira ${formatBRL(ctAtivo.val, 0)}</span>
+            </div>
+            <dl class="commercial-gap-list">
+              <div><dt>Meta maio</dt><dd>${formatBRL(mayTargetRevenue, 0)}</dd></div>
+              <div><dt>Gap pós-carteira</dt><dd>${formatBRL(gapAfterBacklog, 0)}</dd></div>
+              <div><dt>Ritmo adicional</dt><dd>${formatBRL(requiredDailyRevenue, 0)}/dia</dd></div>
+            </dl>
+          </div>
         </div>
       </article>
 
-      ${repsCurrent.length ? `
+      <section class="commercial-kpi-grid span-12" aria-label="Indicadores comerciais de maio">
+        <article class="commercial-kpi">
+          <span>Faturamento emitido</span>
+          <strong>${formatBRL(mayBilling.revenue, 0)}</strong>
+          <small>${formatKg(mayBilling.weightKg, 2)} · ${formatPercent(monthProgressPct)} do mês transcorrido</small>
+        </article>
+        <article class="commercial-kpi blue">
+          <span>Carteira ativa</span>
+          <strong>${formatBRL(ctAtivo.val, 0)}</strong>
+          <small>${formatKg(ctAtivo.kg, 0)} · ${carteiraAtivos.length} pedidos · ticket médio ${formatBRL(avgBacklogTicket, 0)}</small>
+        </article>
+        <article class="commercial-kpi ${gapAfterBacklog > 0 ? "red" : "green"}">
+          <span>Gap de fechamento</span>
+          <strong>${gapAfterBacklog > 0 ? formatBRL(gapAfterBacklog, 0) : "Coberto"}</strong>
+          <small>${gapAfterBacklog > 0 ? `${formatKg(requiredDailyKg, 0)}/dia para cobrir volume` : "Carteira cobre a meta financeira"}</small>
+        </article>
+        <article class="commercial-kpi ${priceVsApril >= 0 ? "green" : "amber"}">
+          <span>Preço médio maio</span>
+          <strong>${formatBRL(mayAvgPrice)}/kg</strong>
+          <small>${formatPercent(priceVsApril)} vs abril · captação ${orderAvgPrice ? `${formatBRL(orderAvgPrice)}/kg` : "sem base"}</small>
+        </article>
+        <article class="commercial-kpi ${riskRevenue ? "red" : "green"}">
+          <span>Risco imediato</span>
+          <strong>${formatBRL(urgentRevenue, 0)}</strong>
+          <small>${carteiraAtrasados.length} atrasados · ${carteiraHoje.length} para hoje</small>
+        </article>
+        <article class="commercial-kpi amber">
+          <span>Captação registrada</span>
+          <strong>${formatBRL(orderTotals.revenue, 0)}</strong>
+          <small>${orderTotals.days} dia${orderTotals.days !== 1 ? "s" : ""} · ${formatKg(orderTotals.weightKg, 2)} · ${activeStates.size} UF na carteira</small>
+        </article>
+      </section>
+
+      <article class="panel span-12 commercial-actions-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Prioridades comerciais desta semana</h2>
+            <p>Fila de ação para transformar carteira em faturamento e preservar preço.</p>
+          </div>
+          <span class="status-pill ${riskRevenue ? "red" : "blue"}">${riskRevenue ? "Risco aberto" : "Carteira limpa"}</span>
+        </div>
+        <div class="commercial-action-grid">
+          ${priorityItem("Destravar atrasados", `${carteiraAtrasados.length} pedido${carteiraAtrasados.length !== 1 ? "s" : ""} somam ${formatBRL(ctAtr.val, 0)}. Definir dono e motivo de bloqueio ainda hoje.`)}
+          ${priorityItem("Faturar curto prazo", `Hoje + semana corrente somam ${formatBRL(currentWeekRevenue, 0)} em ${carteiraHoje.length + carteiraSem1.length} pedidos. Confirmar produção, crédito e logística.`)}
+          ${priorityItem("Proteger R$/kg", `Maio está ${formatPercent(priceVsApril)} vs abril. Priorizar pedidos acima de ${formatBRL(aprilAvgPrice)}/kg e aprovar exceções formalmente.`)}
+          ${priorityItem("Acelerar saldo", gapAfterBacklog > 0 ? `Ainda faltam ${formatBRL(gapAfterBacklog, 0)} após carteira. Criar plano de ${formatBRL(requiredDailyRevenue, 0)}/dia até o fim do mês.` : "Meta financeira coberta pela carteira: foco em entrega, cobrança de prazo e evitar cancelamentos.")}
+        </div>
+      </article>
+
       <article class="panel span-7">
         <div class="panel-header">
           <div>
-            <h2>Resumo por representante · maio</h2>
-            <p>Faturamento por representante nas NFs emitidas em ${may.period.startDate.slice(8,10)}/05 a ${may.period.endDate.slice(8,10)}/05.</p>
+            <h2>Pipeline de faturamento por entrega</h2>
+            <p>Carteira ativa agrupada por janela de entrega. É a agenda operacional do fechamento.</p>
           </div>
-          <button class="ghost-button" type="button" data-view-jump="invoices">Ver notas fiscais</button>
+          <span class="status-pill blue">${formatBRL(ctAtivo.val, 0)} em carteira</span>
         </div>
-        <div class="bar-list">${repRowsCurrent}</div>
+        <div class="commercial-stage-grid" aria-label="Resumo do pipeline por janela de entrega">
+          ${pipelineRows.map((bucket) => `
+            <div class="commercial-stage-card ${bucket.tone}">
+              <span>${escapeHtml(bucket.label)}</span>
+              <strong>${formatBRL(bucket.total.val, 0)}</strong>
+              <small>${bucket.orders.length} pedido${bucket.orders.length !== 1 ? "s" : ""} · ${formatKg(bucket.total.kg, 0)}</small>
+            </div>
+          `).join("")}
+        </div>
+        <div class="data-table-wrap commercial-table">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Janela</th>
+                <th>Pedidos</th>
+                <th>Peso</th>
+                <th>Valor</th>
+                <th>% meta</th>
+                <th style="text-align:left">Status</th>
+              </tr>
+            </thead>
+            <tbody>${pipelineTableRows}</tbody>
+            <tfoot>
+              <tr>
+                <td style="text-align:left"><strong>Total ativo</strong></td>
+                <td>${carteiraAtivos.length}</td>
+                <td>${formatKg(ctAtivo.kg, 0)}</td>
+                <td>${formatBRL(ctAtivo.val)}</td>
+                <td>${formatPercent(ctAtivo.val / mayTargetRevenue)}</td>
+                <td style="text-align:left">Previsto + faturado: ${formatBRL(securedRevenue)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </article>
 
       <article class="panel span-5">
         <div class="panel-header">
           <div>
-            <h2>Destaques</h2>
-            <p>Indicadores rápidos do mês.</p>
+            <h2>Top oportunidades da carteira</h2>
+            <p>Maiores pedidos ativos para acompanhamento diário.</p>
           </div>
+          <button class="ghost-button" type="button" data-view-jump="backlog">Detalhar</button>
         </div>
-        <div class="stat-stack">
-          <div><span>Maior representante</span><strong>${topRepCurrent.name}</strong><small>${formatBRL(topRepCurrent.revenue)} · ${formatKg(topRepCurrent.weightKg, 2)}</small></div>
-          <div><span>NFs emitidas</span><strong>${may.totals.invoiceCount}</strong><small>${may.totals.lineCount} itens em ${dailyCurrent.length} dias úteis</small></div>
-          <div><span>Preço médio</span><strong>R$ ${may.totals.avgPrice.toFixed(2)}/kg</strong><small>Referência abril: R$ ${aprilAvgPrice.toFixed(2)}/kg</small></div>
+        <div class="data-table-wrap commercial-table compact">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Pedido</th>
+                <th style="text-align:left">Cliente</th>
+                <th style="text-align:left">Rep.</th>
+                <th>Peso</th>
+                <th>Valor</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>${topOpportunityRows}</tbody>
+          </table>
         </div>
-      </article>` : ""}
+      </article>
 
-      ${dailyRowsCurrent ? `
-      <article class="panel span-12">
+      <article class="panel span-8">
         <div class="panel-header">
           <div>
-            <h2>Resumo diário · maio</h2>
-            <p>Volume, faturamento e ticket médio por dia útil com NFs emitidas.</p>
+            <h2>Representantes · faturado + carteira</h2>
+            <p>Ranking por valor protegido no mês: NFs emitidas mais carteira ativa.</p>
           </div>
+          <button class="ghost-button" type="button" data-view-jump="representatives">Ver representantes</button>
         </div>
-        <div class="data-table-wrap">
+        <div class="data-table-wrap commercial-table">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th style="text-align:left">Representante</th>
+                <th>Faturado</th>
+                <th>Carteira</th>
+                <th>Total</th>
+                <th>R$/kg</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>${repPotentialRows}</tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel span-4">
+        <div class="panel-header">
+          <div>
+            <h2>Contribuição por canal</h2>
+            <p>Onde está concentrado o fechamento de maio.</p>
+          </div>
+          <span class="status-pill ${topRep?.lateVal ? "red" : "blue"}">${topRep ? escapeHtml(topRep.name.split(" ").slice(0, 2).join(" ")) : "Sem base"}</span>
+        </div>
+        ${repPotentialBars.length ? `<div class="commercial-channel-list">${channelRows}</div>` : `<div class="empty-state">Sem dados de representantes.</div>`}
+      </article>
+
+      <article class="panel span-5">
+        <div class="panel-header">
+          <div>
+            <h2>Faturamento diário</h2>
+            <p>NFs emitidas no recorte de maio.</p>
+          </div>
+          <button class="ghost-button" type="button" data-view-jump="invoices">NFs</button>
+        </div>
+        <div class="data-table-wrap commercial-table compact">
           <table>
             <thead>
               <tr>
                 <th style="text-align:left">Dia</th>
                 <th>NFs</th>
-                <th>Itens</th>
                 <th>Peso</th>
-                <th>Faturamento</th>
-                <th>Preço médio</th>
+                <th>Valor</th>
+                <th>R$/kg</th>
               </tr>
             </thead>
             <tbody>${dailyRowsCurrent}</tbody>
-            <tfoot>
-              <tr>
-                <td style="text-align:left"><strong>Total</strong></td>
-                <td>${may.totals.invoiceCount}</td>
-                <td>${may.totals.lineCount}</td>
-                <td>${formatKg(may.totals.weightKg, 2)}</td>
-                <td>${formatBRL(may.totals.revenue)}</td>
-                <td>${formatBRL(may.totals.avgPrice)}/kg</td>
-              </tr>
-            </tfoot>
           </table>
-        </div>
-      </article>` : ""}
-
-      <article class="panel span-12 management-hero">
-        <div class="panel-header">
-          <div>
-            <h2>Performance executiva · maio</h2>
-            <p>Leitura de meta, projeção e ritmo necessário pra fechar o mês.</p>
-          </div>
-          <span class="status-pill ${monthStatusTone}">${monthStatus}</span>
-        </div>
-        <div class="management-grid">
-          ${managementCard("Projeção linear", `${formatBRL(linearProjectionRevenue)} extrapolado pelo ritmo de ${daysElapsed} dia(s).`, `${formatPercent(projectionVsApril)} vs abril (${formatBRL(aprilRef, 0)}).`)}
-          ${managementCard("Meta da operação", `Meta sugerida ${formatBRL(mayTargetRevenue, 0)} em ${formatKg(mayTargetKg, 0)} (preço de abril aplicado).`, `Faltam ${formatBRL(Math.max(mayTargetRevenue - mayBilling.revenue, 0))} e ${formatTon(Math.max(mayTargetKg - mayBilling.weightKg, 0))}.`)}
-          ${managementCard("Ritmo necessário", `Para bater a meta de peso, precisa de ${formatKg(Math.max(mayTargetKg - mayBilling.weightKg, 0) / Math.max(daysInMonth - daysElapsed, 1), 0)}/dia útil nos próximos ${Math.max(daysInMonth - daysElapsed, 0)} dias.`, "Acionar carteira aberta e priorizar pedidos com preço acima da média.")}
-          ${managementCard("Pressão de preço", `${pricePressure}: média maio R$ ${(mayBilling.revenue / mayBilling.weightKg).toFixed(2)}/kg vs abril R$ ${aprilAvgPrice.toFixed(2)}/kg.`, "Bloquear desconto fora da política ou aprovar exceção formal.")}
-        </div>
-      </article>
-
-      <article class="panel span-12">
-        <div class="panel-header">
-          <div>
-            <h2>Painel de controle · alertas e ações</h2>
-            <p>Régua operacional com referência, gatilho e ação de gestão.</p>
-          </div>
-        </div>
-        ${strategicDecisionTable(strategicRows)}
-      </article>
-
-      <!-- ============== VISÃO MACRO DO ANO ============== -->
-      <article class="panel span-12">
-        <div class="panel-header">
-          <div>
-            <h2>Visão macro · performance 2026</h2>
-            <p>Resumo do ano até abril (mês fechado mais recente).</p>
-          </div>
-          <span class="status-pill">Anual</span>
-        </div>
-        <div class="section-grid" style="gap:14px">
-          ${kpiCard("Faturamento jan-abr", formatBRL(ytd.revenue), `${formatPercent(ytdGrowth)} vs jan-abr/2025`, "green")}
-          ${kpiCard("Projeção 2026", formatBRL(forecast), `${formatPercent(forecastGrowth)} vs fechamento de 2025`, "blue")}
-          ${kpiCard("Preço médio 2026", formatBRL(avgPrice2026), `Abril: ${formatBRL(aprilAvgPrice)}/kg`, "amber")}
-          ${kpiCard("Concentração Top 5", formatPercent(concentration.top5Share), `${concentration.top1.name} lidera com ${formatPercent(concentration.top1Share)}`, "red")}
         </div>
       </article>
 
       <article class="panel span-7">
         <div class="panel-header">
           <div>
-            <h2>Ritmo comercial 2026</h2>
-            <p>Faturamento mensal por data de emissão; abril é o mês de referência.</p>
+            <h2>Painel de controle comercial</h2>
+            <p>Indicadores que pedem decisão de diretoria, não só acompanhamento.</p>
           </div>
-          <span class="status-pill amber">Abril: ${formatBRL(aprilSales.revenue)}</span>
+        </div>
+        ${strategicDecisionTable(strategicRows)}
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Visão macro · 2026</h2>
+            <p>Leitura anual para contextualizar o fechamento do mês.</p>
+          </div>
+          <span class="status-pill">Jan-abr fechado</span>
+        </div>
+        <div class="commercial-kpi-grid macro">
+          ${macroStats.map((item) => `
+            <article class="commercial-kpi ${item.tone}">
+              <span>${escapeHtml(item.label)}</span>
+              <strong>${item.value}</strong>
+              <small>${escapeHtml(item.note)}</small>
+            </article>
+          `).join("")}
+        </div>
+      </article>
+
+      <article class="panel span-7">
+        <div class="panel-header">
+          <div>
+            <h2>Ritmo comercial mensal</h2>
+            <p>Faturamento por emissão; abril é a referência do ciclo atual.</p>
+          </div>
+          <span class="status-pill amber">Abril ${formatBRL(aprilSales.revenue, 0)}</span>
         </div>
         ${barList(monthRows)}
       </article>
@@ -2028,26 +2425,15 @@ function renderOverview() {
       <article class="panel span-5">
         <div class="panel-header">
           <div>
-            <h2>Meta anual · progresso</h2>
-            <p>Progresso contra meta, com projeção linear pelo ritmo jan-abr.</p>
+            <h2>Qualidade da base comercial</h2>
+            <p>Riscos estruturais para o crescimento.</p>
           </div>
-          <span class="status-pill blue">Forecast</span>
+          <span class="status-pill blue">Diretoria</span>
         </div>
-        ${goalProgress(ytd.revenue)}
-      </article>
-
-      <article class="panel span-12">
-        <div class="panel-header">
-          <div>
-            <h2>Prioridades executivas · 30 dias</h2>
-            <p>Recomendações práticas para o próximo ciclo.</p>
-          </div>
-        </div>
-        <div class="priority-grid">
-          ${priorityItem("Meta de maio", "Usar abril como referência e acompanhar semanalmente realizado x projetado.")}
-          ${priorityItem("Preço mínimo", "Definir piso de R$/kg e registrar exceções aprovadas pela diretoria.")}
-          ${priorityItem("Carteira média", "Criar plano para representantes fora do Top 5 aumentarem participação.")}
-          ${priorityItem("Pipeline financeiro", "Adicionar contas a receber, prazo médio e inadimplência ao histórico financeiro.")}
+        <div class="stat-stack">
+          <div><span>Venda interna</span><strong>${formatPercent(direct.share)}</strong><small>Participação no ranking de abril</small></div>
+          <div><span>Conciliação abril</span><strong>${formatBRL(reconciliation.revenue, 0)}</strong><small>${formatKg(reconciliation.weight, 0)} entre emissão e entrada</small></div>
+          <div><span>Top 5 representantes</span><strong>${formatPercent(concentration.top5Share)}</strong><small>${concentration.top1.name} lidera com ${formatPercent(concentration.top1Share)}</small></div>
         </div>
       </article>
     </div>
@@ -2066,23 +2452,69 @@ function renderInvoices() {
     `;
   }
 
-  // Aplica filtros do state
-  const filters = state.invoiceFilters || { rep: "all", state: "all", machine: "all" };
-  const filterFn = (inv) =>
-    (filters.rep === "all" || inv.representative === filters.rep) &&
-    (filters.state === "all" || inv.state === filters.state) &&
-    (filters.machine === "all" || inv.machines.includes(filters.machine));
-
+  const defaultInvoiceFilters = { date: "", rep: "all", state: "all", machine: "all" };
+  const filters = { ...defaultInvoiceFilters, ...(state.invoiceFilters || {}) };
   const allInvoices = may.invoices;
+  const availableDates = [...new Set([
+    ...(may.daily || []).map((day) => day.date),
+    ...allInvoices.map((invoice) => invoice.date)
+  ])].filter(Boolean).sort();
+  const minInvoiceDate = may.period?.startDate || availableDates[0] || "";
+  const maxInvoiceDate = may.period?.endDate || availableDates[availableDates.length - 1] || "";
+  const filterFn = (inv) => {
+    const invoiceMachines = Array.isArray(inv.machines) ? inv.machines : [];
+    return (!filters.date || inv.date === filters.date) &&
+      (filters.rep === "all" || inv.representative === filters.rep) &&
+      (filters.state === "all" || inv.state === filters.state) &&
+      (filters.machine === "all" || invoiceMachines.includes(filters.machine));
+  };
+
   const filteredInvoices = allInvoices.filter(filterFn);
+  const hasActiveInvoiceFilters = Boolean(filters.date) || filters.rep !== "all" || filters.state !== "all" || filters.machine !== "all";
   const reps = [...new Set(allInvoices.map((i) => i.representative))].sort();
   const states = [...new Set(allInvoices.map((i) => i.state))].sort();
   const machines = [...new Set(allInvoices.flatMap((i) => i.machines))].sort();
   const filteredTotals = filteredInvoices.reduce((acc, i) => {
-    acc.revenue += i.revenue;
-    acc.weightKg += i.weightKg;
+    acc.revenue += Number(i.revenue) || 0;
+    acc.weightKg += Number(i.weightKg) || 0;
+    acc.invoiceCount += 1;
     return acc;
-  }, { revenue: 0, weightKg: 0 });
+  }, { revenue: 0, weightKg: 0, invoiceCount: 0 });
+  const filteredAvgPrice = filteredTotals.weightKg ? filteredTotals.revenue / filteredTotals.weightKg : 0;
+
+  const invoicesByDate = new Map();
+  filteredInvoices.forEach((inv) => {
+    if (!invoicesByDate.has(inv.date)) invoicesByDate.set(inv.date, []);
+    invoicesByDate.get(inv.date).push(inv);
+  });
+
+  const sourceDailyByDate = new Map((may.daily || []).map((day) => [day.date, day]));
+  const filteredDaily = [...invoicesByDate.entries()]
+    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+    .map(([date, invoices]) => {
+      const revenue = invoices.reduce((sum, inv) => sum + (Number(inv.revenue) || 0), 0);
+      const weightKg = invoices.reduce((sum, inv) => sum + (Number(inv.weightKg) || 0), 0);
+      const sourceDay = sourceDailyByDate.get(date);
+      const sourceNotes = new Set((sourceDay?.notes || []).map(String));
+      const invoiceNumbers = invoices.map((inv) => String(inv.number));
+      const fullSourceDay = sourceDay &&
+        sourceNotes.size === invoiceNumbers.length &&
+        invoiceNumbers.every((number) => sourceNotes.has(number));
+
+      return {
+        date,
+        invoiceCount: invoices.length,
+        lineCount: fullSourceDay ? sourceDay.lineCount : null,
+        weightKg,
+        revenue,
+        avgPrice: weightKg ? revenue / weightKg : 0
+      };
+    });
+
+  const hasKnownLineCount = filteredDaily.length > 0 && filteredDaily.every((day) => day.lineCount !== null);
+  const filteredLineCount = hasKnownLineCount
+    ? filteredDaily.reduce((sum, day) => sum + day.lineCount, 0)
+    : null;
 
   // Agrupamento por cliente (grupo econômico) sobre o filtro atual
   const byClient = new Map();
@@ -2096,29 +2528,33 @@ function renderInvoices() {
   });
   const clientGroupRows = [...byClient.values()].sort((a, b) => b.revenue - a.revenue);
 
-  const dailyRows = may.daily.map((day) => {
+  const dailyRows = filteredDaily.length ? filteredDaily.map((day) => {
     const dt = new Date(day.date + "T12:00:00");
     const label = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
     return `
       <tr>
         <td>${label}</td>
         <td>${day.invoiceCount}</td>
-        <td>${day.lineCount}</td>
+        <td>${day.lineCount ?? "-"}</td>
         <td>${formatKg(day.weightKg, 2)}</td>
         <td>${formatBRL(day.revenue)}</td>
         <td>${formatBRL(day.avgPrice)}/kg</td>
       </tr>
     `;
-  }).join("");
+  }).join("") : `
+      <tr>
+        <td colspan="6" style="text-align:center;color:var(--muted)">Nenhum faturamento encontrado para o filtro selecionado.</td>
+      </tr>
+    `;
 
-  const invoiceRows = [...filteredInvoices]
+  const invoiceRows = filteredInvoices.length ? [...filteredInvoices]
     .sort((a, b) => (a.date === b.date ? Number(a.number) - Number(b.number) : a.date.localeCompare(b.date)))
     .map((inv) => {
       const dt = new Date(inv.date + "T12:00:00");
       const label = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-      const machinesStr = inv.machines.join(" + ");
+      const machinesStr = inv.machines?.length ? inv.machines.join(" + ") : "Sem máquina";
       const pricePerKg = inv.weightKg ? inv.revenue / inv.weightKg : 0;
-      const priceTone = pricePerKg >= may.totals.avgPrice
+      const priceTone = pricePerKg >= filteredAvgPrice
         ? "color:var(--success);font-weight:700"
         : "color:var(--amber);font-weight:700";
       const group = customerGroup(inv.client);
@@ -2127,62 +2563,107 @@ function renderInvoices() {
         <tr>
           <td><strong>${inv.number}</strong></td>
           <td>${label}</td>
-          <td>${escapeHtml(inv.client)}${groupTag}<br><small style="color:var(--muted)">${inv.city}/${inv.state}</small></td>
+          <td>${escapeHtml(inv.client)}${groupTag}<br><small style="color:var(--muted)">${escapeHtml(inv.city || "-")}/${escapeHtml(inv.state || "-")}</small></td>
           <td>${escapeHtml(inv.representative)}</td>
-          <td>${machinesStr}</td>
+          <td>${escapeHtml(machinesStr)}</td>
           <td>${formatKg(inv.weightKg, 2)}</td>
           <td>${formatBRL(inv.revenue)}</td>
           <td style="${priceTone}">${formatBRL(pricePerKg)}/kg</td>
         </tr>
       `;
-    }).join("");
+    }).join("") : `
+      <tr>
+        <td colspan="8" style="text-align:center;color:var(--muted)">Nenhuma NF no recorte selecionado.</td>
+      </tr>
+    `;
 
-  const repRows = [...may.representatives]
+  const aggregateRepresentatives = (invoices) => {
+    const map = new Map();
+    invoices.forEach((inv) => {
+      const name = inv.representative || "Sem representante";
+      if (!map.has(name)) map.set(name, { name, weightKg: 0, revenue: 0, invoiceCount: 0 });
+      const row = map.get(name);
+      row.weightKg += Number(inv.weightKg) || 0;
+      row.revenue += Number(inv.revenue) || 0;
+      row.invoiceCount += 1;
+    });
+    return [...map.values()];
+  };
+
+  const aggregateMachines = (invoices) => {
+    const map = new Map();
+    invoices.forEach((inv) => {
+      const invoiceMachines = inv.machines?.length ? inv.machines : ["Sem máquina"];
+      const allocation = 1 / invoiceMachines.length;
+      invoiceMachines.forEach((name) => {
+        if (!map.has(name)) map.set(name, { name, weightKg: 0, revenue: 0 });
+        const row = map.get(name);
+        row.weightKg += (Number(inv.weightKg) || 0) * allocation;
+        row.revenue += (Number(inv.revenue) || 0) * allocation;
+      });
+    });
+    return [...map.values()];
+  };
+
+  const representativeSource = hasActiveInvoiceFilters
+    ? aggregateRepresentatives(filteredInvoices)
+    : [...may.representatives];
+  const repRows = representativeSource.length ? representativeSource
     .sort((a, b) => b.revenue - a.revenue)
     .map((rep) => {
-      const share = rep.revenue / may.totals.revenue;
+      const share = filteredTotals.revenue ? rep.revenue / filteredTotals.revenue : 0;
       const w = Math.max(2, Math.round(share * 100));
       return `
         <div class="bar-row">
-          <div class="bar-label">${rep.name}<br><small style="color:var(--muted)">${rep.invoiceCount} NF${rep.invoiceCount > 1 ? "s" : ""}</small></div>
+          <div class="bar-label">${escapeHtml(rep.name)}<br><small style="color:var(--muted)">${rep.invoiceCount} NF${rep.invoiceCount > 1 ? "s" : ""}</small></div>
           <div class="bar-track"><div class="bar-fill" style="width:${w}%"></div></div>
           <div class="bar-value">${formatBRL(rep.revenue)}<br><small style="color:var(--muted)">${formatKg(rep.weightKg, 2)}</small></div>
         </div>
       `;
-    }).join("");
+    }).join("") : `<div class="empty-state">Nenhum representante no filtro.</div>`;
 
-  const machineRows = [...may.machines]
+  const machineSource = hasActiveInvoiceFilters
+    ? aggregateMachines(filteredInvoices)
+    : [...may.machines];
+  const machineRows = machineSource.length ? machineSource
     .sort((a, b) => b.revenue - a.revenue)
     .map((mac) => {
-      const share = mac.revenue / may.totals.revenue;
+      const share = filteredTotals.revenue ? mac.revenue / filteredTotals.revenue : 0;
       const w = Math.max(2, Math.round(share * 100));
       return `
         <div class="bar-row">
-          <div class="bar-label">${mac.name}</div>
+          <div class="bar-label">${escapeHtml(mac.name)}</div>
           <div class="bar-track"><div class="bar-fill blue" style="width:${w}%"></div></div>
           <div class="bar-value">${formatBRL(mac.revenue)}<br><small style="color:var(--muted)">${formatKg(mac.weightKg, 2)}</small></div>
         </div>
       `;
-    }).join("");
+    }).join("") : `<div class="empty-state">Nenhuma máquina no filtro.</div>`;
 
   const startLabel = new Date(may.period.startDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
   const endLabel = new Date(may.period.endDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const dateLabel = filters.date
+    ? new Date(filters.date + "T12:00:00").toLocaleDateString("pt-BR")
+    : `${startLabel} a ${endLabel}`;
+  const lineCountLabel = filteredLineCount === null ? "-" : filteredLineCount;
+  const dateOptions = availableDates
+    .map((date) => `<option value="${escapeHtml(date)}">${formatDay(date)}</option>`)
+    .join("");
 
   return `
     <div class="section-grid">
       <article class="panel span-12 current-tracker">
         <div class="panel-header">
           <div>
-            <h2>Notas fiscais · ${startLabel} a ${endLabel}</h2>
-            <p>${may.totals.invoiceCount} NFs emitidas, ${may.totals.lineCount} linhas de itens. Fonte: planilhas xlsx revisadas.</p>
+            <h2>Notas fiscais · ${dateLabel}</h2>
+            <p>${filteredInvoices.length} NF${filteredInvoices.length !== 1 ? "s" : ""} no recorte, ${lineCountLabel} linhas de itens. Fonte: planilhas xlsx revisadas.</p>
           </div>
-          <span class="status-pill blue">${formatBRL(may.totals.revenue)} · ${formatKg(may.totals.weightKg, 2)}</span>
+          <span class="status-pill blue">${formatBRL(filteredTotals.revenue)} · ${formatKg(filteredTotals.weightKg, 2)}</span>
         </div>
         <div class="section-grid" style="gap:14px">
-          ${kpiCard("Faturamento", formatBRL(may.totals.revenue), `Preço médio R$ ${may.totals.avgPrice.toFixed(2)}/kg`, "green")}
-          ${kpiCard("Peso", formatKg(may.totals.weightKg, 2), `${may.totals.lineCount} linhas em ${may.totals.invoiceCount} NFs`, "blue")}
-          ${kpiCard("NFs/dia (média)", `${(may.totals.invoiceCount / may.daily.length).toFixed(1)}`, `${may.daily.length} dia${may.daily.length > 1 ? "s" : ""} com emissão`, "amber")}
-          ${kpiCard("Ticket médio por NF", formatBRL(may.totals.revenue / may.totals.invoiceCount), `${formatKg(may.totals.weightKg / may.totals.invoiceCount, 2)}/NF`, "red")}
+          ${kpiCard("Faturamento", formatBRL(filteredTotals.revenue), `Preço médio ${formatBRL(filteredAvgPrice)}/kg`, "green")}
+          ${kpiCard("Peso", formatKg(filteredTotals.weightKg, 2), `${lineCountLabel} linhas em ${filteredTotals.invoiceCount} NFs`, "blue")}
+          ${kpiCard("NFs/dia (média)", filteredDaily.length ? `${(filteredTotals.invoiceCount / filteredDaily.length).toFixed(1)}` : "0,0", `${filteredDaily.length} dia${filteredDaily.length !== 1 ? "s" : ""} com emissão`, "amber")}
+          ${kpiCard("Ticket médio por NF", filteredTotals.invoiceCount ? formatBRL(filteredTotals.revenue / filteredTotals.invoiceCount) : formatBRL(0), filteredTotals.invoiceCount ? `${formatKg(filteredTotals.weightKg / filteredTotals.invoiceCount, 2)}/NF` : "Sem NF no filtro", "red")}
         </div>
       </article>
 
@@ -2190,11 +2671,16 @@ function renderInvoices() {
         <div class="panel-header">
           <div>
             <h2>Filtros</h2>
-            <p>Refine a lista por representante, estado ou máquina.</p>
+            <p>Refine a lista por dia, representante, estado ou máquina. Os totais abaixo acompanham o recorte selecionado.</p>
           </div>
-          ${filters.rep !== "all" || filters.state !== "all" || filters.machine !== "all" ? `<button class="ghost-button" type="button" data-invoice-filter="clear">Limpar filtros</button>` : ""}
+          ${hasActiveInvoiceFilters ? `<button class="ghost-button" type="button" data-invoice-filter="clear">Limpar filtros</button>` : ""}
         </div>
         <div class="control-row">
+          <label class="filter-field">
+            <span>Dia</span>
+            <input type="date" data-invoice-filter="date" value="${escapeHtml(filters.date || "")}" ${minInvoiceDate ? `min="${escapeHtml(minInvoiceDate)}"` : ""} ${maxInvoiceDate ? `max="${escapeHtml(maxInvoiceDate)}"` : ""} list="invoice-date-options" aria-label="Filtrar faturamento por dia">
+          </label>
+          <datalist id="invoice-date-options">${dateOptions}</datalist>
           <select data-invoice-filter="rep">
             <option value="all" ${filters.rep === "all" ? "selected" : ""}>Todos os representantes</option>
             ${reps.map(r => `<option value="${escapeHtml(r)}" ${filters.rep === r ? "selected" : ""}>${escapeHtml(r)}</option>`).join("")}
@@ -2238,8 +2724,8 @@ function renderInvoices() {
                   <td>${c.invoices}</td>
                   <td>${formatKg(c.weightKg, 2)}</td>
                   <td>${formatBRL(c.revenue)}</td>
-                  <td>${formatBRL(c.revenue / c.weightKg)}/kg</td>
-                  <td>${formatPercent(c.revenue / filteredTotals.revenue)}</td>
+                  <td>${c.weightKg ? formatBRL(c.revenue / c.weightKg) : "-"}/kg</td>
+                  <td>${filteredTotals.revenue ? formatPercent(c.revenue / filteredTotals.revenue) : "-"}</td>
                 </tr>
               `).join("")}
             </tbody>
@@ -2271,7 +2757,7 @@ function renderInvoices() {
             <tbody>${invoiceRows}</tbody>
             <tfoot>
               <tr>
-                <td colspan="5"><strong>${filteredInvoices.length === allInvoices.length ? "Total / Média" : "Filtrado / Média"}</strong></td>
+                <td colspan="5"><strong>${hasActiveInvoiceFilters ? "Total filtrado / Média" : "Total / Média"}</strong></td>
                 <td>${formatKg(filteredTotals.weightKg, 2)}</td>
                 <td>${formatBRL(filteredTotals.revenue)}</td>
                 <td>${filteredTotals.weightKg ? formatBRL(filteredTotals.revenue / filteredTotals.weightKg) : "-"}/kg</td>
@@ -2280,7 +2766,7 @@ function renderInvoices() {
           </table>
         </div>
         <p style="margin: 10px 2px 0; font-size: 0.82rem; color: var(--muted);">
-          <span style="color:var(--success); font-weight:700">Verde</span> = R$/kg acima da média do período (R$ ${may.totals.avgPrice.toFixed(2)}/kg);
+          <span style="color:var(--success); font-weight:700">Verde</span> = R$/kg acima da média do recorte (${formatBRL(filteredAvgPrice)}/kg);
           <span style="color:var(--amber); font-weight:700">âmbar</span> = abaixo da média.
         </p>
       </article>
@@ -2289,7 +2775,7 @@ function renderInvoices() {
         <div class="panel-header">
           <div>
             <h2>Por representante</h2>
-            <p>Participação no faturamento do período.</p>
+            <p>Participação no faturamento do recorte.</p>
           </div>
         </div>
         <div class="bar-list">${repRows}</div>
@@ -2299,7 +2785,7 @@ function renderInvoices() {
         <div class="panel-header">
           <div>
             <h2>Por máquina</h2>
-            <p>Distribuição entre Corte 1, Corte 2 e Rebobinadeira.</p>
+            <p>${hasActiveInvoiceFilters ? "Distribuição no recorte; NFs com mais de uma máquina são rateadas igualmente." : "Distribuição entre Corte 1, Corte 2 e Rebobinadeira."}</p>
           </div>
         </div>
         <div class="bar-list">${machineRows}</div>
@@ -2327,12 +2813,12 @@ function renderInvoices() {
             <tbody>${dailyRows}</tbody>
             <tfoot>
               <tr>
-                <td style="text-align:left"><strong>Total</strong></td>
-                <td>${may.totals.invoiceCount}</td>
-                <td>${may.totals.lineCount}</td>
-                <td>${formatKg(may.totals.weightKg, 2)}</td>
-                <td>${formatBRL(may.totals.revenue)}</td>
-                <td>${formatBRL(may.totals.avgPrice)}/kg</td>
+                <td style="text-align:left"><strong>${hasActiveInvoiceFilters ? "Total filtrado" : "Total"}</strong></td>
+                <td>${filteredTotals.invoiceCount}</td>
+                <td>${lineCountLabel}</td>
+                <td>${formatKg(filteredTotals.weightKg, 2)}</td>
+                <td>${formatBRL(filteredTotals.revenue)}</td>
+                <td>${filteredTotals.weightKg ? formatBRL(filteredTotals.revenue / filteredTotals.weightKg) : "-"}/kg</td>
               </tr>
             </tfoot>
           </table>
@@ -2499,6 +2985,66 @@ function renderSales() {
           </table>
         </div>
       </article>
+
+      ${(() => {
+        const aprilEntries = data.monthlyEntries2026.find((row) => row.month === 4);
+        const aprilEntryTotals = totalDailyEntries();
+        const aprilEntryBars = data.dailyEntriesApril2026.map((row) => ({
+          label: formatDay(row.date),
+          value: row[state.entryMetric],
+          valueLabel: formatEntryMetric(row[state.entryMetric], state.entryMetric),
+          color: state.entryMetric === "totalKg" ? "blue" : state.entryMetric === "avgPrice" ? "amber" : ""
+        }));
+        return `
+      <article class="panel span-12 current-tracker" style="margin-top:8px">
+        <div class="panel-header">
+          <div>
+            <h2>Entradas de produção · abril 2026</h2>
+            <p>Volume faturado por dia por máquina — base de comparação para o mês atual.</p>
+          </div>
+        </div>
+        <div class="section-grid" style="gap:14px">
+          ${kpiCard("Entradas abr/2026", formatBRL(aprilEntries.merchandiseValue), `${formatKg(aprilEntries.weightKg, 2)} na visão mensal`, "green")}
+          ${kpiCard("Média R$/dia", formatBRL(aprilEntries.merchandiseValue / data.dailyEntriesApril2026.length), "19 dias com entrada", "blue")}
+          ${kpiCard("Média kg/dia", formatKg(aprilEntries.weightKg / data.dailyEntriesApril2026.length, 0), "Imagem informa 18.707 kg/dia", "amber")}
+          ${kpiCard("Preço médio", formatBRL(aprilEntries.merchandiseValue / aprilEntries.weightKg), "Imagem informa R$ 18,88/kg", "red")}
+        </div>
+      </article>
+
+      <article class="panel span-7">
+        <div class="panel-header">
+          <div>
+            <h2>Entradas diárias de abril</h2>
+            <p>Alterna entre valor, peso e preço médio por dia.</p>
+          </div>
+          <div class="control-row">
+            ${entryMetricButtons()}
+          </div>
+        </div>
+        ${barList(aprilEntryBars)}
+      </article>
+
+      <article class="panel span-5">
+        <div class="panel-header">
+          <div>
+            <h2>Composição por tipo</h2>
+            <p>Corte 1, Corte 2 e Rebo no fechamento diário.</p>
+          </div>
+        </div>
+        ${entryComposition(aprilEntryTotals)}
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Tabela diária de entradas · abril 2026</h2>
+            <p>Dados transcritos da imagem de entradas de abril.</p>
+          </div>
+        </div>
+        ${entriesTable()}
+      </article>
+        `;
+      })()}
     </div>
   `;
 }
@@ -2568,28 +3114,319 @@ function priceVolumeDecomposition() {
   `;
 }
 
-function renderRepresentatives() {
-  const totals = totalRepresentatives();
-  const top = sortedRepresentatives("revenue")[0];
-  const share = top.revenue / totals.revenue;
+// =================== PREÇOS ===================
+function renderPrices() {
+  const items    = data.productMix2026?.items || [];
+  const invoices = data.mayInvoices2026?.invoices || [];
+  const aprilReps = data.representativesApril2026 || [];
+
+  const totalKg  = items.reduce((s, p) => s + p.weightKg, 0);
+  const totalVal = items.reduce((s, p) => s + p.revenue,  0);
+  const avgPrice = totalKg ? totalVal / totalKg : 0;
+
+  // --- Por estado (NFs) ---
+  const stateMap = new Map();
+  invoices.forEach(nf => {
+    if (!nf.state || !nf.weightKg) return;
+    if (!stateMap.has(nf.state)) stateMap.set(nf.state, { state: nf.state, kg: 0, val: 0, nfs: 0 });
+    const a = stateMap.get(nf.state);
+    a.kg += nf.weightKg; a.val += nf.revenue || 0; a.nfs++;
+  });
+  const stateRows = [...stateMap.values()]
+    .map(s => ({ ...s, rkg: s.kg ? s.val / s.kg : 0 }))
+    .sort((a, b) => b.rkg - a.rkg);
+
+  // --- Por representante (NFs maio + abril) ---
+  const repMap = new Map();
+  invoices.forEach(nf => {
+    if (!nf.representative || !nf.weightKg) return;
+    if (!repMap.has(nf.representative)) repMap.set(nf.representative, { name: nf.representative, mayKg: 0, mayVal: 0 });
+    const a = repMap.get(nf.representative);
+    a.mayKg += nf.weightKg; a.mayVal += nf.revenue || 0;
+  });
+  aprilReps.forEach(ar => {
+    if (!repMap.has(ar.name)) repMap.set(ar.name, { name: ar.name, mayKg: 0, mayVal: 0 });
+    repMap.get(ar.name).aprilRkg = ar.revenue / ar.weightKg;
+  });
+  const repRows = [...repMap.values()]
+    .filter(r => r.mayKg > 0)
+    .map(r => ({ ...r, mayRkg: r.mayKg ? r.mayVal / r.mayKg : 0 }))
+    .sort((a, b) => b.mayRkg - a.mayRkg);
+
+  // --- Por largura ---
+  const widthMap = new Map();
+  items.forEach(p => {
+    if (!widthMap.has(p.width)) widthMap.set(p.width, { width: p.width, kg: 0, val: 0, prices: [] });
+    const a = widthMap.get(p.width);
+    a.kg += p.weightKg; a.val += p.revenue; a.prices.push(p.pricePerKg);
+  });
+  const widthPriceRows = [...widthMap.values()]
+    .map(w => ({ ...w, rkg: w.kg ? w.val / w.kg : 0, minP: Math.min(...w.prices), maxP: Math.max(...w.prices) }))
+    .sort((a, b) => b.kg - a.kg);
+
+  // --- Por cliente (NFs) ---
+  const clientMap = new Map();
+  invoices.forEach(nf => {
+    if (!nf.client || !nf.weightKg) return;
+    const key = nf.client;
+    if (!clientMap.has(key)) clientMap.set(key, { client: key, state: nf.state || "—", kg: 0, val: 0, nfs: 0 });
+    const a = clientMap.get(key);
+    a.kg += nf.weightKg; a.val += nf.revenue || 0; a.nfs++;
+  });
+  const clientRows = [...clientMap.values()]
+    .map(c => ({ ...c, rkg: c.kg ? c.val / c.kg : 0 }))
+    .sort((a, b) => b.rkg - a.rkg);
+
+  // --- Tabela de preços (política comercial) ---
+  // Group por linha + largura, ordered by volume
+  const policyMap = new Map();
+  items.forEach(p => {
+    const key = `${p.line}||${p.width}`;
+    if (!policyMap.has(key)) policyMap.set(key, { line: p.line, width: p.width, kg: 0, val: 0, skus: [] });
+    const a = policyMap.get(key);
+    a.kg += p.weightKg; a.val += p.revenue;
+    a.skus.push({ grammage: p.grammage, kg: p.weightKg, rkg: p.pricePerKg, desc: p.description });
+  });
+  const policyRows = [...policyMap.values()]
+    .map(r => ({ ...r, avgRkg: r.kg ? r.val / r.kg : 0, skus: r.skus.sort((a, b) => a.grammage - b.grammage) }))
+    .sort((a, b) => b.kg - a.kg);
+
+  // --- Extremes ---
+  const best  = [...items].sort((a, b) => b.pricePerKg - a.pricePerKg)[0];
+  const worst = [...items].sort((a, b) => a.pricePerKg - b.pricePerKg)[0];
+  const bestState  = stateRows[0];
+  const worstState = stateRows[stateRows.length - 1];
+
+  // --- Bars for R$/kg by state ---
+  const maxStateRkg = Math.max(...stateRows.map(s => s.rkg), 1);
+  const stateBars = stateRows.map(s => {
+    const w = Math.max(2, Math.round((s.rkg / maxStateRkg) * 100));
+    const diff = s.rkg - avgPrice;
+    const cls = diff > 1.5 ? "" : diff > 0 ? "blue" : diff > -1.5 ? "amber" : "red";
+    return `
+      <div class="bar-row">
+        <div class="bar-label"><strong>${escapeHtml(stateName(s.state))}</strong> (${s.state})<br><small style="color:var(--muted)">${s.nfs} NF${s.nfs > 1 ? "s" : ""} · ${formatKg(s.kg, 0)}</small></div>
+        <div class="bar-track"><div class="bar-fill ${cls}" style="width:${w}%"></div></div>
+        <div class="bar-value">${formatBRL(s.rkg)}/kg<br><small style="${diff >= 0 ? "color:var(--green)" : "color:var(--red)"}">${diff >= 0 ? "+" : ""}${formatBRL(diff)}/kg</small></div>
+      </div>`;
+  }).join("");
+
+  // --- Bars for R$/kg by rep ---
+  const maxRepRkg = Math.max(...repRows.map(r => r.mayRkg), 1);
+  const repBars = repRows.map(r => {
+    const w = Math.max(2, Math.round((r.mayRkg / maxRepRkg) * 100));
+    const diff = r.mayRkg - avgPrice;
+    const cls = diff > 1 ? "" : diff > 0 ? "blue" : "amber";
+    return `
+      <div class="bar-row">
+        <div class="bar-label">${escapeHtml(r.name)}<br><small style="color:var(--muted)">${formatKg(r.mayKg, 0)} · ${formatBRL(r.mayVal, 0)}</small></div>
+        <div class="bar-track"><div class="bar-fill ${cls}" style="width:${w}%"></div></div>
+        <div class="bar-value">${formatBRL(r.mayRkg)}/kg<br><small style="${diff >= 0 ? "color:var(--green)" : "color:var(--red)"}">${diff >= 0 ? "+" : ""}${formatBRL(diff)}/kg</small></div>
+      </div>`;
+  }).join("");
+
+  // --- Policy table rows ---
+  const policyTableRows = policyRows.map(row => {
+    const skuRows = row.skus.map(s => `
+      <tr class="subrow">
+        <td></td>
+        <td style="text-align:left;padding-left:24px;color:var(--muted);font-size:0.82rem">${escapeHtml(s.desc)}</td>
+        <td>${s.grammage} g/m²</td>
+        <td>${formatKg(s.kg, 0)}</td>
+        <td>${formatPercent(s.kg / totalKg)}</td>
+        <td><strong>${formatBRL(s.rkg)}/kg</strong></td>
+        <td>${formatBRL(s.rkg * 0.93)}/kg</td>
+        <td>${formatBRL(s.rkg * 1.05)}/kg</td>
+      </tr>`).join("");
+    return `
+      <tr style="background:var(--surface-alt,var(--bg))">
+        <td style="text-align:left"><strong>${escapeHtml(row.line)}</strong></td>
+        <td style="text-align:left"><strong>${row.width} mm</strong></td>
+        <td>—</td>
+        <td>${formatKg(row.kg, 0)}</td>
+        <td>${formatPercent(row.kg / totalKg)}</td>
+        <td><strong style="color:var(--green)">${formatBRL(row.avgRkg)}/kg</strong></td>
+        <td>${formatBRL(row.avgRkg * 0.93)}/kg</td>
+        <td>${formatBRL(row.avgRkg * 1.05)}/kg</td>
+      </tr>
+      ${skuRows}`;
+  }).join("");
+
+  // --- Client table rows (top 15 by volume) ---
+  const topClients = clientRows.slice(0, 15);
+  const clientTableRows = topClients.map((c, i) => {
+    const diff = c.rkg - avgPrice;
+    return `<tr>
+      <td>${i + 1}</td>
+      <td style="text-align:left">${escapeHtml(c.client)}</td>
+      <td>${escapeHtml(c.state)}</td>
+      <td>${formatKg(c.kg, 0)}</td>
+      <td>${c.nfs}</td>
+      <td><strong>${formatBRL(c.rkg)}/kg</strong></td>
+      <td><span class="status-pill ${diff >= 1.5 ? "" : diff >= 0 ? "blue" : diff >= -1.5 ? "amber" : "red"}">${diff >= 0 ? "+" : ""}${formatBRL(diff)}/kg</span></td>
+    </tr>`;
+  }).join("");
 
   return `
     <div class="section-grid">
-      ${kpiCard("Total abril por representantes", formatBRL(totals.revenue, 0), `${formatKg(totals.weightKg)} no ranking`, "green")}
-      ${kpiCard("Preço médio do ranking", formatBRL(totals.revenue / totals.weightKg), "Faturamento dividido pelo peso", "blue")}
-      ${kpiCard("Maior participação", formatPercent(share), `${top.name} por faturamento`, "amber")}
-      ${kpiCard("Representantes listados", String(data.representativesApril2026.length), "Inclui venda direta e venda interna", "red")}
+
+      <article class="panel span-12 current-tracker">
+        <div class="panel-header">
+          <div>
+            <h2>Análise de precificação · maio 2026</h2>
+            <p>Preço médio por produto, representante, região e cliente — base para política comercial.</p>
+          </div>
+          <span class="status-pill blue">R$/kg ${formatBRL(avgPrice).replace("R$", "").trim()}</span>
+        </div>
+        <div class="section-grid" style="gap:14px">
+          ${kpiCard("Preço médio geral", formatBRL(avgPrice) + "/kg", `${formatKg(totalKg, 0)} · ${formatBRL(totalVal, 0)}`, "green")}
+          ${kpiCard("Maior R$/kg por estado", `${bestState?.state || "—"} · ${formatBRL(bestState?.rkg || 0)}/kg`, `vs média ${formatBRL(avgPrice)}/kg`, "blue")}
+          ${kpiCard("Produto mais valorizado", escapeHtml(best?.description?.split(" ").slice(0, 4).join(" ") || "—"), `${formatBRL(best?.pricePerKg || 0)}/kg`, "amber")}
+          ${kpiCard("Spread preço (min–max)", `${formatBRL(worst?.pricePerKg || 0)} → ${formatBRL(best?.pricePerKg || 0)}/kg`, `Amplitude de ${formatBRL((best?.pricePerKg || 0) - (worst?.pricePerKg || 0))}/kg`, "red")}
+        </div>
+      </article>
+
+      <article class="panel span-5">
+        <div class="panel-header">
+          <div>
+            <h2>R$/kg por largura</h2>
+            <p>Preço médio e spread por bitola produzida.</p>
+          </div>
+        </div>
+        <div class="data-table-wrap">
+          <table>
+            <thead><tr>
+              <th style="text-align:left">Largura</th>
+              <th>kg</th>
+              <th>R$/kg médio</th>
+              <th>Mínimo</th>
+              <th>Máximo</th>
+            </tr></thead>
+            <tbody>
+              ${widthPriceRows.map(w => `<tr>
+                <td style="text-align:left"><strong>${w.width} mm</strong></td>
+                <td>${formatKg(w.kg, 0)}</td>
+                <td><strong style="color:${w.rkg >= avgPrice ? "var(--green)" : "var(--red)"}">${formatBRL(w.rkg)}/kg</strong></td>
+                <td style="color:var(--red)">${formatBRL(w.minP)}/kg</td>
+                <td style="color:var(--green)">${formatBRL(w.maxP)}/kg</td>
+              </tr>`).join("")}
+            </tbody>
+            <tfoot><tr>
+              <td style="text-align:left"><strong>Média geral</strong></td>
+              <td>${formatKg(totalKg, 0)}</td>
+              <td><strong>${formatBRL(avgPrice)}/kg</strong></td>
+              <td colspan="2"></td>
+            </tr></tfoot>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel span-7">
+        <div class="panel-header">
+          <div>
+            <h2>R$/kg por representante · maio</h2>
+            <p>Quem está vendendo acima ou abaixo do preço médio. Diferença vs média geral.</p>
+          </div>
+        </div>
+        <div class="bar-list">${repBars}</div>
+      </article>
+
+      <article class="panel span-6">
+        <div class="panel-header">
+          <div>
+            <h2>R$/kg por estado/região</h2>
+            <p>Preço médio realizado por estado nas NFs de maio. Diferença vs média geral (${formatBRL(avgPrice)}/kg).</p>
+          </div>
+        </div>
+        <div class="bar-list">${stateBars}</div>
+      </article>
+
+      <article class="panel span-6">
+        <div class="panel-header">
+          <div>
+            <h2>R$/kg por cliente · top 15</h2>
+            <p>Clientes ordenados por preço médio pago — identifica quem paga mais e quem precisa revisão.</p>
+          </div>
+        </div>
+        <div class="data-table-wrap">
+          <table>
+            <thead><tr>
+              <th>#</th>
+              <th style="text-align:left">Cliente</th>
+              <th>UF</th>
+              <th>kg</th>
+              <th>NFs</th>
+              <th>R$/kg</th>
+              <th>Δ média</th>
+            </tr></thead>
+            <tbody>${clientTableRows}</tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Tabela de preços · guia para política comercial</h2>
+            <p>Preço médio observado por produto. <strong>Piso sugerido</strong> = −7% do atual · <strong>Alvo</strong> = +5% do atual. Use como referência para aprovação de descontos e metas de preço.</p>
+          </div>
+          <span class="status-pill">${items.length} SKUs</span>
+        </div>
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Linha</th>
+                <th style="text-align:left">Largura / SKU</th>
+                <th>Gramatura</th>
+                <th>kg vendidos</th>
+                <th>% mix</th>
+                <th>R$/kg atual</th>
+                <th>Piso (−7%)</th>
+                <th>Alvo (+5%)</th>
+              </tr>
+            </thead>
+            <tbody>${policyTableRows}</tbody>
+          </table>
+        </div>
+        <p style="margin:12px 2px 0;font-size:0.82rem;color:var(--muted)">
+          <strong>Piso sugerido:</strong> desconto máximo de 7% sobre o preço atual para manter margem. <strong>Alvo:</strong> preço de referência para clientes novos e negociações. Valores calculados automaticamente sobre o realizado de maio — revise conforme custo de matéria-prima.
+        </p>
+      </article>
+
+    </div>
+  `;
+}
+
+function renderRepresentatives() {
+  const currentRows = representativeCurrentRows();
+  const previousRows = representativePreviousRows();
+  const currentTotals = representativesTotals(currentRows);
+  const previousTotals = representativesTotals(previousRows);
+  const top = sortRepresentativeRows(currentRows, "revenue")[0] || { name: "-", revenue: 0 };
+  const share = currentTotals.revenue ? top.revenue / currentTotals.revenue : 0;
+  const period = data.mayInvoices2026?.period || {};
+  const periodStart = period.startDate ? new Date(period.startDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "";
+  const periodEnd = period.endDate ? new Date(period.endDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "";
+
+  return `
+    <div class="section-grid">
+      ${kpiCard("Mês vigente atualizado", formatBRL(currentTotals.revenue, 0), `Maio ${periodStart}–${periodEnd} · ${formatKg(currentTotals.weightKg, 0)}`, "green")}
+      ${kpiCard("Preço médio maio", currentTotals.weightKg ? formatBRL(currentTotals.revenue / currentTotals.weightKg) : "-", "Base de NFs emitidas no mês vigente", "blue")}
+      ${kpiCard("Maior participação maio", formatPercent(share), `${top.name} por faturamento`, "amber")}
+      ${kpiCard("Mês anterior executado", formatBRL(previousTotals.revenue, 0), `Abril fechado · ${formatKg(previousTotals.weightKg, 0)}`, "red")}
 
       <article class="panel span-12 representatives-detail-panel">
         <div class="panel-header">
           <div>
-            <h2>Detalhe por representante</h2>
-            <p>Busca local sobre os dados extraídos da imagem de abril. A lista permanece ordenada pelo faturamento.</p>
+            <h2>Representantes · maio atualizado</h2>
+            <p>Mês vigente atualizado com as NFs emitidas no período. Abaixo fica abril fechado como mês anterior executado.</p>
           </div>
+          <div class="chip-group">${repSortButtons()}</div>
         </div>
         <input class="search-input" id="rep-search" type="search" placeholder="Buscar representante" value="${escapeHtml(state.repQuery)}">
         <div id="rep-list">
-          ${representativesTable()}
+          ${representativesPeriodTables()}
         </div>
       </article>
     </div>
@@ -2597,135 +3434,337 @@ function renderRepresentatives() {
 }
 
 function renderGoals() {
-  const targetKg = 450000;
+  const targetKg    = 450000;
   const businessDays = 20;
-  const aprilSales = salesRecord(2026, 4);
-  const mayActual = data.currentMayBilling2026;
-  const repTotals = totalRepresentatives();
-  const companyAvgPrice = aprilSales.revenue / aprilSales.weightKg;
-  const rankingAvgPrice = repTotals.revenue / repTotals.weightKg;
-  const companyRevenueTarget = targetKg * companyAvgPrice;
-  const rankingRevenueTarget = targetKg * rankingAvgPrice;
-  const aprilCompanyGrowth = change(targetKg, aprilSales.weightKg);
-  const plan = mayGoalPlan(targetKg);
-  const projectedRevenue = plan.reduce((sum, row) => sum + row.targetRevenue, 0);
+  const aprilSales  = salesRecord(2026, 4);
+  const mayActual   = data.currentMayBilling2026;
+  const repTotals   = totalRepresentatives();
+  const plan        = mayGoalPlan(targetKg);
 
-  const topRows = plan.slice(0, 8).map((row) => ({
-    label: row.name,
-    value: row.targetKg,
-    valueLabel: `${formatTon(row.targetKg)} | ${formatBRL(row.targetRevenue, 0)}`,
-    color: row.name.startsWith("VENDA") ? "amber" : "blue"
+  const fmtShort = formatIsoShort;
+  const mayStart = fmtShort(mayActual.startDate);
+  const mayEnd   = fmtShort(mayActual.endDate);
+  const carteiraRef = getBacklogReferenceDate();
+  const carteiraRefLabel = fmtShort(carteiraRef);
+
+  // --- Carteira pipeline ---
+  const TODAY         = carteiraRef;
+  const carteiraAll   = data.carteiraOrders2026 || [];
+  const carteiraAtivos = carteiraAll.filter(o => o.situacao !== "Cancelado" && o.situacao !== "Nota Gerada");
+  const carteiraMaio  = carteiraAtivos.filter(o => o.dataEntrega && o.dataEntrega.startsWith("2026-05"));
+  const carteiraAtr   = carteiraAtivos.filter(o => o.dataEntrega && o.dataEntrega < TODAY);
+  const sumKg  = arr => arr.reduce((s, o) => s + (o.totalKg   || 0), 0);
+  const sumVal = arr => arr.reduce((s, o) => s + (o.totalValor || 0), 0);
+
+  // pipeline = todos ativos com entrega em maio (inclui atrasados que já eram maio)
+  const pipelineOrders = carteiraAtivos.filter(o => o.dataEntrega && (o.dataEntrega.startsWith("2026-05") || o.dataEntrega < TODAY));
+  const pipelineKg  = sumKg(pipelineOrders);
+  const pipelineVal = sumVal(pipelineOrders);
+
+  const faturadoKg  = mayActual.weightKg;
+  const faturadoVal = mayActual.revenue;
+  const totalCobertoKg = faturadoKg + pipelineKg;
+  const saldoKg = Math.max(0, targetKg - totalCobertoKg);
+
+  // Progress bar
+  const pctFat  = Math.min(100, (faturadoKg / targetKg) * 100);
+  const pctPipe = Math.min(100 - pctFat, (pipelineKg / targetKg) * 100);
+  const pctGap  = Math.max(0, 100 - pctFat - pctPipe);
+
+  // Ritmo
+  const diasFaturados = (mayActual.breakdown || []).length || 7;
+  const diasRestantes = 14;
+  const ritmoAtualKg  = faturadoKg / diasFaturados;
+  const ritmoNecKg    = saldoKg > 0 ? saldoKg / diasRestantes : 0;
+  const projecaoFinalKg = faturadoKg + ritmoAtualKg * diasRestantes;
+
+  // Entrada diária de pedidos acumulada em maio
+  const today = new Date().toISOString().slice(0, 10);
+  const mayOrders = getDailyOrders().filter(o => o.date && o.date.startsWith("2026-05"));
+  const mayOrdersKg  = mayOrders.reduce((s, o) => s + (Number(o.weightKg) || 0), 0);
+  const mayOrdersVal = mayOrders.reduce((s, o) => s + (Number(o.revenue)  || 0), 0);
+
+  // Daily billing bars
+  const metaDiaria = targetKg / businessDays;
+  const dailyBars = (mayActual.breakdown || []).map(d => ({
+    label: d.range,
+    value: d.weightKg,
+    valueLabel: `${formatKg(d.weightKg, 0)} · ${formatBRL(d.revenue)}`,
+    color: d.weightKg >= metaDiaria ? "green" : "amber"
   }));
+
+  // Carteira por semana
+  const weekGroups = [
+    { label: "Atrasados",  filter: o => o.dataEntrega < TODAY },
+    { label: "Hoje " + carteiraRefLabel, filter: o => o.dataEntrega === TODAY },
+    { label: "Até 15/05",   filter: o => o.dataEntrega > TODAY && o.dataEntrega <= "2026-05-15" },
+    { label: "18–22/05",   filter: o => o.dataEntrega >= "2026-05-18" && o.dataEntrega <= "2026-05-22" },
+    { label: "23–31/05",   filter: o => o.dataEntrega >= "2026-05-23" && o.dataEntrega <= "2026-05-31" },
+    { label: "Junho+",     filter: o => o.dataEntrega >= "2026-06-01" },
+  ];
+  const weekRows = weekGroups.map(w => {
+    const orders = carteiraAtivos.filter(w.filter);
+    return { label: w.label, count: orders.length, kg: sumKg(orders), val: sumVal(orders) };
+  }).filter(r => r.count > 0);
+
+  // Foco por máquina: carteira aberta x estoque x capacidade produtiva.
+  const config = getConfig();
+  const machineCapacityKg = config.machineCapacityKg || {};
+  const productionMachines = Object.keys(machineCapacityKg).filter((machine) => (Number(machineCapacityKg[machine]) || 0) > 0);
+  const goalStockAnalysis = buildBacklogStockAnalysis(pipelineOrders, TODAY);
+  const machineMap = new Map();
+  const ensureMachine = (name) => {
+    const machine = machineForProductionFocus(name);
+    if (!machineMap.has(machine)) {
+      machineMap.set(machine, {
+        name: machine,
+        dailyCapacity: Number(machineCapacityKg[machine]) || 0,
+        carteiraKg: 0,
+        carteiraValue: 0,
+        produceKg: 0,
+        produceValue: 0,
+        lateKg: 0,
+        orders: new Set(),
+        produceOrders: new Set(),
+        products: new Set()
+      });
+    }
+    return machineMap.get(machine);
+  };
+
+  productionMachines.forEach(ensureMachine);
+  pipelineOrders.forEach((order) => {
+    (order.linhas || []).forEach((line) => {
+      const row = ensureMachine(line.maquina);
+      const kg = Number(line.kg) || 0;
+      row.carteiraKg += kg;
+      row.carteiraValue += Number(line.valor) || 0;
+      if ((order.dataEntrega || "") < TODAY) row.lateKg += kg;
+      row.orders.add(order.pedido);
+      if (line.produto) row.products.add(line.produto);
+    });
+  });
+
+  goalStockAnalysis.needsProduction.forEach((line) => {
+    const row = ensureMachine(line.maquina);
+    row.produceKg += line.produceKg || 0;
+    row.produceValue += line.produceValue || 0;
+    row.produceOrders.add(line.pedido);
+    if (line.produto) row.products.add(line.produto);
+  });
+
+  const rawMachineRows = [...machineMap.values()]
+    .filter((row) => row.dailyCapacity > 0 || row.carteiraKg > 0 || row.produceKg > 0)
+    .map((row) => {
+      const remainingCapacityKg = row.dailyCapacity * diasRestantes;
+      const daysNeeded = row.dailyCapacity ? row.produceKg / row.dailyCapacity : 0;
+      const capacityGapKg = remainingCapacityKg - row.produceKg;
+      return {
+        ...row,
+        ordersCount: row.orders.size,
+        produceOrdersCount: row.produceOrders.size,
+        productCount: row.products.size,
+        sampleProducts: [...row.products].slice(0, 3),
+        remainingCapacityKg,
+        daysNeeded,
+        capacityGapKg,
+        openCapacityKg: Math.max(capacityGapKg, 0),
+        overloadKg: Math.max(-capacityGapKg, 0)
+      };
+    });
+  const totalOpenCapacityKg = rawMachineRows.reduce((sum, row) => sum + (row.dailyCapacity > 0 ? row.openCapacityKg : 0), 0);
+  const machineFocusRows = rawMachineRows
+    .map((row) => {
+      const captureTargetKg = saldoKg > 0 && totalOpenCapacityKg > 0 && row.dailyCapacity > 0
+        ? Math.min(row.openCapacityKg, saldoKg * (row.openCapacityKg / totalOpenCapacityKg))
+        : 0;
+      const captureTargetValue = captureTargetKg * (aprilSales.revenue / aprilSales.weightKg);
+      const tone = row.overloadKg > 0 ? "red" : captureTargetKg > 0 ? "amber" : row.produceKg > 0 ? "blue" : "green";
+      const status = row.overloadKg > 0
+        ? "Sobrecarga"
+        : captureTargetKg > 0
+          ? "Captar para meta"
+          : row.produceKg > 0
+            ? "Produzir carteira"
+            : "Sem pressão";
+      return { ...row, captureTargetKg, captureTargetValue, tone, status };
+    })
+    .sort((a, b) => b.overloadKg - a.overloadKg || b.captureTargetKg - a.captureTargetKg || b.produceKg - a.produceKg);
+
+  const machineFocusCards = machineFocusRows.map((row) => `
+    <article class="inventory-machine-card ${row.tone}">
+      <span>${escapeHtml(row.name)}</span>
+      <strong>${row.overloadKg > 0 ? formatKg(row.overloadKg, 0) : row.captureTargetKg > 0 ? formatKg(row.captureTargetKg, 0) : formatKg(row.produceKg, 0)}</strong>
+      <small>${escapeHtml(row.status)} · ${formatKg(row.dailyCapacity, 0)}/dia · ${row.daysNeeded.toFixed(1).replace(".", ",")} dias de produção</small>
+    </article>
+  `).join("");
+
+  const machineFocusTableRows = machineFocusRows.map((row) => {
+    const gapTone = row.overloadKg > 0 ? "red" : row.captureTargetKg > 0 ? "amber" : "green";
+    const products = row.sampleProducts.length
+      ? `${row.productCount} produto${row.productCount !== 1 ? "s" : ""}: ${row.sampleProducts.map(escapeHtml).join(", ")}${row.productCount > 3 ? "..." : ""}`
+      : "Sem produto em carteira";
+    const focusText = row.overloadKg > 0
+      ? `Reprogramar ${formatKg(row.overloadKg, 0)} ou deslocar prazo.`
+      : row.captureTargetKg > 0
+        ? `Captar ${formatKg(row.captureTargetKg, 0)} para usar a folga da máquina.`
+        : "Carteira atual ocupa o foco produtivo.";
+    return `
+      <tr>
+        <td style="text-align:left"><strong>${escapeHtml(row.name)}</strong><br><small>${products}</small></td>
+        <td>${row.dailyCapacity ? `${formatKg(row.dailyCapacity, 0)}/dia` : "Sem meta"}</td>
+        <td>${formatKg(row.carteiraKg, 0)}<br><small>${row.ordersCount} pedido${row.ordersCount !== 1 ? "s" : ""}</small></td>
+        <td>${formatKg(row.produceKg, 0)}<br><small>${row.produceOrdersCount} pedido${row.produceOrdersCount !== 1 ? "s" : ""}</small></td>
+        <td>${row.dailyCapacity ? row.daysNeeded.toFixed(1).replace(".", ",") : "-"}</td>
+        <td><span class="status-pill ${gapTone}">${row.overloadKg > 0 ? `-${formatKg(row.overloadKg, 0)}` : formatKg(row.openCapacityKg, 0)}</span></td>
+        <td>${row.captureTargetKg ? `${formatKg(row.captureTargetKg, 0)}<br><small>${formatBRL(row.captureTargetValue, 0)}</small>` : "-"}</td>
+        <td style="text-align:left">${escapeHtml(focusText)}</td>
+      </tr>
+    `;
+  }).join("");
 
   return `
     <div class="section-grid">
-      ${kpiCard("Meta maio", "450 t", `${formatKg(targetKg)} para executar`, "green")}
-      ${kpiCard("Realizado até 05/05", formatBRL(mayActual.revenue), `${formatKg(mayActual.weightKg, 2)} faturados`, "blue")}
-      ${kpiCard("Progresso em volume", formatPercent(mayActual.weightKg / targetKg), `R$/kg parcial: ${formatBRL(mayActual.revenue / mayActual.weightKg)}`, "amber")}
-      ${kpiCard("Saldo para meta", formatTon(targetKg - mayActual.weightKg), `${formatPercent(aprilCompanyGrowth)} vs peso faturado geral de abril`, "red")}
+
+      ${kpiCard("Meta maio · 450 t", formatKg(targetKg), `${formatPercent(totalCobertoKg / targetKg)} coberto (fat + carteira)`, "green")}
+      ${kpiCard(`Faturado ${mayStart}–${mayEnd}`, formatBRL(faturadoVal), `${formatKg(faturadoKg, 2)} · ${formatPercent(faturadoKg / targetKg)} da meta`, "blue")}
+      ${kpiCard("Carteira pipeline maio", formatKg(pipelineKg, 0), `${formatBRL(pipelineVal, 0)} · ${pipelineOrders.length} pedido${pipelineOrders.length !== 1 ? "s" : ""}`, "amber")}
+      ${kpiCard("Saldo a capturar", formatKg(saldoKg, 0), saldoKg > 0 ? `${formatPercent(saldoKg / targetKg)} ainda sem pedido em carteira` : "Meta totalmente coberta", saldoKg > 50000 ? "red" : "green")}
+
+      <article class="panel span-12 current-tracker">
+        <div class="panel-header">
+          <div>
+            <h2>Progresso para 450 t</h2>
+            <p>Faturado (verde) + carteira pipeline maio (âmbar) + saldo descoberto (cinza).</p>
+          </div>
+          <span class="status-pill ${totalCobertoKg >= targetKg ? "" : "red"}">${formatPercent(totalCobertoKg / targetKg)} coberto</span>
+        </div>
+        <div style="display:flex;height:34px;border-radius:8px;overflow:hidden;gap:2px;margin:10px 0">
+          <div style="width:${pctFat.toFixed(1)}%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:0.74rem;color:#fff;font-weight:700">${pctFat >= 7 ? formatPercent(faturadoKg / targetKg) : ""}</div>
+          <div style="width:${pctPipe.toFixed(1)}%;background:var(--amber);display:flex;align-items:center;justify-content:center;font-size:0.74rem;color:#fff;font-weight:700">${pctPipe >= 7 ? formatPercent(pipelineKg / targetKg) : ""}</div>
+          <div style="width:${pctGap.toFixed(1)}%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:0.74rem;color:var(--muted);font-weight:700">${pctGap >= 7 ? formatPercent(saldoKg / targetKg) : ""}</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:0.8rem;color:var(--muted)">
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:4px"></span>Faturado ${formatKg(faturadoKg, 0)}</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--amber);margin-right:4px"></span>Carteira ${formatKg(pipelineKg, 0)}</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--border);margin-right:4px"></span>Saldo ${formatKg(saldoKg, 0)}</span>
+        </div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Foco por máquina · carteira x capacidade</h2>
+            <p>Mostra quanto da carteira ainda precisa de produção, quantos dias cada máquina consome e onde captar o saldo da meta. Rebobinadeira entra como acabamento de Corte 1 e não aparece como máquina separada.</p>
+          </div>
+          <div class="control-row">
+            <span class="status-pill ${saldoKg > 0 ? "amber" : "green"}">${saldoKg > 0 ? `${formatKg(saldoKg, 0)} ainda sem pedido` : "Meta coberta"}</span>
+            <button class="ghost-button" type="button" data-export-goals-pdf>Exportar PDF vendas</button>
+          </div>
+        </div>
+        <div class="inventory-machine-grid">${machineFocusCards}</div>
+        <div class="data-table-wrap goals-table" style="margin-top:12px">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Máquina / produtos</th>
+                <th>Capacidade</th>
+                <th>Carteira maio</th>
+                <th>A produzir</th>
+                <th>Dias</th>
+                <th>Folga até fim do mês</th>
+                <th>Falta p/ meta</th>
+                <th style="text-align:left">Foco</th>
+              </tr>
+            </thead>
+            <tbody>${machineFocusTableRows || `<tr><td colspan="8" style="text-align:center;color:var(--muted)">Sem carteira por máquina para analisar.</td></tr>`}</tbody>
+          </table>
+        </div>
+      </article>
 
       <article class="panel span-12 management-hero">
         <div class="panel-header">
           <div>
-            <h2>Plano de execução de maio</h2>
-            <p>Distribuição da meta de 450t pela participação de peso do ranking comercial de abril.</p>
+            <h2>Análise diária do objetivo</h2>
+            <p>Ritmo de faturamento real vs ritmo necessário para fechar os ${formatKg(saldoKg, 0)} restantes em ~${diasRestantes} dias úteis.</p>
           </div>
-          <span class="status-pill">Simulação</span>
         </div>
         <div class="management-grid">
-          ${managementCard("Base de divisão", `A meta foi rateada pela participação de cada representante/canal nos ${formatKg(repTotals.weightKg)} do ranking de abril.`, "Use como ponto de partida para negociação da carteira.")}
-          ${managementCard("Realizado parcial", `De 01/05 a 05/05 foram faturados ${formatBRL(mayActual.revenue)} e ${formatKg(mayActual.weightKg, 2)}.`, "Acompanhar diariamente para recuperar o saldo de volume.")}
-          ${managementCard("Projeção conservadora", `Pelo R$/kg do ranking de abril, o plano projeta ${formatBRL(rankingRevenueTarget)}.`, "A diferença para o alvo geral vem do mix e preço médio por base.")}
-          ${managementCard("Meta diretoria", `Mantendo o preço médio geral de abril, o alvo financeiro fica em ${formatBRL(companyRevenueTarget)}.`, "Acompanhar R$/kg para não bater tonelada perdendo valor.")}
+          ${managementCard("Ritmo faturamento atual", `${formatKg(ritmoAtualKg, 0)}/dia nos ${diasFaturados} dias faturados · R$/dia ${formatBRL(faturadoVal / diasFaturados, 0)}.`, `Meta diária de referência: ${formatKg(metaDiaria, 0)}/dia.`)}
+          ${managementCard("Ritmo necessário (saldo)", `${ritmoNecKg > 0 ? formatKg(ritmoNecKg, 0) + "/dia" : "Meta coberta pela carteira"} para fechar ${formatKg(saldoKg, 0)} em ${diasRestantes} dias úteis.`, ritmoNecKg > ritmoAtualKg ? "Acima do ritmo atual — acelerar captação." : "Dentro do ritmo — executável.")}
+          ${managementCard("Cobertura pela carteira", `${pipelineOrders.length} pedidos · ${formatKg(pipelineKg, 0)} em aberto com entrega em maio. Atrasados: ${carteiraAtr.length} pedidos.`, "Faturar atrasados primeiro libera saldo imediato.")}
+          ${managementCard("Projeção ao ritmo atual", `${formatKg(projecaoFinalKg, 0)} ao ritmo de ${formatKg(ritmoAtualKg, 0)}/dia até fim de maio.`, projecaoFinalKg >= targetKg ? "Meta atingível ao ritmo atual." : `Déficit projetado de ${formatKg(targetKg - projecaoFinalKg, 0)} — precisa acelerar.`)}
         </div>
-      </article>
-
-      <article class="panel span-5">
-        <div class="panel-header">
-          <div>
-            <h2>Top metas por volume</h2>
-            <p>Maiores alvos de maio pela participação de abril.</p>
-          </div>
-        </div>
-        ${barList(topRows)}
       </article>
 
       <article class="panel span-7">
         <div class="panel-header">
           <div>
-            <h2>Controle da meta</h2>
-            <p>Indicadores de execução para acompanhamento semanal.</p>
+            <h2>Faturamento diário · maio 2026</h2>
+            <p>Verde = atingiu meta diária (${formatKg(metaDiaria, 0)}/dia). Âmbar = abaixo da meta.</p>
           </div>
         </div>
-        <div class="stat-stack">
-          <div><span>Faturamento parcial maio</span><strong>${formatBRL(mayActual.revenue)}</strong><small>Fonte: 01/05/2026 a 05/05/2026</small></div>
-          <div><span>Meta semanal média</span><strong>${formatTon(targetKg / 4)}</strong><small>Referência simples para quatro semanas de maio</small></div>
-          <div><span>Meta diária</span><strong>${formatTon(targetKg / businessDays)}</strong><small>Ritmo mínimo para cumprir 450t</small></div>
-          <div><span>Faturamento simulado por representante</span><strong>${formatBRL(projectedRevenue, 0)}</strong><small>Soma por R$/kg individual de abril</small></div>
+        ${barList(dailyBars)}
+      </article>
+
+      <article class="panel span-5">
+        <div class="panel-header">
+          <div>
+            <h2>Carteira por prazo de entrega</h2>
+            <p>Pipeline de kg a faturar agrupado por semana.</p>
+          </div>
         </div>
+        <div class="data-table-wrap">
+          <table>
+            <thead><tr><th style="text-align:left">Semana</th><th>Pedidos</th><th>Peso (kg)</th><th>Valor (R$)</th></tr></thead>
+            <tbody>
+              ${weekRows.map(r => `<tr>
+                <td style="text-align:left"><strong>${escapeHtml(r.label)}</strong></td>
+                <td>${r.count}</td>
+                <td>${formatKg(r.kg, 0)}</td>
+                <td>${formatBRL(r.val, 0)}</td>
+              </tr>`).join("")}
+            </tbody>
+            <tfoot><tr>
+              <td style="text-align:left"><strong>Total pipeline</strong></td>
+              <td>${weekRows.reduce((s, r) => s + r.count, 0)}</td>
+              <td>${formatKg(pipelineKg, 0)}</td>
+              <td>${formatBRL(pipelineVal, 0)}</td>
+            </tr></tfoot>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel span-12 current-tracker">
+        <div class="panel-header">
+          <div>
+            <h2>Vendas · entrada diária de pedidos</h2>
+            <p>Registre ao fim do dia o total captado. Acumulado de maio — mostra o fluxo de novos pedidos que alimentam a carteira e a meta.</p>
+          </div>
+          <span class="status-pill blue">${mayOrders.length} dia${mayOrders.length !== 1 ? "s" : ""} registrado${mayOrders.length !== 1 ? "s" : ""}</span>
+        </div>
+        ${mayOrders.length ? `
+        <div class="section-grid" style="gap:14px">
+          ${kpiCard("Total captado maio", formatBRL(mayOrdersVal), `${formatKg(mayOrdersKg, 2)} registrados`, "green")}
+          ${kpiCard("Média diária captada", formatBRL(mayOrdersVal / mayOrders.length), `${formatKg(mayOrdersKg / mayOrders.length, 0)}/dia`, "blue")}
+          ${kpiCard("Cobertura da meta", formatPercent(mayOrdersKg / targetKg), `${formatKg(mayOrdersKg, 0)} de ${formatKg(targetKg, 0)} captados`, mayOrdersKg / targetKg >= 0.5 ? "green" : "amber")}
+        </div>
+        <p style="margin:12px 2px 0;font-size:0.84rem;color:var(--muted)">Para registrar mais dias, acesse a página <strong>Vendas</strong> no menu.</p>
+        ` : `
+        <div style="padding:24px 0;text-align:center;color:var(--muted);font-size:0.9rem">
+          Nenhuma entrada registrada em maio ainda. <strong>Use a página Vendas</strong> para registrar o total captado ao fim de cada dia.
+        </div>
+        `}
       </article>
 
       <article class="panel span-12 representatives-detail-panel">
         <div class="panel-header">
           <div>
             <h2>Rateio da meta por representante/canal</h2>
-            <p>Volume, participação, R$/kg histórico e faturamento estimado para maio.</p>
+            <p>Volume proporcional ao peso de abril, R$/kg histórico e faturamento estimado para maio.</p>
           </div>
         </div>
         ${mayGoalTable(plan, targetKg)}
-      </article>
-    </div>
-  `;
-}
-
-function renderEntries() {
-  const april = data.monthlyEntries2026.find((row) => row.month === 4);
-  const totals = totalDailyEntries();
-  const rows = data.dailyEntriesApril2026.map((row) => ({
-    label: formatDay(row.date),
-    value: row[state.entryMetric],
-    valueLabel: formatEntryMetric(row[state.entryMetric], state.entryMetric),
-    color: state.entryMetric === "totalKg" ? "blue" : state.entryMetric === "avgPrice" ? "amber" : ""
-  }));
-
-  return `
-    <div class="section-grid">
-      ${kpiCard("Entradas abr/2026", formatBRL(april.merchandiseValue), `${formatKg(april.weightKg, 2)} na visão mensal`, "green")}
-      ${kpiCard("Média R$/dia", formatBRL(april.merchandiseValue / data.dailyEntriesApril2026.length), "19 dias com entrada", "blue")}
-      ${kpiCard("Média kg/dia", formatKg(april.weightKg / data.dailyEntriesApril2026.length, 0), "Imagem informa 18.707 kg/dia", "amber")}
-      ${kpiCard("Preço médio", formatBRL(april.merchandiseValue / april.weightKg), "Imagem informa R$ 18,88/kg", "red")}
-
-      <article class="panel span-7">
-        <div class="panel-header">
-          <div>
-            <h2>Entradas diárias de abril</h2>
-            <p>Alterna entre valor, peso e preço médio por dia.</p>
-          </div>
-          <div class="control-row">
-            ${entryMetricButtons()}
-          </div>
-        </div>
-        ${barList(rows)}
-      </article>
-
-      <article class="panel span-5">
-        <div class="panel-header">
-          <div>
-            <h2>Composição por tipo</h2>
-            <p>Corte 1, Corte 2 e Rebo no fechamento diário.</p>
-          </div>
-        </div>
-        ${entryComposition(totals)}
-      </article>
-
-      <article class="panel span-12">
-        <div class="panel-header">
-          <div>
-            <h2>Tabela diária</h2>
-            <p>Dados transcritos da imagem de entradas de abril.</p>
-          </div>
-        </div>
-        ${entriesTable()}
       </article>
     </div>
   `;
@@ -3096,6 +4135,18 @@ function renderProducts() {
   });
   const grammageRows = [...byGrammage.values()].sort((a, b) => a.grammage - b.grammage);
 
+  // Por largura
+  const byWidth = new Map();
+  items.forEach((p) => {
+    const key = p.width;
+    if (!byWidth.has(key)) byWidth.set(key, { width: p.width, weightKg: 0, revenue: 0, skus: 0 });
+    const agg = byWidth.get(key);
+    agg.weightKg += p.weightKg;
+    agg.revenue  += p.revenue;
+    agg.skus     += 1;
+  });
+  const widthRows = [...byWidth.values()].sort((a, b) => b.weightKg - a.weightKg);
+
   const skuRows = classified.map((p) => `
     <tr>
       <td><span class="status-pill ${p.abc === 'A' ? '' : p.abc === 'B' ? 'amber' : 'red'}">${p.abc}</span></td>
@@ -3145,13 +4196,25 @@ function renderProducts() {
     `;
   }).join("");
 
+  const widthBars = widthRows.map((wRow) => {
+    const w = Math.max(2, Math.round((wRow.weightKg / totals.weightKg) * 100));
+    const rkg = wRow.weightKg ? wRow.revenue / wRow.weightKg : 0;
+    return `
+      <div class="bar-row">
+        <div class="bar-label"><strong>${wRow.width} mm</strong><br><small style="color:var(--muted)">${wRow.skus} SKU${wRow.skus > 1 ? "s" : ""} · R$ ${rkg.toFixed(2)}/kg</small></div>
+        <div class="bar-track"><div class="bar-fill${wRow.width === 1400 ? "" : wRow.width === 2100 ? " blue" : " amber"}" style="width:${w}%"></div></div>
+        <div class="bar-value">${formatKg(wRow.weightKg, 0)}<br><small style="color:var(--muted)">${formatPercent(wRow.weightKg / totals.weightKg)}</small></div>
+      </div>
+    `;
+  }).join("");
+
   return `
     <div class="section-grid">
       <article class="panel span-12 current-tracker">
         <div class="panel-header">
           <div>
-            <h2>Mix de produtos · maio</h2>
-            <p>Análise de SKUs vendidos por linha, cor e gramatura nas NFs 05/05 a 07/05.</p>
+            <h2>Produtos faturados · mês vigente</h2>
+            <p>Base de faturamento analisada no mês: SKUs com NF emitida dentro do período vigente de maio, por linha, cor e gramatura.</p>
           </div>
           <span class="status-pill blue">${items.length} SKUs</span>
         </div>
@@ -3159,7 +4222,60 @@ function renderProducts() {
           ${kpiCard("Faturamento", formatBRL(totals.revenue), `${formatKg(totals.weightKg, 2)}`, "green")}
           ${kpiCard("Linhas ativas", `${lineRows.length}`, lineRows.map(l => l.line).join(" · "), "blue")}
           ${kpiCard("R$/kg médio", formatBRL(totals.revenue / totals.weightKg), "Média ponderada", "amber")}
-          ${kpiCard("SKU mais vendido", escapeHtml(classified[0]?.description.split(" ").slice(0, 4).join(" ")), formatBRL(classified[0]?.revenue), "red")}
+          ${kpiCard("SKU mais faturado", escapeHtml(classified[0]?.description.split(" ").slice(0, 4).join(" ")), formatBRL(classified[0]?.revenue), "red")}
+        </div>
+      </article>
+
+      <article class="panel span-7">
+        <div class="panel-header">
+          <div>
+            <h2>Por largura</h2>
+            <p>Volume e participação por largura de bobina. Verde = 1400 mm · Azul = 2100 mm · Âmbar = outros.</p>
+          </div>
+        </div>
+        <div class="bar-list">${widthBars}</div>
+      </article>
+
+      <article class="panel span-5">
+        <div class="panel-header">
+          <div>
+            <h2>Ranking por largura</h2>
+            <p>Comparativo kg, R$ e R$/kg por bitola.</p>
+          </div>
+        </div>
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Largura</th>
+                <th>kg</th>
+                <th>%</th>
+                <th>R$/kg</th>
+                <th>SKUs</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${widthRows.map(wRow => {
+                const rkg = wRow.weightKg ? wRow.revenue / wRow.weightKg : 0;
+                return `<tr>
+                  <td style="text-align:left"><strong>${wRow.width} mm</strong></td>
+                  <td>${formatKg(wRow.weightKg, 0)}</td>
+                  <td>${formatPercent(wRow.weightKg / totals.weightKg)}</td>
+                  <td>${formatBRL(rkg)}/kg</td>
+                  <td>${wRow.skus}</td>
+                </tr>`;
+              }).join("")}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td style="text-align:left"><strong>Total</strong></td>
+                <td>${formatKg(totals.weightKg, 0)}</td>
+                <td>100%</td>
+                <td>${formatBRL(totals.revenue / totals.weightKg)}/kg</td>
+                <td>${items.length}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </article>
 
@@ -3167,7 +4283,7 @@ function renderProducts() {
         <div class="panel-header">
           <div>
             <h2>Por linha</h2>
-            <p>NTLD, NTEI, NTED, TNT — onde está o faturamento.</p>
+            <p>NTLD, NTEI, NTED, TNT — linhas que efetivamente viraram NF no mês analisado.</p>
           </div>
         </div>
         <div class="bar-list">${lineBars}</div>
@@ -3177,7 +4293,7 @@ function renderProducts() {
         <div class="panel-header">
           <div>
             <h2>Por cor</h2>
-            <p>Distribuição entre cores produzidas no período.</p>
+            <p>Distribuição das cores faturadas no mês, não estoque nem carteira.</p>
           </div>
         </div>
         <div class="bar-list">${colorBars}</div>
@@ -3187,7 +4303,7 @@ function renderProducts() {
         <div class="panel-header">
           <div>
             <h2>Por gramatura</h2>
-            <p>Onde está o faturamento por g/m². R$/kg médio varia significativamente conforme gramatura.</p>
+            <p>Onde está o faturamento por g/m² dentro das NFs emitidas no mês vigente.</p>
           </div>
         </div>
         <div class="bar-list">${grammageBars}</div>
@@ -3196,8 +4312,8 @@ function renderProducts() {
       <article class="panel span-12">
         <div class="panel-header">
           <div>
-            <h2>Ranking ABC de SKUs</h2>
-            <p>Ordenado por faturamento. Clique no cabeçalho para ordenar.</p>
+            <h2>Ranking ABC de SKUs faturados</h2>
+            <p>Produtos faturados no mês vigente, ordenados por valor de NF. Clique no cabeçalho para ordenar.</p>
           </div>
         </div>
         <div class="control-row" style="margin-bottom:14px">
@@ -3229,18 +4345,138 @@ function renderProducts() {
 
 // =================== OPERAÇÃO ===================
 function renderOperations() {
-  const config = getConfig();
   const totals = data.dailyEntriesApril2026Totals;
   const aprilSales = salesRecord(2026, 4);
   const mayInvoices = data.mayInvoices2026;
+  const today = mayInvoices?.period?.endDate || "2026-05-12";
+  const productionDailyCapacityKg = {
+    "Corte 1": 7000,
+    "Corte 2": 9000
+  };
+  const daysInMonth = (year, month) => new Date(year, month, 0).getDate();
+  const aprilDays = daysInMonth(2026, 4);
+  const mayPeriodDate = mayInvoices?.period?.endDate ? new Date(mayInvoices.period.endDate + "T12:00:00") : new Date(2026, 4, 1);
+  const mayDays = daysInMonth(mayPeriodDate.getFullYear(), mayPeriodDate.getMonth() + 1);
+  const currentDay = mayPeriodDate.getDate();
+  const daysRemaining = Math.max(mayDays - currentDay, 0);
+  const todayLabel = mayPeriodDate.toLocaleDateString("pt-BR");
+  const minLoadDays = 10;
+  const avgSalesPrice = mayInvoices?.totals?.avgPrice || (aprilSales.revenue / aprilSales.weightKg);
+  const currentMachineActuals = Object.fromEntries(Object.keys(productionDailyCapacityKg).map((name) => [name, 0]));
+  (mayInvoices?.machines || []).forEach((machine) => {
+    if (Object.prototype.hasOwnProperty.call(currentMachineActuals, machine.name)) {
+      currentMachineActuals[machine.name] += machine.weightKg || 0;
+    }
+  });
+  const remainingMonthCapacity = Object.entries(productionDailyCapacityKg).reduce((sum, [, daily]) => sum + daily * daysRemaining, 0);
+  const producedToDateKg = Object.values(currentMachineActuals).reduce((sum, kg) => sum + kg, 0);
+  const automaticMonthProductionKg = producedToDateKg + remainingMonthCapacity;
+  const automaticMonthProductionValue = automaticMonthProductionKg * avgSalesPrice;
+  const activeOrders = (data.carteiraOrders2026 || []).filter((order) => order.situacao !== "Cancelado" && order.situacao !== "Nota Gerada");
+  const stockAnalysis = buildBacklogStockAnalysis(activeOrders, getBacklogReferenceDate());
+  const pcpMachines = Object.fromEntries(Object.keys(productionDailyCapacityKg).map((name) => [name, {
+    name,
+    dailyCapacity: productionDailyCapacityKg[name],
+    produceKg: 0,
+    produceValue: 0,
+    orders: new Set(),
+    lines: 0
+  }]));
+  const finishingLoad = { produceKg: 0, produceValue: 0, orders: new Set(), lines: 0 };
+
+  stockAnalysis.needsProduction.forEach((line) => {
+    const machine = pcpMachines[line.maquina] ? line.maquina : "Acabamento";
+    const target = machine === "Acabamento" ? finishingLoad : pcpMachines[machine];
+    target.produceKg += line.produceKg || 0;
+    target.produceValue += line.produceValue || 0;
+    target.lines += 1;
+    target.orders.add(line.pedido);
+  });
+
+  const pcpRows = Object.values(pcpMachines).map((machine) => {
+    const daysTaken = machine.dailyCapacity ? machine.produceKg / machine.dailyCapacity : 0;
+    const monthCapacity = machine.dailyCapacity * mayDays;
+    const producedToDate = currentMachineActuals[machine.name] || 0;
+    const remainingCapacityKg = machine.dailyCapacity * daysRemaining;
+    const automaticMonthKg = producedToDate + remainingCapacityKg;
+    const utilization = monthCapacity ? machine.produceKg / monthCapacity : 0;
+    const minLoadKg = machine.dailyCapacity * minLoadDays;
+    const salesGapKg = Math.max(minLoadKg - machine.produceKg, 0);
+    const commercialGapFullKg = Math.max(remainingCapacityKg - machine.produceKg, 0);
+    return {
+      ...machine,
+      ordersCount: machine.orders.size,
+      daysTaken,
+      monthCapacity,
+      producedToDate,
+      remainingCapacityKg,
+      automaticMonthKg,
+      utilization,
+      idleDays: Math.max(mayDays - daysTaken, 0),
+      minLoadKg,
+      salesGapKg,
+      salesGapValue: salesGapKg * avgSalesPrice,
+      commercialGapFullKg,
+      commercialGapFullValue: commercialGapFullKg * avgSalesPrice,
+      status: commercialGapFullKg > 0 ? "Precisa vender absorção" : "Carteira cobre produção"
+    };
+  });
+  const totalPcpProduceKg = pcpRows.reduce((sum, row) => sum + row.produceKg, 0);
+  const totalPcpDays = pcpRows.reduce((sum, row) => sum + row.daysTaken, 0);
+  const totalPcpSalesGapKg = pcpRows.reduce((sum, row) => sum + row.salesGapKg, 0);
+  const totalPcpSalesGapValue = pcpRows.reduce((sum, row) => sum + row.salesGapValue, 0);
+  const totalCommercialGapFullKg = pcpRows.reduce((sum, row) => sum + row.commercialGapFullKg, 0);
+  const totalCommercialGapFullValue = pcpRows.reduce((sum, row) => sum + row.commercialGapFullValue, 0);
+  const pcpCards = pcpRows.map((row) => {
+    const tone = row.daysTaken >= minLoadDays ? "green" : row.daysTaken >= 5 ? "amber" : "red";
+    return `
+      <article class="inventory-machine-card ${tone}">
+        <span>${escapeHtml(row.name)}</span>
+        <strong>${formatKg(row.automaticMonthKg, 0)}</strong>
+        <small>Automático mês · carteira cobre ${row.daysTaken.toFixed(1).replace(".", ",")} dias · vender ${formatKg(row.commercialGapFullKg, 0)}</small>
+      </article>
+    `;
+  }).join("");
+  const pcpTableRows = pcpRows.map((row) => {
+    const tone = row.commercialGapFullKg > 0 ? "red" : "";
+    return `
+      <tr>
+        <td style="text-align:left"><strong>${escapeHtml(row.name)}</strong><br><small>${formatKg(row.dailyCapacity, 0)}/dia · ${daysRemaining} dias restantes</small></td>
+        <td>${formatKg(row.producedToDate, 0)}</td>
+        <td>${formatKg(row.remainingCapacityKg, 0)}</td>
+        <td>${formatKg(row.automaticMonthKg, 0)}</td>
+        <td>${formatKg(row.produceKg, 0)}<br><small>${row.daysTaken.toFixed(1).replace(".", ",")} dias</small></td>
+        <td><span class="status-pill ${tone}">${formatKg(row.commercialGapFullKg, 0)}</span><br><small>${formatBRL(row.commercialGapFullValue, 0)}</small></td>
+        <td>${formatKg(row.salesGapKg, 0)}<br><small>${minLoadDays} dias mínimos</small></td>
+        <td><span class="status-pill ${tone}">${escapeHtml(row.status)}</span></td>
+      </tr>
+    `;
+  }).join("");
+  const pcpActionRows = pcpRows.map((row) => {
+    const priority = row.commercialGapFullKg > 0
+      ? `Vender ${formatKg(row.commercialGapFullKg, 0)} para absorver a produção automática dos próximos ${daysRemaining} dias.`
+      : "Carteira atual cobre a capacidade restante da máquina.";
+    return `
+      <article class="priority-item">
+        <span></span>
+        <div>
+          <strong>${escapeHtml(row.name)}</strong>
+          <p>${escapeHtml(priority)} A fábrica não deve parar por falta de pedido; se não vender, essa carga vira estoque acabado planejado.</p>
+        </div>
+      </article>
+    `;
+  }).join("");
 
   const machineActuals = {
     "Corte 1": totals.corte1Kg,
-    "Corte 2": totals.corte2Kg,
-    "Rebobinadeira": totals.reboKg
+    "Corte 2": totals.corte2Kg
   };
+  const finishingActualKg = totals.reboKg || 0;
+  const productionCapacityMonthly = Object.fromEntries(
+    Object.entries(productionDailyCapacityKg).map(([name, daily]) => [name, daily * aprilDays])
+  );
 
-  const machineRows = Object.entries(config.machineCapacityKg).map(([name, capacity]) => {
+  const machineRows = Object.entries(productionCapacityMonthly).map(([name, capacity]) => {
     const actual = machineActuals[name] || 0;
     const utilization = capacity ? actual / capacity : 0;
     const widthPct = Math.max(2, Math.min(100, Math.round(utilization * 100)));
@@ -3250,7 +4486,7 @@ function renderOperations() {
       <div class="bar-row">
         <div class="bar-label">
           <strong>${name}</strong><br>
-          <small style="color:var(--muted)">${formatKg(actual)} / ${formatKg(capacity)} mensal · <span class="status-pill ${statusClass}" style="font-size:0.7rem">${status}</span></small>
+          <small style="color:var(--muted)">${formatKg(actual)} / ${formatKg(capacity)} no mês · ${formatKg(productionDailyCapacityKg[name], 0)}/dia · <span class="status-pill ${statusClass}" style="font-size:0.7rem">${status}</span></small>
         </div>
         <div class="bar-track"><div class="bar-fill ${utilization >= 0.85 ? "amber" : ""}" style="width:${widthPct}%"></div></div>
         <div class="bar-value">${formatPercent(utilization)}<br><small style="color:var(--muted)">${formatKg(Math.max(capacity - actual, 0))} disponível</small></div>
@@ -3258,21 +4494,30 @@ function renderOperations() {
     `;
   }).join("");
 
-  const totalCapacity = Object.values(config.machineCapacityKg).reduce((sum, v) => sum + v, 0);
-  const totalActual = Object.values(machineActuals).reduce((sum, v) => sum + v, 0);
-  const globalUtilization = totalCapacity ? totalActual / totalCapacity : 0;
+  const finishingRow = `
+    <div class="bar-row">
+      <div class="bar-label">
+        <strong>Rebobinadeira</strong><br>
+        <small style="color:var(--muted)">${formatKg(finishingActualKg)} em acabamento · sem meta produtiva</small>
+      </div>
+      <div class="bar-track"><div class="bar-fill blue" style="width:100%"></div></div>
+      <div class="bar-value">Acabamento<br><small style="color:var(--muted)">corte de metragens menores</small></div>
+    </div>
+  `;
 
   const mayMachineRows = mayInvoices?.machines?.map((m) => {
-    const cap = config.machineCapacityKg[m.name] || 0;
-    const util = cap ? (m.weightKg / cap) : 0;
+    const isProductionMachine = Boolean(productionDailyCapacityKg[m.name]);
+    const dailyCap = productionDailyCapacityKg[m.name] || 0;
+    const cap = isProductionMachine ? dailyCap * mayDays : 0;
+    const util = cap ? (m.weightKg / cap) : null;
     return `
       <tr>
         <td><strong>${escapeHtml(m.name)}</strong></td>
         <td>${formatKg(m.weightKg, 2)}</td>
         <td>${formatBRL(m.revenue)}</td>
         <td>${formatBRL(m.revenue / m.weightKg)}/kg</td>
-        <td>${formatKg(cap)}</td>
-        <td>${formatPercent(util)}</td>
+        <td>${isProductionMachine ? `${formatKg(cap, 0)}<br><small style="color:var(--muted)">${formatKg(dailyCap, 0)}/dia</small>` : `<span class="status-pill blue">Acabamento</span>`}</td>
+        <td>${util === null ? "Sem meta" : formatPercent(util)}</td>
       </tr>
     `;
   }).join("") || "";
@@ -3282,34 +4527,94 @@ function renderOperations() {
       <article class="panel span-12 current-tracker">
         <div class="panel-header">
           <div>
-            <h2>Operação · utilização das máquinas</h2>
-            <p>Comparativo entre produção/faturamento real e capacidade nominal. Edite as capacidades na seção Configurações abaixo para refletir a fábrica real.</p>
+            <h2>Produção · plano automático de maio</h2>
+            <p>Hoje é ${todayLabel}. Faltam ${daysRemaining} dias para encerrar maio. A produção puxa pela capacidade das duas máquinas e não para por falta de pedidos.</p>
           </div>
-          <span class="status-pill blue">Abril/2026</span>
+          <span class="status-pill blue">Atualizado em ${todayLabel}</span>
         </div>
         <div class="section-grid" style="gap:14px">
-          ${kpiCard("Utilização global", formatPercent(globalUtilization), `${formatKg(totalActual)} de ${formatKg(totalCapacity)} possíveis`, globalUtilization >= 0.7 ? "green" : "amber")}
-          ${kpiCard("Capacidade ociosa", formatKg(Math.max(totalCapacity - totalActual, 0)), "kg/mês não convertidos em receita", "red")}
-          ${kpiCard("Receita potencial", formatBRL((totalCapacity - totalActual) * (aprilSales.revenue / aprilSales.weightKg)), "Se ocupar 100% ao R$/kg de abril", "blue")}
-          ${kpiCard("R$/kg de abril", formatBRL(aprilSales.revenue / aprilSales.weightKg), "Preço médio de referência", "amber")}
+          ${kpiCard(`Produzido até ${todayLabel}`, formatKg(producedToDateKg, 0), "Corte 1 + Corte 2 nas NFs de maio", "green")}
+          ${kpiCard("Capacidade restante", formatKg(remainingMonthCapacity, 0), `${daysRemaining} dias · 16 t/dia produtivas`, "blue")}
+          ${kpiCard("Produção automática maio", formatKg(automaticMonthProductionKg, 0), `${formatBRL(automaticMonthProductionValue, 0)} a preço médio de maio`, "amber")}
+          ${kpiCard("Venda para absorver", formatKg(totalCommercialGapFullKg, 0), `${formatBRL(totalCommercialGapFullValue, 0)} além da carteira a produzir`, totalCommercialGapFullKg ? "red" : "green")}
         </div>
+      </article>
+
+      <article class="panel span-12 backlog-readiness-panel">
+        <div class="panel-header">
+          <div>
+            <h2>PCP · produção puxada x carteira</h2>
+            <p>Carteira ativa abatida do estoque pronto mostra a cobertura comercial. O restante da capacidade será produzido automaticamente e precisa ser vendido para não virar estoque.</p>
+          </div>
+          <span class="status-pill ${totalCommercialGapFullKg ? "red" : ""}">${daysRemaining} dias restantes</span>
+        </div>
+        <div class="commercial-kpi-grid">
+          <article class="commercial-kpi amber"><span>Carteira a produzir</span><strong>${formatKg(totalPcpProduceKg, 0)}</strong><small>${formatBRL(stockAnalysis.totals.produceValue, 0)} após abater estoque acabado</small></article>
+          <article class="commercial-kpi blue"><span>Produção restante automática</span><strong>${formatKg(remainingMonthCapacity, 0)}</strong><small>Corte 1 + Corte 2 até 31/05</small></article>
+          <article class="commercial-kpi ${totalCommercialGapFullKg ? "red" : "green"}"><span>Comercial precisa vender</span><strong>${formatKg(totalCommercialGapFullKg, 0)}</strong><small>${formatBRL(totalCommercialGapFullValue, 0)} para absorver a produção puxada</small></article>
+          <article class="commercial-kpi green"><span>Pronto para faturar</span><strong>${formatKg(stockAnalysis.totals.readyKg, 0)}</strong><small>Já existe em estoque, cobrar expedição/faturamento</small></article>
+        </div>
+        <div class="inventory-machine-grid" style="margin-top:14px">${pcpCards}</div>
+        <div class="data-table-wrap inventory-table">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Máquina</th>
+                <th>Produzido até hoje</th>
+                <th>Produção restante</th>
+                <th>Total automático mês</th>
+                <th>Carteira a produzir</th>
+                <th>Venda p/ absorver</th>
+                <th>Gap p/ 10 dias</th>
+                <th>Status PCP</th>
+              </tr>
+            </thead>
+            <tbody>${pcpTableRows}</tbody>
+            <tfoot>
+              <tr>
+                <td style="text-align:left"><strong>Total produtivo</strong></td>
+                <td>${formatKg(producedToDateKg, 0)}</td>
+                <td>${formatKg(remainingMonthCapacity, 0)}</td>
+                <td>${formatKg(automaticMonthProductionKg, 0)}</td>
+                <td>${formatKg(totalPcpProduceKg, 0)}</td>
+                <td>${formatKg(totalCommercialGapFullKg, 0)}<br><small>${formatBRL(totalCommercialGapFullValue, 0)}</small></td>
+                <td>${formatKg(totalPcpSalesGapKg, 0)}<br><small>${formatBRL(totalPcpSalesGapValue, 0)}</small></td>
+                <td>${totalCommercialGapFullKg ? "Vender para não virar estoque" : "Carteira absorve produção"}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="stat-stack" style="margin-top:14px">
+          <div><span>Acabamento / Rebobinadeira</span><strong>${formatKg(finishingLoad.produceKg, 0)}</strong><small>${finishingLoad.orders.size} pedidos · sem meta produtiva, sequenciar após base pronta.</small></div>
+          <div><span>Leitura PCP</span><strong>${totalCommercialGapFullKg ? "Venda insuficiente" : "Carteira suficiente"}</strong><small>A máquina segue produzindo; o risco é gerar estoque sem venda se o comercial não absorver a capacidade restante.</small></div>
+        </div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Diretriz PCP e comercial</h2>
+            <p>Plano curto para ocupar os equipamentos e reduzir ociosidade sem produzir material sem pedido.</p>
+          </div>
+        </div>
+        <div class="priority-grid">${pcpActionRows}</div>
       </article>
 
       <article class="panel span-12">
         <div class="panel-header">
           <div>
             <h2>Capacidade vs entradas (abril)</h2>
-            <p>Quanto cada máquina processou em abril versus a capacidade nominal cadastrada.</p>
+            <p>Meta mensal calculada por dias corridos: Corte 1 = 7 t/dia e Corte 2 = 9 t/dia. Rebobinadeira aparece separada como acabamento.</p>
           </div>
         </div>
-        <div class="bar-list">${machineRows}</div>
+        <div class="bar-list">${machineRows}${finishingRow}</div>
       </article>
 
       <article class="panel span-12">
         <div class="panel-header">
           <div>
-            <h2>Produção em NFs de maio (05-07/05)</h2>
-            <p>Saída por máquina conforme NFs emitidas no período.</p>
+            <h2>Produção em NFs de maio</h2>
+            <p>Saída por máquina conforme NFs emitidas no mês vigente. Rebobinadeira é acabamento e não entra na meta.</p>
           </div>
         </div>
         <div class="data-table-wrap">
@@ -3320,7 +4625,7 @@ function renderOperations() {
                 <th>Peso</th>
                 <th>Faturamento</th>
                 <th>R$/kg</th>
-                <th>Capacidade mensal</th>
+                <th>Capacidade do mês</th>
                 <th>Utilização (parcial)</th>
               </tr>
             </thead>
@@ -3329,41 +4634,2210 @@ function renderOperations() {
         </div>
       </article>
 
-      <article class="panel span-12 admin-form-panel">
+    </div>
+  `;
+}
+
+function normalizeInventoryText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+function inventoryColorCatalog(records = []) {
+  const fromStock = records.map((row) => row.color).filter(Boolean);
+  const fromMix = (data.productMix2026?.items || []).map((row) => row.color).filter(Boolean);
+  return [...new Set([...fromStock, ...fromMix].map(normalizeInventoryText))]
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+}
+
+function inventorySignatureFromText(text, colorCatalog = []) {
+  const normalized = normalizeInventoryText(text);
+  const lineOptions = ["NTEHH SMS", "NTEH SMS", "BASE VELA", "FLEXNTE", "NTEHH", "NTEH", "NTED", "NTEI", "NTLD", "NTEM", "SLEI", "TNT", "NT", "DS"];
+  const line = lineOptions.find((item) => normalized.startsWith(item)) || normalized.split(" ")[0] || "";
+  const widthMatch = normalized.match(/(\d{3,4})\s*MM/);
+  const gramMatch = normalized.match(/(\d{1,3})\s*GR/);
+  const color = colorCatalog.find((candidate) => normalized.includes(candidate)) || "";
+  return {
+    line,
+    widthMm: widthMatch ? Number(widthMatch[1]) : (line === "TNT" ? 1400 : null),
+    color,
+    grammage: gramMatch ? Number(gramMatch[1]) : null
+  };
+}
+
+function inventorySignatureFromRecord(row) {
+  return {
+    line: normalizeInventoryText(row.line),
+    widthMm: Number(row.widthMm) || null,
+    color: normalizeInventoryText(row.color),
+    grammage: Number(row.grammage) || null
+  };
+}
+
+function inventorySignatureFromMix(row) {
+  return {
+    line: normalizeInventoryText(row.line),
+    widthMm: Number(row.width) || null,
+    color: normalizeInventoryText(row.color),
+    grammage: Number(row.grammage) || null
+  };
+}
+
+function inventoryKey(sig, mode = "exact") {
+  const line = sig.line || "";
+  const width = sig.widthMm || "";
+  const color = sig.color || "";
+  const grammage = sig.grammage || "";
+  if (mode === "noColor") return `${line}|${width}|${grammage}`;
+  if (mode === "lineGrammage") return `${line}|${grammage}`;
+  if (mode === "line") return line;
+  return `${line}|${width}|${color}|${grammage}`;
+}
+
+function buildBacklogStockAnalysis(orders, today = getBacklogReferenceDate()) {
+  const stockRecords = window.finishedGoodsStock2026?.records || [];
+  const colors = inventoryColorCatalog(stockRecords);
+  const stockBySku = new Map();
+
+  stockRecords.forEach((row) => {
+    const key = inventoryKey(inventorySignatureFromRecord(row));
+    const kg = Math.max(Number(row.availableKg) || 0, 0);
+    if (!key || !kg) return;
+    if (!stockBySku.has(key)) {
+      stockBySku.set(key, {
+        kg: 0,
+        descriptions: new Set(),
+        machine: row.machine || "Sem máquina"
+      });
+    }
+    const agg = stockBySku.get(key);
+    agg.kg += kg;
+    if (row.productName || row.description) agg.descriptions.add(row.productName || row.description);
+  });
+
+  const remainingStock = new Map([...stockBySku.entries()].map(([key, value]) => [key, value.kg]));
+  const priorityOrders = [...orders].sort((a, b) => {
+    const aLate = (a.dataEntrega || "") < today ? 0 : 1;
+    const bLate = (b.dataEntrega || "") < today ? 0 : 1;
+    if (aLate !== bLate) return aLate - bLate;
+    return String(a.dataEntrega || "").localeCompare(String(b.dataEntrega || "")) || Number(a.pedido) - Number(b.pedido);
+  });
+
+  const lineMap = new Map();
+  const orderMap = new Map();
+  const totals = {
+    kg: 0,
+    value: 0,
+    readyKg: 0,
+    readyValue: 0,
+    produceKg: 0,
+    produceValue: 0,
+    readyOrders: 0,
+    partialOrders: 0,
+    produceOrders: 0,
+    readyLateOrders: 0,
+    readyLateKg: 0,
+    readyLateValue: 0
+  };
+
+  priorityOrders.forEach((order) => {
+    const orderSummary = {
+      pedido: order.pedido,
+      client: order.cliente,
+      status: order.situacao,
+      delivery: order.dataEntrega,
+      late: (order.dataEntrega || "") < today,
+      kg: 0,
+      value: 0,
+      readyKg: 0,
+      readyValue: 0,
+      produceKg: 0,
+      produceValue: 0,
+      lines: []
+    };
+
+    (order.linhas || []).forEach((line) => {
+      const requiredKg = Number(line.kg) || 0;
+      const value = Number(line.valor) || 0;
+      const price = requiredKg ? value / requiredKg : 0;
+      const sig = inventorySignatureFromText(line.produto, colors);
+      const key = inventoryKey(sig);
+      const availableBefore = remainingStock.get(key) || 0;
+      const readyKg = Math.min(requiredKg, availableBefore);
+      const produceKg = Math.max(requiredKg - readyKg, 0);
+      const readyValue = readyKg * price;
+      const produceValue = produceKg * price;
+      remainingStock.set(key, Math.max(availableBefore - readyKg, 0));
+
+      const detail = {
+        pedido: order.pedido,
+        seq: line.seq,
+        produto: line.produto,
+        maquina: line.maquina || stockBySku.get(key)?.machine || "Sem máquina",
+        key,
+        requiredKg,
+        value,
+        price,
+        availableBefore,
+        readyKg,
+        produceKg,
+        readyValue,
+        produceValue,
+        status: produceKg <= 0 ? "Pronto" : readyKg > 0 ? "Parcial" : "Produzir",
+        stockDescription: [...(stockBySku.get(key)?.descriptions || [])][0] || ""
+      };
+      lineMap.set(`${order.pedido}|${line.seq}`, detail);
+      orderSummary.lines.push(detail);
+      orderSummary.kg += requiredKg;
+      orderSummary.value += value;
+      orderSummary.readyKg += readyKg;
+      orderSummary.readyValue += readyValue;
+      orderSummary.produceKg += produceKg;
+      orderSummary.produceValue += produceValue;
+    });
+
+    orderSummary.statusStock = orderSummary.produceKg <= 0 ? "Pronto para faturar" : orderSummary.readyKg > 0 ? "Parcial" : "Produzir";
+    orderSummary.tone = orderSummary.produceKg <= 0 ? "" : orderSummary.readyKg > 0 ? "amber" : "red";
+    orderMap.set(order.pedido, orderSummary);
+
+    totals.kg += orderSummary.kg;
+    totals.value += orderSummary.value;
+    totals.readyKg += orderSummary.readyKg;
+    totals.readyValue += orderSummary.readyValue;
+    totals.produceKg += orderSummary.produceKg;
+    totals.produceValue += orderSummary.produceValue;
+    if (orderSummary.produceKg <= 0) totals.readyOrders += 1;
+    else if (orderSummary.readyKg > 0) totals.partialOrders += 1;
+    else totals.produceOrders += 1;
+    if (orderSummary.late && orderSummary.produceKg <= 0) {
+      totals.readyLateOrders += 1;
+      totals.readyLateKg += orderSummary.readyKg;
+      totals.readyLateValue += orderSummary.readyValue;
+    }
+  });
+
+  return {
+    lineMap,
+    orderMap,
+    totals,
+    readyToBill: [...orderMap.values()]
+      .filter((order) => order.produceKg <= 0)
+      .sort((a, b) => Number(b.late) - Number(a.late) || String(a.delivery || "").localeCompare(String(b.delivery || ""))),
+    needsProduction: [...lineMap.values()]
+      .filter((line) => line.produceKg > 0)
+      .sort((a, b) => b.produceKg - a.produceKg)
+  };
+}
+
+function buildGoalSalesFocusData(targetKg = 450000) {
+  const aprilSales = salesRecord(2026, 4);
+  const avgPriceKg = aprilSales.revenue / aprilSales.weightKg;
+  const mayActual = data.currentMayBilling2026 || {};
+  const today = getBacklogReferenceDate();
+  const carteiraAtivos = (data.carteiraOrders2026 || []).filter((order) => order.situacao !== "Cancelado" && order.situacao !== "Nota Gerada");
+  const pipelineOrders = carteiraAtivos.filter((order) => order.dataEntrega && (order.dataEntrega.startsWith("2026-05") || order.dataEntrega < today));
+  const sumKg = (orders) => orders.reduce((sum, order) => sum + (Number(order.totalKg) || 0), 0);
+  const sumValue = (orders) => orders.reduce((sum, order) => sum + (Number(order.totalValor) || 0), 0);
+  const pipelineKg = sumKg(pipelineOrders);
+  const pipelineValue = sumValue(pipelineOrders);
+  const billedKg = Number(mayActual.weightKg) || 0;
+  const billedValue = Number(mayActual.revenue) || 0;
+  const coveredKg = billedKg + pipelineKg;
+  const missingKg = Math.max(targetKg - coveredKg, 0);
+  const billedDays = (mayActual.breakdown || []).length || 7;
+  const remainingDays = 14;
+  const targetDailyKg = targetKg / 20;
+  const currentDailyKg = billedKg / Math.max(billedDays, 1);
+  const neededDailyKg = missingKg / Math.max(remainingDays, 1);
+
+  const config = getConfig();
+  const machineCapacityKg = config.machineCapacityKg || {};
+  const productionMachines = Object.keys(machineCapacityKg).filter((machine) => (Number(machineCapacityKg[machine]) || 0) > 0);
+  const stockAnalysis = buildBacklogStockAnalysis(pipelineOrders, today);
+  const machineMap = new Map();
+  const ensureMachine = (name) => {
+    const machine = machineForProductionFocus(name);
+    if (!machineMap.has(machine)) {
+      machineMap.set(machine, {
+        name: machine,
+        dailyCapacity: Number(machineCapacityKg[machine]) || 0,
+        carteiraKg: 0,
+        carteiraValue: 0,
+        produceKg: 0,
+        produceValue: 0,
+        lateKg: 0,
+        orders: new Set(),
+        produceOrders: new Set(),
+        products: new Set()
+      });
+    }
+    return machineMap.get(machine);
+  };
+
+  productionMachines.forEach(ensureMachine);
+  pipelineOrders.forEach((order) => {
+    (order.linhas || []).forEach((line) => {
+      const row = ensureMachine(line.maquina);
+      const kg = Number(line.kg) || 0;
+      row.carteiraKg += kg;
+      row.carteiraValue += Number(line.valor) || 0;
+      if ((order.dataEntrega || "") < today) row.lateKg += kg;
+      row.orders.add(order.pedido);
+      if (line.produto) row.products.add(line.produto);
+    });
+  });
+
+  stockAnalysis.needsProduction.forEach((line) => {
+    const row = ensureMachine(line.maquina);
+    row.produceKg += line.produceKg || 0;
+    row.produceValue += line.produceValue || 0;
+    row.produceOrders.add(line.pedido);
+    if (line.produto) row.products.add(line.produto);
+  });
+
+  const rawRows = [...machineMap.values()]
+    .filter((row) => row.dailyCapacity > 0 || row.carteiraKg > 0 || row.produceKg > 0)
+    .map((row) => {
+      const remainingCapacityKg = row.dailyCapacity * remainingDays;
+      const daysNeeded = row.dailyCapacity ? row.produceKg / row.dailyCapacity : 0;
+      const capacityGapKg = remainingCapacityKg - row.produceKg;
+      return {
+        ...row,
+        ordersCount: row.orders.size,
+        produceOrdersCount: row.produceOrders.size,
+        productCount: row.products.size,
+        sampleProducts: [...row.products].slice(0, 4),
+        remainingCapacityKg,
+        daysNeeded,
+        openCapacityKg: Math.max(capacityGapKg, 0),
+        overloadKg: Math.max(-capacityGapKg, 0)
+      };
+    });
+
+  const totalOpenCapacityKg = rawRows.reduce((sum, row) => sum + (row.dailyCapacity > 0 ? row.openCapacityKg : 0), 0);
+  const machineRows = rawRows.map((row) => {
+    const captureTargetKg = missingKg > 0 && totalOpenCapacityKg > 0 && row.dailyCapacity > 0
+      ? Math.min(row.openCapacityKg, missingKg * (row.openCapacityKg / totalOpenCapacityKg))
+      : 0;
+    const status = row.overloadKg > 0
+      ? "Sobrecarga"
+      : captureTargetKg > 0
+        ? "Captar para meta"
+        : row.produceKg > 0
+          ? "Produzir carteira"
+          : "Sem pressão";
+    const action = row.overloadKg > 0
+      ? "Evitar promessa curta nesta máquina; vender com prazo maior e proteger pedidos já em carteira."
+      : captureTargetKg > 0
+        ? `Priorizar captação de produtos desta máquina: ${formatKg(captureTargetKg, 0)} para usar a folga produtiva.`
+        : row.produceKg > 0
+          ? "Converter e acompanhar carteira atual; foco menor em captação adicional."
+          : "Sem foco comercial imediato.";
+    return {
+      ...row,
+      captureTargetKg,
+      captureTargetValue: captureTargetKg * avgPriceKg,
+      status,
+      action
+    };
+  }).sort((a, b) => b.overloadKg - a.overloadKg || b.captureTargetKg - a.captureTargetKg || b.produceKg - a.produceKg);
+
+  const captureAllocatedKg = machineRows.reduce((sum, row) => sum + row.captureTargetKg, 0);
+  const weekGroups = [
+    { label: "Atrasados", filter: (order) => order.dataEntrega < today },
+    { label: `Hoje ${formatIsoShort(today)}`, filter: (order) => order.dataEntrega === today },
+    { label: "Até 15/05", filter: (order) => order.dataEntrega > today && order.dataEntrega <= "2026-05-15" },
+    { label: "18-22/05", filter: (order) => order.dataEntrega >= "2026-05-18" && order.dataEntrega <= "2026-05-22" },
+    { label: "23-31/05", filter: (order) => order.dataEntrega >= "2026-05-23" && order.dataEntrega <= "2026-05-31" },
+    { label: "Junho+", filter: (order) => order.dataEntrega >= "2026-06-01" }
+  ].map((bucket) => {
+    const orders = pipelineOrders.filter(bucket.filter);
+    return { ...bucket, orders, count: orders.length, kg: sumKg(orders), value: sumValue(orders) };
+  }).filter((bucket) => bucket.count);
+
+  const topOrders = [...pipelineOrders]
+    .sort((a, b) => (Number(b.totalValor) || 0) - (Number(a.totalValor) || 0))
+    .slice(0, 8);
+
+  return {
+    targetKg,
+    avgPriceKg,
+    today,
+    mayActual,
+    billedKg,
+    billedValue,
+    billedDays,
+    pipelineOrders,
+    pipelineKg,
+    pipelineValue,
+    coveredKg,
+    missingKg,
+    targetDailyKg,
+    currentDailyKg,
+    neededDailyKg,
+    remainingDays,
+    machineRows,
+    captureAllocatedKg,
+    unallocatedCaptureKg: Math.max(missingKg - captureAllocatedKg, 0),
+    stockAnalysis,
+    weekGroups,
+    topOrders
+  };
+}
+
+function exportGoalsSalesPdf() {
+  const report = buildGoalSalesFocusData(450000);
+  const generatedAt = new Date().toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+  const logoUrl = new URL("./assets/spunflex-logo.png", window.location.href).href;
+  const refDate = new Date(report.today + "T12:00:00").toLocaleDateString("pt-BR");
+  const periodStart = report.mayActual.startDate ? formatIsoShort(report.mayActual.startDate) : "";
+  const periodEnd = report.mayActual.endDate ? formatIsoShort(report.mayActual.endDate) : "";
+  const machineRows = report.machineRows.map((row) => {
+    const products = row.sampleProducts.length
+      ? `${row.productCount} produto${row.productCount !== 1 ? "s" : ""}: ${row.sampleProducts.map((product) => escapeHtml(product)).join(", ")}${row.productCount > 4 ? "..." : ""}`
+      : "Sem produto mapeado";
+    const gapText = row.overloadKg > 0 ? `Sobrecarga ${formatKg(row.overloadKg, 0)}` : `Folga ${formatKg(row.openCapacityKg, 0)}`;
+    return `
+      <tr>
+        <td><strong>${escapeHtml(row.name)}</strong><small>${products}</small></td>
+        <td>${row.dailyCapacity ? `${formatKg(row.dailyCapacity, 0)}/dia` : "Sem meta"}</td>
+        <td>${formatKg(row.carteiraKg, 0)}<small>${row.ordersCount} pedido${row.ordersCount !== 1 ? "s" : ""}</small></td>
+        <td>${formatKg(row.produceKg, 0)}<small>${row.daysNeeded.toFixed(1).replace(".", ",")} dias</small></td>
+        <td>${escapeHtml(gapText)}</td>
+        <td>${row.captureTargetKg ? `${formatKg(row.captureTargetKg, 0)}<small>${formatBRL(row.captureTargetValue, 0)}</small>` : "-"}</td>
+        <td><span class="pill ${row.overloadKg > 0 ? "red" : row.captureTargetKg > 0 ? "amber" : "green"}">${escapeHtml(row.status)}</span></td>
+        <td>${escapeHtml(row.action)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const actionCards = report.machineRows.map((row, index) => `
+    <article class="action-card ${row.overloadKg > 0 ? "red" : row.captureTargetKg > 0 ? "amber" : "green"}">
+      <span>Prioridade ${index + 1}</span>
+      <h2>${escapeHtml(row.name)}</h2>
+      <strong>${row.captureTargetKg ? formatKg(row.captureTargetKg, 0) : row.overloadKg ? `Segurar ${formatKg(row.overloadKg, 0)}` : formatKg(row.produceKg, 0)}</strong>
+      <p>${escapeHtml(row.action)}</p>
+    </article>
+  `).join("");
+
+  const weekRows = report.weekGroups.map((row) => `
+    <tr>
+      <td><strong>${escapeHtml(row.label)}</strong></td>
+      <td>${row.count}</td>
+      <td>${formatKg(row.kg, 0)}</td>
+      <td>${formatBRL(row.value, 0)}</td>
+    </tr>
+  `).join("");
+
+  const orderRows = report.topOrders.map((order) => {
+    const delivery = order.dataEntrega ? formatIsoShort(order.dataEntrega) : "-";
+    const products = (order.linhas || []).slice(0, 3).map((line) => line.produto).filter(Boolean).join(", ");
+    return `
+      <tr>
+        <td><strong>${escapeHtml(order.pedido)}</strong></td>
+        <td><strong>${escapeHtml(order.cliente || "-")}</strong><small>${escapeHtml(order.representante || "-")}</small></td>
+        <td>${escapeHtml(delivery)}</td>
+        <td>${formatKg(Number(order.totalKg) || 0, 0)}</td>
+        <td>${formatBRL(Number(order.totalValor) || 0, 0)}</td>
+        <td>${escapeHtml(products || "-")}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const reportHtml = `
+    <!doctype html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8">
+        <title>Meta maio - foco comercial por máquina</title>
+        <style>
+          @page { size: A4 landscape; margin: 10mm; }
+          * { box-sizing: border-box; }
+          body { margin:0; color:#1f2937; background:#fff; font-family:Arial, Helvetica, sans-serif; font-size:10px; line-height:1.35; }
+          header { display:flex; align-items:center; justify-content:space-between; gap:18px; padding-bottom:10px; border-bottom:2px solid #0ea5c6; }
+          .brand { display:flex; align-items:center; gap:12px; }
+          .brand img { width:118px; height:auto; object-fit:contain; }
+          h1,h2,p { margin:0; }
+          h1 { color:#111827; font-size:22px; line-height:1.05; }
+          h2 { color:#111827; font-size:13px; }
+          small { display:block; color:#6b7280; font-size:9px; line-height:1.25; margin-top:2px; }
+          .meta { text-align:right; color:#4b5563; }
+          .summary { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin:12px 0; }
+          .metric, .action-card { padding:8px 10px; border:1px solid #d1d5db; border-top:4px solid #0ea5c6; border-radius:6px; break-inside:avoid; }
+          .metric.green, .action-card.green { border-top-color:#16a34a; }
+          .metric.amber, .action-card.amber { border-top-color:#d97706; }
+          .metric.red, .action-card.red { border-top-color:#dc2626; }
+          .metric span, .action-card span { display:block; color:#6b7280; font-size:8px; font-weight:700; text-transform:uppercase; }
+          .metric strong, .action-card strong { display:block; margin-top:4px; color:#111827; font-size:14px; }
+          .actions { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:10px 0 12px; }
+          .action-card p { margin-top:5px; color:#374151; }
+          table { width:100%; border-collapse:collapse; margin-top:8px; }
+          th { background:#e8f7fb; color:#111827; font-size:8px; text-align:left; text-transform:uppercase; }
+          th,td { padding:5px 6px; border:1px solid #d1d5db; vertical-align:top; }
+          td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5), td:nth-child(6), td:nth-child(7) { white-space:nowrap; }
+          .pill { display:inline-block; padding:2px 6px; border-radius:999px; font-size:8px; font-weight:700; white-space:nowrap; }
+          .pill.green { background:#dcfce7; color:#166534; }
+          .pill.amber { background:#fef3c7; color:#92400e; }
+          .pill.red { background:#fee2e2; color:#991b1b; }
+          .grid-2 { display:grid; grid-template-columns:1fr 1.45fr; gap:10px; align-items:start; margin-top:12px; }
+          .toolbar { position:sticky; top:0; display:flex; justify-content:flex-end; padding:8px 0; background:#fff; z-index:5; }
+          .toolbar button { border:1px solid #0ea5c6; border-radius:6px; background:#0ea5c6; color:#fff; font-weight:700; padding:7px 12px; cursor:pointer; }
+          @media print { .toolbar { display:none; } body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+        </style>
+      </head>
+      <body>
+        <div class="toolbar"><button onclick="window.print()">Imprimir / salvar PDF</button></div>
+        <header>
+          <div class="brand">
+            <img src="${logoUrl}" alt="Spunflex">
+            <div>
+              <h1>Meta maio - plano comercial por máquina</h1>
+              <small>Relatório para orientar o time de vendas sobre onde captar pedidos para fechar a meta. Rebobinadeira/acabamento alocada em Corte 1.</small>
+            </div>
+          </div>
+          <div class="meta">
+            <strong>Carteira ref. ${escapeHtml(refDate)}</strong>
+            <small>Faturamento ${escapeHtml(periodStart)}-${escapeHtml(periodEnd)} · gerado em ${escapeHtml(generatedAt)}</small>
+          </div>
+        </header>
+
+        <section class="summary">
+          <article class="metric green"><span>Meta maio</span><strong>${formatKg(report.targetKg, 0)}</strong></article>
+          <article class="metric"><span>Faturado</span><strong>${formatKg(report.billedKg, 0)}</strong><small>${formatBRL(report.billedValue, 0)}</small></article>
+          <article class="metric amber"><span>Carteira maio</span><strong>${formatKg(report.pipelineKg, 0)}</strong><small>${formatBRL(report.pipelineValue, 0)}</small></article>
+          <article class="metric ${report.missingKg ? "red" : "green"}"><span>Falta captar</span><strong>${report.missingKg ? formatKg(report.missingKg, 0) : "Meta coberta"}</strong></article>
+          <article class="metric"><span>Ritmo necessário</span><strong>${formatKg(report.neededDailyKg, 0)}/dia</strong><small>${report.remainingDays} dias úteis</small></article>
+          <article class="metric"><span>Captável nas máquinas</span><strong>${formatKg(report.captureAllocatedKg, 0)}</strong><small>${report.unallocatedCaptureKg ? `${formatKg(report.unallocatedCaptureKg, 0)} fora da folga` : "dentro da folga"}</small></article>
+        </section>
+
+        <section class="actions">
+          ${actionCards}
+        </section>
+
+        <h2>Foco por máquina</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Máquina / produtos</th>
+              <th>Capacidade</th>
+              <th>Carteira maio</th>
+              <th>A produzir</th>
+              <th>Folga</th>
+              <th>Captar p/ meta</th>
+              <th>Status</th>
+              <th>Ação para vendas</th>
+            </tr>
+          </thead>
+          <tbody>${machineRows}</tbody>
+        </table>
+
+        <section class="grid-2">
+          <div>
+            <h2>Carteira por prazo</h2>
+            <table>
+              <thead><tr><th>Prazo</th><th>Pedidos</th><th>Peso</th><th>Valor</th></tr></thead>
+              <tbody>${weekRows}</tbody>
+            </table>
+          </div>
+          <div>
+            <h2>Maiores pedidos em carteira para conversão</h2>
+            <table>
+              <thead><tr><th>Pedido</th><th>Cliente / rep</th><th>Entrega</th><th>Peso</th><th>Valor</th><th>Produtos</th></tr></thead>
+              <tbody>${orderRows}</tbody>
+            </table>
+          </div>
+        </section>
+      </body>
+    </html>
+  `;
+
+  const reportWindow = window.open("", "_blank");
+  if (!reportWindow) {
+    showToast("Pop-up bloqueado", "Permita pop-ups para abrir o relatório de metas.", "warning", 5000);
+    return;
+  }
+
+  reportWindow.document.open();
+  reportWindow.document.write(displayMachineLabels(reportHtml));
+  reportWindow.document.close();
+  reportWindow.focus();
+  showToast("Relatório pronto", "A janela de impressão foi aberta. Use Salvar como PDF.", "success", 3200);
+  setTimeout(() => reportWindow.print(), 700);
+}
+
+function exportLateBacklogPdf() {
+  const today = getBacklogReferenceDate();
+  const todayD = new Date(today + "T12:00:00");
+  const allOrders = data.carteiraOrders2026 || [];
+  const isFaturado = (order) => order.situacao === "Nota Gerada";
+  const isCancelado = (order) => order.situacao === "Cancelado";
+  const isAtivo = (order) => !isFaturado(order) && !isCancelado(order);
+  const isAtrasado = (order) => isAtivo(order) && order.dataEntrega < today;
+  const ativos = allOrders.filter(isAtivo);
+  const atrasados = ativos
+    .filter(isAtrasado)
+    .sort((a, b) => String(a.dataEntrega || "").localeCompare(String(b.dataEntrega || "")) || Number(a.pedido) - Number(b.pedido));
+
+  if (!atrasados.length) {
+    showToast("Sem atrasados", "Não há pedidos atrasados para exportar.", "success", 2400);
+    return;
+  }
+
+  const stockAnalysis = buildBacklogStockAnalysis(ativos, today);
+  const generatedAt = new Date().toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+  const refDateLabel = todayD.toLocaleDateString("pt-BR");
+  const logoUrl = new URL("./assets/spunflex-logo.png", window.location.href).href;
+  const totals = atrasados.reduce((acc, order) => {
+    acc.value += Number(order.totalValor) || 0;
+    acc.kg += Number(order.totalKg) || 0;
+    return acc;
+  }, { value: 0, kg: 0 });
+
+  const summaries = atrasados.map((order) => {
+    const delivery = order.dataEntrega ? new Date(order.dataEntrega + "T12:00:00") : null;
+    const delayDays = delivery ? Math.max(0, Math.round((todayD - delivery) / 86400000)) : 0;
+    const stock = stockAnalysis.orderMap.get(order.pedido);
+    const priority = stock?.produceKg <= 0 ? 1 : stock?.readyKg > 0 ? 2 : 3;
+    const action = priority === 1
+      ? "Separar, validar romaneio/faturamento e expedir."
+      : priority === 2
+        ? "Separar itens prontos e cobrar saldo pendente da produção."
+        : "Cobrar produção antes de programar expedição.";
+    const priorityLabel = priority === 1 ? "Pronto" : priority === 2 ? "Parcial" : "Produzir";
+    return { order, stock, delayDays, priority, priorityLabel, action };
+  }).sort((a, b) => a.priority - b.priority || b.delayDays - a.delayDays || (Number(b.order.totalValor) || 0) - (Number(a.order.totalValor) || 0));
+
+  const priorityGroups = [
+    { title: "Prioridade 1 · Prontos para expedição/faturamento", items: summaries.filter((item) => item.priority === 1), tone: "ready" },
+    { title: "Prioridade 2 · Parciais, separar o pronto e cobrar saldo", items: summaries.filter((item) => item.priority === 2), tone: "partial" },
+    { title: "Prioridade 3 · Dependem de produção antes da expedição", items: summaries.filter((item) => item.priority === 3), tone: "produce" }
+  ];
+
+  const groupTotal = (items) => items.reduce((acc, item) => {
+    acc.value += Number(item.order.totalValor) || 0;
+    acc.kg += Number(item.order.totalKg) || 0;
+    acc.readyKg += Number(item.stock?.readyKg) || 0;
+    acc.produceKg += Number(item.stock?.produceKg) || 0;
+    return acc;
+  }, { value: 0, kg: 0, readyKg: 0, produceKg: 0 });
+
+  const summaryRows = summaries.map(({ order, stock, delayDays, priorityLabel, action, priority }) => {
+    const delivery = order.dataEntrega ? new Date(order.dataEntrega + "T12:00:00").toLocaleDateString("pt-BR") : "-";
+    const location = `${order.cidade || "-"} / ${order.estado || "-"}`;
+    return `
+      <tr>
+        <td><strong>${escapeHtml(order.pedido)}</strong></td>
+        <td>
+          <strong>${escapeHtml(order.cliente || "-")}</strong>
+          <small>${escapeHtml(location)} · ${escapeHtml(order.representante || "-")}</small>
+        </td>
+        <td>${escapeHtml(delivery)}<small>${delayDays} dia${delayDays === 1 ? "" : "s"} atraso</small></td>
+        <td>${formatKg(Number(order.totalKg) || 0, 0)}</td>
+        <td>${formatBRL(Number(order.totalValor) || 0, 0)}</td>
+        <td><span class="pill ${priority === 1 ? "ready" : priority === 2 ? "partial" : "produce"}">${priorityLabel}</span></td>
+        <td>
+          ${formatKg(Number(stock?.readyKg) || 0, 0)}
+          <small>Produzir ${formatKg(Number(stock?.produceKg) || 0, 0)}</small>
+        </td>
+        <td>${escapeHtml(action)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const orderCards = priorityGroups.map((group) => {
+    if (!group.items.length) return "";
+    const total = groupTotal(group.items);
+    const cards = group.items.map(({ order, stock, delayDays, action, priority }) => {
+      const delivery = order.dataEntrega ? new Date(order.dataEntrega + "T12:00:00").toLocaleDateString("pt-BR") : "-";
+      const location = `${order.cidade || "-"} / ${order.estado || "-"}`;
+      const lines = (order.linhas || []).map((line) => {
+        const detail = stockAnalysis.lineMap.get(`${order.pedido}|${line.seq}`);
+        const lineTone = detail?.produceKg <= 0 ? "ready" : detail?.readyKg > 0 ? "partial" : "produce";
+        return `
+          <tr>
+            <td>${escapeHtml(line.seq || "-")}</td>
+            <td>
+              <strong>${escapeHtml(line.produto || "-")}</strong>
+              <small>${escapeHtml(detail?.maquina || line.maquina || "-")}</small>
+            </td>
+            <td>${formatKg(Number(line.kg) || 0, 1)}</td>
+            <td>${formatKg(Number(detail?.readyKg) || 0, 1)}</td>
+            <td>${formatKg(Number(detail?.produceKg) || 0, 1)}</td>
+            <td><span class="pill ${lineTone}">${escapeHtml(detail?.status || "Sem estoque")}</span></td>
+          </tr>
+        `;
+      }).join("");
+
+      return `
+        <section class="order-card ${priority === 1 ? "ready" : priority === 2 ? "partial" : "produce"}">
+          <div class="order-head">
+            <div>
+              <h3>Pedido ${escapeHtml(order.pedido)} · ${escapeHtml(order.cliente || "-")}</h3>
+              <p>${escapeHtml(location)} · Rep. ${escapeHtml(order.representante || "-")}</p>
+            </div>
+            <div class="order-meta">
+              <strong>${escapeHtml(delivery)}</strong>
+              <span>${delayDays} dia${delayDays === 1 ? "" : "s"} atraso</span>
+            </div>
+          </div>
+          <dl class="order-facts">
+            <div><dt>Peso</dt><dd>${formatKg(Number(order.totalKg) || 0, 0)}</dd></div>
+            <div><dt>Valor</dt><dd>${formatBRL(Number(order.totalValor) || 0, 0)}</dd></div>
+            <div><dt>Pronto</dt><dd>${formatKg(Number(stock?.readyKg) || 0, 0)}</dd></div>
+            <div><dt>Produzir</dt><dd>${formatKg(Number(stock?.produceKg) || 0, 0)}</dd></div>
+            <div><dt>Situação</dt><dd>${escapeHtml(order.situacao || "-")}</dd></div>
+            <div><dt>Frete/Pgto</dt><dd>${escapeHtml(order.frete || "-")} · ${escapeHtml(order.condicaoPgto || "-")}</dd></div>
+          </dl>
+          <div class="action-box"><strong>Ação da expedição:</strong> ${escapeHtml(action)}</div>
+          <table class="line-table">
+            <thead>
+              <tr>
+                <th>Seq.</th>
+                <th>Produto</th>
+                <th>Pedido</th>
+                <th>Pronto</th>
+                <th>Produzir</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>${lines}</tbody>
+          </table>
+        </section>
+      `;
+    }).join("");
+
+    return `
+      <section class="priority-block ${group.tone}">
+        <div class="priority-head">
+          <h2>${escapeHtml(group.title)}</h2>
+          <span>${group.items.length} pedido${group.items.length === 1 ? "" : "s"} · ${formatKg(total.kg, 0)} · ${formatBRL(total.value, 0)} · pronto ${formatKg(total.readyKg, 0)} · produzir ${formatKg(total.produceKg, 0)}</span>
+        </div>
+        ${cards}
+      </section>
+    `;
+  }).join("");
+
+  const reportHtml = `
+    <!doctype html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8">
+        <title>Pedidos atrasados · Expedição</title>
+        <style>
+          @page { size: A4 landscape; margin: 10mm; }
+          * { box-sizing: border-box; }
+          body {
+            margin: 0;
+            background: #fff;
+            color: #1f2937;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11px;
+            line-height: 1.35;
+          }
+          header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #0ea5c6;
+          }
+          .brand { display: flex; align-items: center; gap: 12px; }
+          .brand img { width: 118px; height: auto; object-fit: contain; }
+          h1, h2, h3, p { margin: 0; }
+          h1 { color: #111827; font-size: 22px; line-height: 1.05; }
+          h2 { color: #111827; font-size: 15px; }
+          h3 { color: #111827; font-size: 13px; }
+          small { display: block; color: #6b7280; font-size: 10px; }
+          .meta { text-align: right; color: #4b5563; }
+          .summary {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin: 12px 0;
+          }
+          .metric {
+            padding: 8px 10px;
+            border: 1px solid #d1d5db;
+            border-top: 4px solid #0ea5c6;
+            border-radius: 6px;
+            break-inside: avoid;
+          }
+          .metric.red { border-top-color: #dc2626; }
+          .metric.amber { border-top-color: #d97706; }
+          .metric.green { border-top-color: #16a34a; }
+          .metric span { display: block; color: #6b7280; font-size: 9px; font-weight: 700; text-transform: uppercase; }
+          .metric strong { display: block; margin-top: 4px; color: #111827; font-size: 15px; }
+          table { width: 100%; border-collapse: collapse; }
+          th {
+            background: #e8f7fb;
+            color: #111827;
+            font-size: 9px;
+            text-align: left;
+            text-transform: uppercase;
+          }
+          th, td { padding: 5px 6px; border: 1px solid #d1d5db; vertical-align: top; }
+          td:nth-child(3), td:nth-child(4), td:nth-child(5), td:nth-child(7) { white-space: nowrap; }
+          .summary-table { margin: 10px 0 14px; }
+          .pill {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 999px;
+            color: #111827;
+            font-size: 9px;
+            font-weight: 700;
+            white-space: nowrap;
+          }
+          .pill.ready { background: #dcfce7; color: #166534; }
+          .pill.partial { background: #fef3c7; color: #92400e; }
+          .pill.produce { background: #fee2e2; color: #991b1b; }
+          .priority-block { margin-top: 12px; break-inside: avoid; }
+          .priority-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 7px 9px;
+            border-radius: 6px 6px 0 0;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-bottom: none;
+          }
+          .priority-head span { color: #4b5563; font-weight: 700; }
+          .priority-block.ready .priority-head { background: #ecfdf5; }
+          .priority-block.partial .priority-head { background: #fffbeb; }
+          .priority-block.produce .priority-head { background: #fef2f2; }
+          .order-card {
+            padding: 9px;
+            border: 1px solid #d1d5db;
+            border-left: 5px solid #0ea5c6;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .order-card + .order-card { margin-top: 8px; }
+          .order-card.ready { border-left-color: #16a34a; }
+          .order-card.partial { border-left-color: #d97706; }
+          .order-card.produce { border-left-color: #dc2626; }
+          .order-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+          }
+          .order-head p { color: #4b5563; font-size: 10px; margin-top: 2px; }
+          .order-meta { text-align: right; }
+          .order-meta strong { display: block; font-size: 13px; color: #111827; }
+          .order-meta span { color: #dc2626; font-weight: 700; }
+          .order-facts {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 6px;
+            margin: 0 0 8px;
+          }
+          .order-facts div {
+            padding: 5px 6px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+          }
+          dt { color: #6b7280; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+          dd { margin: 2px 0 0; color: #111827; font-weight: 700; }
+          .action-box {
+            margin-bottom: 8px;
+            padding: 7px 9px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 5px;
+            color: #1e3a8a;
+            font-size: 11px;
+          }
+          .line-table th, .line-table td { padding: 4px 6px; }
+          .toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 8px 0;
+            background: #fff;
+          }
+          .toolbar button {
+            border: 1px solid #0ea5c6;
+            border-radius: 6px;
+            background: #0ea5c6;
+            color: #fff;
+            font-weight: 700;
+            padding: 7px 12px;
+            cursor: pointer;
+          }
+          @media print {
+            .toolbar { display: none; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="toolbar"><button onclick="window.print()">Imprimir / salvar PDF</button></div>
+        <header>
+          <div class="brand">
+            <img src="${logoUrl}" alt="Spunflex">
+            <div>
+              <h1>Pedidos atrasados para expedição</h1>
+              <small>Relatório operacional para foco nos pedidos vencidos da carteira</small>
+            </div>
+          </div>
+          <div class="meta">
+            <strong>Referência: ${escapeHtml(refDateLabel)}</strong>
+            <small>Gerado em ${escapeHtml(generatedAt)}</small>
+          </div>
+        </header>
+        <section class="summary">
+          <article class="metric red"><span>Pedidos atrasados</span><strong>${atrasados.length}</strong></article>
+          <article class="metric"><span>Peso total</span><strong>${formatKg(totals.kg, 0)}</strong></article>
+          <article class="metric"><span>Valor total</span><strong>${formatBRL(totals.value, 0)}</strong></article>
+          <article class="metric green"><span>Prontos</span><strong>${priorityGroups[0].items.length}</strong></article>
+          <article class="metric amber"><span>Parciais / produzir</span><strong>${priorityGroups[1].items.length + priorityGroups[2].items.length}</strong></article>
+        </section>
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>Pedido</th>
+              <th>Cliente / Representante</th>
+              <th>Entrega</th>
+              <th>Peso</th>
+              <th>Valor</th>
+              <th>Status estoque</th>
+              <th>Pronto</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody>${summaryRows}</tbody>
+        </table>
+        ${orderCards}
+      </body>
+    </html>
+  `;
+
+  const reportWindow = window.open("", "_blank");
+  if (!reportWindow) {
+    showToast("Pop-up bloqueado", "Permita pop-ups para abrir o relatório em PDF.", "warning", 5000);
+    return;
+  }
+
+  reportWindow.document.open();
+  reportWindow.document.write(displayMachineLabels(reportHtml));
+  reportWindow.document.close();
+  reportWindow.focus();
+  showToast("Relatório pronto", "A janela de impressão foi aberta. Use Salvar como PDF.", "success", 3200);
+  setTimeout(() => {
+    reportWindow.print();
+  }, 700);
+}
+
+function renderInventory() {
+  const stockPayload = window.finishedGoodsStock2026 || { records: [] };
+  const stockRecords = stockPayload.records || [];
+  if (!stockRecords.length) {
+    return `
+      <div class="section-grid">
+        <article class="panel span-12">
+          <div class="empty-state">Nenhum arquivo de estoque carregado. Gere a base stock-data.js a partir da planilha de estoque.</div>
+        </article>
+      </div>
+    `;
+  }
+
+  const colors = inventoryColorCatalog(stockRecords);
+  const activeOrders = (data.carteiraOrders2026 || []).filter((order) => order.situacao !== "Cancelado" && order.situacao !== "Nota Gerada");
+  const productMix = data.productMix2026?.items || [];
+  const globalAvgPrice = data.mayInvoices2026?.totals?.avgPrice || (data.currentMayBilling2026.revenue / data.currentMayBilling2026.weightKg);
+  const filters = state.inventoryFilters || {};
+  const commercialProfileFor = (row) => {
+    const text = `${row.segment || ""} ${row.line || ""} ${row.description || ""} ${row.className || ""}`.toUpperCase();
+    if (/(HIGI|MEDICAL|HOSPITALAR|HFL|SMS)/.test(text)) return "Higiênico / medical";
+    if (/(COLCH|ESTOF|MOLA)/.test(text)) return "Colchão / estofados";
+    if (/(CONSTRU|INDUSTRIAL|AGRO)/.test(text)) return "Construção / industrial";
+    if (/(MOVELEIRO|EMBALAGEM)/.test(text)) return "Moveleiro / embalagem";
+    if (/(VELA|TNT|FLEXNTE|BASE VELA)/.test(text)) return "Distribuição / pronta entrega";
+    if (/(DISTRIB)/.test(text)) return "Distribuidores / revenda";
+    return "Outros clientes";
+  };
+  const weightedMaps = { exact: new Map(), noColor: new Map(), lineGrammage: new Map(), line: new Map() };
+
+  const addWeighted = (map, key, kg, value) => {
+    if (!key || !kg || !value) return;
+    if (!map.has(key)) map.set(key, { kg: 0, value: 0 });
+    const agg = map.get(key);
+    agg.kg += kg;
+    agg.value += value;
+  };
+
+  productMix.forEach((item) => {
+    const sig = inventorySignatureFromMix(item);
+    addWeighted(weightedMaps.exact, inventoryKey(sig), item.weightKg, item.revenue);
+    addWeighted(weightedMaps.noColor, inventoryKey(sig, "noColor"), item.weightKg, item.revenue);
+    addWeighted(weightedMaps.lineGrammage, inventoryKey(sig, "lineGrammage"), item.weightKg, item.revenue);
+    addWeighted(weightedMaps.line, inventoryKey(sig, "line"), item.weightKg, item.revenue);
+  });
+
+  const avgFromMap = (map, key) => {
+    const row = map.get(key);
+    return row?.kg ? row.value / row.kg : null;
+  };
+  const priceFor = (sig) => {
+    const exact = avgFromMap(weightedMaps.exact, inventoryKey(sig));
+    if (exact) return { price: exact, source: "SKU vendido em maio" };
+    const noColor = avgFromMap(weightedMaps.noColor, inventoryKey(sig, "noColor"));
+    if (noColor) return { price: noColor, source: "linha/largura/gramatura" };
+    const lineGrammage = avgFromMap(weightedMaps.lineGrammage, inventoryKey(sig, "lineGrammage"));
+    if (lineGrammage) return { price: lineGrammage, source: "linha/gramatura" };
+    const line = avgFromMap(weightedMaps.line, inventoryKey(sig, "line"));
+    if (line) return { price: line, source: "média da linha" };
+    return { price: globalAvgPrice, source: "média geral maio" };
+  };
+
+  const demandBySku = new Map();
+  const demandByMachine = new Map();
+  activeOrders.forEach((order) => {
+    (order.linhas || []).forEach((line) => {
+      const sig = inventorySignatureFromText(line.produto, colors);
+      const kg = Number(line.kg) || 0;
+      demandBySku.set(inventoryKey(sig), (demandBySku.get(inventoryKey(sig)) || 0) + kg);
+      const machine = line.maquina || "Sem máquina";
+      demandByMachine.set(machine, (demandByMachine.get(machine) || 0) + kg);
+    });
+  });
+
+  const soldBySku = new Map();
+  productMix.forEach((item) => {
+    const key = inventoryKey(inventorySignatureFromMix(item));
+    soldBySku.set(key, (soldBySku.get(key) || 0) + (Number(item.weightKg) || 0));
+  });
+
+  const grouped = new Map();
+  stockRecords.forEach((row) => {
+    const sig = inventorySignatureFromRecord(row);
+    const skuKey = inventoryKey(sig);
+    const key = `${skuKey}|${row.machine || "Sem máquina"}`;
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        key,
+        skuKey,
+        sig,
+        line: row.line || sig.line,
+        widthMm: row.widthMm,
+        color: row.color || sig.color,
+        grammage: row.grammage,
+        machine: row.machine || "Sem máquina",
+        segment: row.segment || "-",
+        className: row.className || "-",
+        currentKg: 0,
+        availableKg: 0,
+        pieces: 0,
+        descriptions: new Set(),
+        productCodes: new Set(),
+        needsRefile: false
+      });
+    }
+    const agg = grouped.get(key);
+    agg.currentKg += Number(row.currentKg) || 0;
+    agg.availableKg += Number(row.availableKg) || 0;
+    agg.pieces += Number(row.pieces) || 0;
+    agg.needsRefile = agg.needsRefile || Boolean(row.needsRefile);
+    if (row.productName || row.description) agg.descriptions.add(row.productName || row.description);
+    if (row.productCode) agg.productCodes.add(row.productCode);
+  });
+
+  const stockRows = [...grouped.values()].map((row) => {
+    const pricing = priceFor(row.sig);
+    const availablePositive = Math.max(row.availableKg, 0);
+    const demandKg = demandBySku.get(row.skuKey) || 0;
+    const soldMayKg = soldBySku.get(row.skuKey) || 0;
+    const surplusKg = row.availableKg - demandKg;
+    const value = availablePositive * pricing.price;
+    let status = "Sem venda";
+    let tone = "red";
+    if (row.availableKg < 0) {
+      status = "Disponível negativo";
+    } else if (demandKg > 0 && surplusKg >= 0) {
+      status = "Cobre carteira";
+      tone = "";
+    } else if (demandKg > 0 && surplusKg < 0) {
+      status = "Falta estoque";
+      tone = "amber";
+    } else if (soldMayKg > 0) {
+      status = "Giro sem carteira";
+      tone = "blue";
+    }
+    return {
+      ...row,
+      price: pricing.price,
+      priceSource: pricing.source,
+      availablePositive,
+      demandKg,
+      soldMayKg,
+      surplusKg,
+      value,
+      status,
+      tone,
+      productCode: [...row.productCodes][0] || "",
+      description: [...row.descriptions][0] || `${row.line} ${row.widthMm || ""}MM ${row.color} ${row.grammage || ""}GR`,
+      clientProfile: commercialProfileFor(row)
+    };
+  });
+
+  const totals = stockRows.reduce((acc, row) => {
+    acc.currentKg += row.currentKg;
+    acc.availableKg += row.availablePositive;
+    acc.rawAvailableKg += row.availableKg;
+    acc.value += row.value;
+    acc.demandKg += row.demandKg;
+    acc.soldMayKg += row.soldMayKg;
+    if (row.availableKg < 0) acc.negativeKg += Math.abs(row.availableKg);
+    if (row.demandKg <= 0 && row.availablePositive > 0) acc.noDemandSkus += 1;
+    if (row.demandKg <= 0 && row.soldMayKg <= 0 && row.availablePositive > 0) {
+      acc.noMovementSkus += 1;
+      acc.noMovementKg += row.availablePositive;
+      acc.noMovementValue += row.value;
+    }
+    return acc;
+  }, { currentKg: 0, availableKg: 0, rawAvailableKg: 0, value: 0, demandKg: 0, soldMayKg: 0, negativeKg: 0, noDemandSkus: 0, noMovementSkus: 0, noMovementKg: 0, noMovementValue: 0 });
+
+  const machineMap = new Map();
+  stockRows.forEach((row) => {
+    const key = row.machine || "Sem máquina";
+    if (!machineMap.has(key)) machineMap.set(key, { machine: key, stockKg: 0, stockValue: 0, skus: 0, demandKg: 0, negativeKg: 0 });
+    const agg = machineMap.get(key);
+    agg.stockKg += row.availablePositive;
+    agg.stockValue += row.value;
+    agg.skus += 1;
+    if (row.availableKg < 0) agg.negativeKg += Math.abs(row.availableKg);
+  });
+  demandByMachine.forEach((kg, machine) => {
+    if (!machineMap.has(machine)) machineMap.set(machine, { machine, stockKg: 0, stockValue: 0, skus: 0, demandKg: 0, negativeKg: 0 });
+    machineMap.get(machine).demandKg += kg;
+  });
+  const machineRows = [...machineMap.values()].sort((a, b) => b.stockKg - a.stockKg);
+
+  const noMovementAll = stockRows
+    .filter((row) => row.availablePositive > 0 && row.demandKg <= 0 && row.soldMayKg <= 0)
+    .sort((a, b) => b.value - a.value);
+  const optionValues = (rows, key, numeric = false) => {
+    const values = [...new Set(rows.map((row) => row[key]).filter((value) => value !== undefined && value !== null && value !== "" && value !== "-"))];
+    return values.sort((a, b) => numeric ? Number(a) - Number(b) : String(a).localeCompare(String(b), "pt-BR"));
+  };
+  const selectOptions = (values, selected, formatter = (value) => value) => values.map((value) => {
+    const normalized = String(value);
+    return `<option value="${escapeHtml(normalized)}" ${String(selected) === normalized ? "selected" : ""}>${escapeHtml(formatter(value))}</option>`;
+  }).join("");
+  const noMovementFiltered = noMovementAll.filter((row) => {
+    const query = (filters.query || "").trim().toLowerCase();
+    const minKg = Number(String(filters.minKg || "").replace(",", "."));
+    const haystack = [
+      row.description,
+      row.line,
+      row.color,
+      row.segment,
+      row.clientProfile,
+      row.machine,
+      row.grammage,
+      row.widthMm
+    ].join(" ").toLowerCase();
+    return (!query || haystack.includes(query)) &&
+      (!filters.line || filters.line === "all" || row.line === filters.line) &&
+      (!filters.width || filters.width === "all" || String(row.widthMm) === String(filters.width)) &&
+      (!filters.grammage || filters.grammage === "all" || String(row.grammage) === String(filters.grammage)) &&
+      (!filters.color || filters.color === "all" || row.color === filters.color) &&
+      (!filters.profile || filters.profile === "all" || row.clientProfile === filters.profile) &&
+      (!filters.machine || filters.machine === "all" || row.machine === filters.machine) &&
+      (!Number.isFinite(minKg) || minKg <= 0 || row.availablePositive >= minKg);
+  });
+  const noMovementFilteredTotals = noMovementFiltered.reduce((acc, row) => {
+    acc.kg += row.availablePositive;
+    acc.value += row.value;
+    acc.pieces += row.pieces || 0;
+    acc.skus += 1;
+    return acc;
+  }, { kg: 0, value: 0, pieces: 0, skus: 0 });
+  const groupNoMovement = (rows, keyFn, labelFn = (value) => value) => {
+    const map = new Map();
+    rows.forEach((row) => {
+      const key = keyFn(row) || "Sem classificação";
+      if (!map.has(key)) map.set(key, { key, label: labelFn(key), kg: 0, value: 0, skus: 0 });
+      const agg = map.get(key);
+      agg.kg += row.availablePositive;
+      agg.value += row.value;
+      agg.skus += 1;
+    });
+    return [...map.values()].sort((a, b) => b.kg - a.kg);
+  };
+  const movementBarList = (rows, totalKg, fillClass = "") => rows.map((row) => {
+    const width = totalKg ? Math.max(2, Math.round((row.kg / totalKg) * 100)) : 0;
+    return `
+      <div class="bar-row">
+        <div class="bar-label"><strong>${escapeHtml(row.label)}</strong><br><small>${row.skus} SKU${row.skus > 1 ? "s" : ""} · ${formatBRL(row.value, 0)}</small></div>
+        <div class="bar-track"><div class="bar-fill ${fillClass}" style="width:${width}%"></div></div>
+        <div class="bar-value">${formatKg(row.kg, 0)}<br><small>${totalKg ? formatPercent(row.kg / totalKg) : "0%"}</small></div>
+      </div>
+    `;
+  }).join("");
+  const noMovementByLine = groupNoMovement(noMovementFiltered, (row) => row.line || "Outros");
+  const noMovementByWidth = groupNoMovement(noMovementFiltered, (row) => row.widthMm ? `${row.widthMm} mm` : "Sem largura");
+  const noMovementByGrammage = groupNoMovement(noMovementFiltered, (row) => row.grammage ? `${row.grammage} g` : "Sem gramatura");
+  const noMovementByProfile = groupNoMovement(noMovementFiltered, (row) => row.clientProfile || "Outros clientes");
+  const coverageRows = stockRows
+    .filter((row) => row.demandKg > 0 || row.availablePositive > 0)
+    .sort((a, b) => (b.demandKg - b.availablePositive) - (a.demandKg - a.availablePositive));
+  const topValueRows = [...stockRows]
+    .filter((row) => row.availablePositive > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 12);
+
+  const machineCards = machineRows.map((row) => {
+    const coverage = row.demandKg ? row.stockKg / row.demandKg : null;
+    const tone = row.negativeKg ? "red" : coverage === null ? "blue" : coverage >= 1 ? "green" : "amber";
+    return `
+      <article class="inventory-machine-card ${tone}">
+        <span>${escapeHtml(row.machine)}</span>
+        <strong>${formatKg(row.stockKg, 0)}</strong>
+        <small>${formatBRL(row.stockValue, 0)} · ${row.skus} SKUs${row.demandKg ? ` · cobertura ${formatPercent(coverage)}` : ""}</small>
+      </article>
+    `;
+  }).join("");
+
+  const machineTable = machineRows.map((row) => {
+    const coverage = row.demandKg ? row.stockKg / row.demandKg : null;
+    const surplus = row.stockKg - row.demandKg;
+    return `
+      <tr>
+        <td style="text-align:left"><strong>${escapeHtml(row.machine)}</strong></td>
+        <td>${row.skus}</td>
+        <td>${formatKg(row.stockKg, 0)}</td>
+        <td>${formatBRL(row.stockValue, 0)}</td>
+        <td>${row.demandKg ? formatKg(row.demandKg, 0) : "-"}</td>
+        <td>${coverage === null ? "Sem carteira" : formatPercent(coverage)}</td>
+        <td><span class="status-pill ${surplus >= 0 ? "" : "red"}">${formatKg(surplus, 0)}</span></td>
+      </tr>
+    `;
+  }).join("");
+
+  const coverageTable = coverageRows.map((row) => `
+    <tr>
+      <td style="text-align:left"><strong>${escapeHtml(row.description)}</strong><br><small>${escapeHtml(row.machine)} · ${escapeHtml(row.segment)} · ${row.needsRefile ? "requer refile" : row.priceSource}</small></td>
+      <td>${formatKg(row.availablePositive, 0)}</td>
+      <td>${row.demandKg ? formatKg(row.demandKg, 0) : "-"}</td>
+      <td>${row.soldMayKg ? formatKg(row.soldMayKg, 0) : "-"}</td>
+      <td>${formatBRL(row.price)}/kg</td>
+      <td>${formatBRL(row.value, 0)}</td>
+      <td><span class="status-pill ${row.tone}">${escapeHtml(row.status)}</span></td>
+    </tr>
+  `).join("");
+
+  const noMovementTable = noMovementFiltered.map((row) => `
+    <tr>
+      <td style="text-align:left"><strong>${escapeHtml(row.description)}</strong><br><small>${escapeHtml(row.productCode || "")} ${escapeHtml(row.machine)} · ${row.needsRefile ? "requer refile" : row.priceSource}</small></td>
+      <td>${escapeHtml(row.line || "Outros")}</td>
+      <td>${row.widthMm ? `${row.widthMm} mm` : "-"}</td>
+      <td>${row.grammage ? `${row.grammage} g` : "-"}</td>
+      <td>${escapeHtml(row.color || "-")}</td>
+      <td>${escapeHtml(row.clientProfile || "-")}</td>
+      <td>${formatKg(row.availablePositive, 0)}</td>
+      <td>${formatBRL(row.price)}/kg</td>
+      <td>${formatBRL(row.value, 0)}</td>
+      <td>${row.pieces ? row.pieces.toLocaleString("pt-BR") : "-"}</td>
+    </tr>
+  `).join("");
+
+  const topValueTable = topValueRows.map((row) => `
+    <tr>
+      <td style="text-align:left"><strong>${escapeHtml(row.description)}</strong><br><small>${escapeHtml(row.priceSource)}</small></td>
+      <td>${escapeHtml(row.machine)}</td>
+      <td>${formatKg(row.availablePositive, 0)}</td>
+      <td>${formatBRL(row.price)}/kg</td>
+      <td>${formatBRL(row.value, 0)}</td>
+      <td>${row.demandKg ? formatKg(row.demandKg, 0) : "-"}</td>
+    </tr>
+  `).join("");
+
+  const inventoryFiltersChanged = Object.entries(filters).some(([key, value]) => key === "query" ? Boolean(value) : value && value !== "all");
+  const lineOptions = selectOptions(optionValues(noMovementAll, "line"), filters.line);
+  const widthOptions = selectOptions(optionValues(noMovementAll, "widthMm", true), filters.width, (value) => `${value} mm`);
+  const grammageOptions = selectOptions(optionValues(noMovementAll, "grammage", true), filters.grammage, (value) => `${value} g`);
+  const colorOptions = selectOptions(optionValues(noMovementAll, "color"), filters.color);
+  const profileOptions = selectOptions(optionValues(noMovementAll, "clientProfile"), filters.profile);
+  const machineOptions = selectOptions(optionValues(noMovementAll, "machine"), filters.machine);
+
+  return `
+    <div class="section-grid inventory-dashboard">
+      <article class="panel span-12 inventory-hero">
         <div class="panel-header">
           <div>
-            <h2>Configurações operacionais</h2>
-            <p>Custo, capacidades e metas usados em todos os cálculos do sistema. Edite os campos abaixo e clique em <strong>Salvar todas as alterações</strong>.</p>
+            <h2>Estoque de produtos acabados · ${new Date(stockPayload.snapshotDate + "T12:00:00").toLocaleDateString("pt-BR")}</h2>
+            <p>Base importada de ${escapeHtml(stockPayload.sourceFile)}. Valoração feita pelo preço médio de venda de maio por SKU, com fallback por linha/gramatura e média geral.</p>
           </div>
-          <span class="status-pill blue">Editável</span>
+          <span class="status-pill blue">${stockRecords.length} itens ERP</span>
         </div>
-        <div class="admin-form" id="config-form">
-          <label>Custo médio (R$/kg)
-            <input id="config-cost" type="number" min="0" step="0.01" value="${config.costPerKg}">
-          </label>
-          <label>Custo fixo mensal (R$)
-            <input id="config-fixed-cost" type="number" min="0" step="1000" value="${config.fixedCostMonthly}">
-          </label>
-          <label>Capacidade Corte 1 (kg/mês)
-            <input id="config-cap-corte1" type="number" min="0" step="1000" value="${config.machineCapacityKg['Corte 1']}">
-          </label>
-          <label>Capacidade Corte 2 (kg/mês)
-            <input id="config-cap-corte2" type="number" min="0" step="1000" value="${config.machineCapacityKg['Corte 2']}">
-          </label>
-          <label>Capacidade Rebobinadeira (kg/mês)
-            <input id="config-cap-rebo" type="number" min="0" step="1000" value="${config.machineCapacityKg['Rebobinadeira']}">
-          </label>
-          <label>Meta mensal (kg)
-            <input id="config-target-kg" type="number" min="0" step="1000" value="${config.monthlyTargetKg}">
-          </label>
-          <div style="grid-column:1/-1;display:flex;justify-content:flex-end;gap:10px;margin-top:6px">
-            <button class="primary-button" id="save-all-config" type="button">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M5 13l4 4L19 7"></path>
-              </svg>
-              <span>Salvar todas as alterações</span>
-            </button>
+        <div class="commercial-kpi-grid">
+          <article class="commercial-kpi green"><span>Estoque disponível</span><strong>${formatKg(totals.availableKg, 0)}</strong><small>${formatKg(totals.currentKg, 0)} em estoque atual</small></article>
+          <article class="commercial-kpi blue"><span>Valor estimado</span><strong>${formatBRL(totals.value, 0)}</strong><small>Precificado pelo R$/kg médio vendido em maio</small></article>
+          <article class="commercial-kpi amber"><span>Carteira ativa</span><strong>${formatKg(totals.demandKg, 0)}</strong><small>${activeOrders.length} pedidos em aberto para comparar</small></article>
+          <article class="commercial-kpi ${totals.availableKg >= totals.demandKg ? "green" : "red"}"><span>Cobertura geral</span><strong>${totals.demandKg ? formatPercent(totals.availableKg / totals.demandKg) : "Sem carteira"}</strong><small>Disponível vs carteira aberta</small></article>
+          <article class="commercial-kpi red"><span>Sem venda/carteira</span><strong>${totals.noMovementSkus} SKUs</strong><small>${formatKg(totals.noMovementKg, 0)} · ${formatBRL(totals.noMovementValue, 0)}</small></article>
+          <article class="commercial-kpi ${totals.negativeKg ? "red" : "green"}"><span>Saldo negativo</span><strong>${totals.negativeKg ? formatKg(totals.negativeKg, 0) : "Sem alerta"}</strong><small>Disponível ERP menor que zero</small></article>
+        </div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Separação por máquina / corte</h2>
+            <p>Estoque inferido por regra operacional: TNT/FLEXNTE e refile em Rebobinadeira; largura acima de 1400mm em Corte 2; demais itens em Corte 1.</p>
           </div>
+        </div>
+        <div class="inventory-machine-grid">${machineCards}</div>
+        <div class="data-table-wrap inventory-table inventory-scroll-window">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Máquina</th>
+                <th>SKUs</th>
+                <th>Disponível</th>
+                <th>Valor estoque</th>
+                <th>Carteira</th>
+                <th>Cobertura</th>
+                <th>Saldo</th>
+              </tr>
+            </thead>
+            <tbody>${machineTable}</tbody>
+            <tfoot>
+              <tr>
+                <td style="text-align:left"><strong>Total</strong></td>
+                <td>${machineRows.reduce((sum, row) => sum + row.skus, 0)}</td>
+                <td>${formatKg(totals.availableKg, 0)}</td>
+                <td>${formatBRL(totals.value, 0)}</td>
+                <td>${formatKg(totals.demandKg, 0)}</td>
+                <td>${totals.demandKg ? formatPercent(totals.availableKg / totals.demandKg) : "Sem carteira"}</td>
+                <td>${formatKg(totals.availableKg - totals.demandKg, 0)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel span-8">
+        <div class="panel-header">
+          <div>
+            <h2>Estoque vs carteira de pedidos</h2>
+            <p>Prioriza itens com falta, cobertura baixa ou saldo comercial relevante.</p>
+          </div>
+          <button class="ghost-button" type="button" data-view-jump="backlog">Abrir carteira</button>
+        </div>
+        <div class="data-table-wrap inventory-table inventory-scroll-window">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Produto</th>
+                <th>Disponível</th>
+                <th>Carteira</th>
+                <th>Vendido mês</th>
+                <th>Preço</th>
+                <th>Valor</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>${coverageTable}</tbody>
+            <tfoot>
+              <tr>
+                <td style="text-align:left"><strong>Total exibido</strong></td>
+                <td>${formatKg(coverageRows.reduce((sum, row) => sum + row.availablePositive, 0), 0)}</td>
+                <td>${formatKg(coverageRows.reduce((sum, row) => sum + row.demandKg, 0), 0)}</td>
+                <td>${formatKg(coverageRows.reduce((sum, row) => sum + row.soldMayKg, 0), 0)}</td>
+                <td>-</td>
+                <td>${formatBRL(coverageRows.reduce((sum, row) => sum + row.value, 0), 0)}</td>
+                <td>${coverageRows.length} SKUs</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel span-4">
+        <div class="panel-header">
+          <div>
+            <h2>Leitura executiva</h2>
+            <p>O que agir primeiro no estoque acabado.</p>
+          </div>
+        </div>
+        <div class="stat-stack">
+          <div><span>Capital sem giro</span><strong>${formatBRL(totals.noMovementValue, 0)}</strong><small>Sem carteira e sem venda no mix de maio</small></div>
+          <div><span>SKUs sem carteira</span><strong>${totals.noDemandSkus}</strong><small>Com saldo disponível e nenhum pedido aberto</small></div>
+          <div><span>Preço médio aplicado</span><strong>${formatBRL(globalAvgPrice)}/kg</strong><small>Fallback quando não há histórico do SKU</small></div>
+        </div>
+      </article>
+
+      <article class="panel span-12 inventory-filter-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Estoque sem venda · filtros comerciais</h2>
+            <p>Separe o material disponível por tipo, largura, gramatura, cor, máquina e perfil de cliente para direcionar ofertas.</p>
+          </div>
+          ${inventoryFiltersChanged ? `<button class="ghost-button" type="button" data-inventory-clear>Limpar filtros</button>` : `<span class="status-pill red">${totals.noMovementSkus} SKUs sem venda</span>`}
+        </div>
+        <div class="inventory-filter-grid">
+          <label>
+            <span>Buscar</span>
+            <input class="search-input" id="inventory-search" type="search" data-inventory-filter="query" placeholder="Produto, cor, aplicação, máquina..." value="${escapeHtml(filters.query || "")}">
+          </label>
+          <label>
+            <span>Tipo</span>
+            <select data-inventory-filter="line"><option value="all">Todos</option>${lineOptions}</select>
+          </label>
+          <label>
+            <span>Largura</span>
+            <select data-inventory-filter="width"><option value="all">Todas</option>${widthOptions}</select>
+          </label>
+          <label>
+            <span>Gramatura</span>
+            <select data-inventory-filter="grammage"><option value="all">Todas</option>${grammageOptions}</select>
+          </label>
+          <label>
+            <span>Cor</span>
+            <select data-inventory-filter="color"><option value="all">Todas</option>${colorOptions}</select>
+          </label>
+          <label>
+            <span>Cliente alvo</span>
+            <select data-inventory-filter="profile"><option value="all">Todos</option>${profileOptions}</select>
+          </label>
+          <label>
+            <span>Máquina</span>
+            <select data-inventory-filter="machine"><option value="all">Todas</option>${machineOptions}</select>
+          </label>
+          <label>
+            <span>Kg maior que</span>
+            <input type="number" min="0" step="100" data-inventory-filter="minKg" placeholder="Ex.: 500" value="${escapeHtml(filters.minKg || "")}">
+          </label>
+        </div>
+        <div class="commercial-kpi-grid compact">
+          <article class="commercial-kpi red"><span>Filtrado sem venda</span><strong>${formatKg(noMovementFilteredTotals.kg, 0)}</strong><small>${noMovementFilteredTotals.skus}/${totals.noMovementSkus} SKUs no recorte</small></article>
+          <article class="commercial-kpi blue"><span>Valor para ofertar</span><strong>${formatBRL(noMovementFilteredTotals.value, 0)}</strong><small>Precificado pelo preço médio de venda de maio</small></article>
+          <article class="commercial-kpi amber"><span>Peças / rolos</span><strong>${noMovementFilteredTotals.pieces ? noMovementFilteredTotals.pieces.toLocaleString("pt-BR") : "-"}</strong><small>Quando informado no estoque acabado</small></article>
+          <article class="commercial-kpi green"><span>R$/kg médio</span><strong>${noMovementFilteredTotals.kg ? `${formatBRL(noMovementFilteredTotals.value / noMovementFilteredTotals.kg)}/kg` : "-"}</strong><small>Média ponderada do recorte</small></article>
+        </div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Itens sem venda / sem carteira</h2>
+            <p>Lista completa do capital parado em produto acabado, ordenada por valor estimado.</p>
+          </div>
+          <span class="status-pill red">${noMovementFilteredTotals.skus} SKUs</span>
+        </div>
+        <div class="inventory-analysis-grid">
+          <article>
+            <h3>Por tipo</h3>
+            <div class="bar-list inventory-scroll-window">${movementBarList(noMovementByLine, noMovementFilteredTotals.kg)}</div>
+          </article>
+          <article>
+            <h3>Por cliente alvo</h3>
+            <div class="bar-list inventory-scroll-window">${movementBarList(noMovementByProfile, noMovementFilteredTotals.kg, "blue")}</div>
+          </article>
+          <article>
+            <h3>Por largura</h3>
+            <div class="bar-list inventory-scroll-window">${movementBarList(noMovementByWidth, noMovementFilteredTotals.kg, "amber")}</div>
+          </article>
+          <article>
+            <h3>Por gramatura</h3>
+            <div class="bar-list inventory-scroll-window">${movementBarList(noMovementByGrammage, noMovementFilteredTotals.kg, "green")}</div>
+          </article>
+        </div>
+        <div class="data-table-wrap inventory-table inventory-scroll-tall">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Produto</th>
+                <th>Tipo</th>
+                <th>Largura</th>
+                <th>Gram.</th>
+                <th>Cor</th>
+                <th>Cliente alvo</th>
+                <th>Disponível</th>
+                <th>Preço</th>
+                <th>Valor</th>
+                <th>Peças</th>
+              </tr>
+            </thead>
+            <tbody>${noMovementTable || `<tr><td colspan="10" style="text-align:center;color:var(--muted)">Nenhum item sem venda/carteira encontrado para os filtros atuais.</td></tr>`}</tbody>
+            <tfoot>
+              <tr>
+                <td style="text-align:left"><strong>Total filtrado</strong></td>
+                <td>${noMovementByLine.length} tipos</td>
+                <td>${noMovementByWidth.length} larguras</td>
+                <td>${noMovementByGrammage.length} gram.</td>
+                <td>${optionValues(noMovementFiltered, "color").length} cores</td>
+                <td>${noMovementByProfile.length} perfis</td>
+                <td>${formatKg(noMovementFilteredTotals.kg, 0)}</td>
+                <td>${noMovementFilteredTotals.kg ? `${formatBRL(noMovementFilteredTotals.value / noMovementFilteredTotals.kg)}/kg` : "-"}</td>
+                <td>${formatBRL(noMovementFilteredTotals.value, 0)}</td>
+                <td>${noMovementFilteredTotals.pieces ? noMovementFilteredTotals.pieces.toLocaleString("pt-BR") : "-"}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel span-5">
+        <div class="panel-header">
+          <div>
+            <h2>Top estoque valorizado</h2>
+            <p>Produtos acabados com maior valor financeiro estimado.</p>
+          </div>
+        </div>
+        <div class="data-table-wrap inventory-table compact inventory-scroll-window">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Produto</th>
+                <th>Máq.</th>
+                <th>Disp.</th>
+                <th>R$/kg</th>
+                <th>Valor</th>
+                <th>Cart.</th>
+              </tr>
+            </thead>
+            <tbody>${topValueTable}</tbody>
+            <tfoot>
+              <tr>
+                <td style="text-align:left"><strong>Total exibido</strong></td>
+                <td>${topValueRows.length} SKUs</td>
+                <td>${formatKg(topValueRows.reduce((sum, row) => sum + row.availablePositive, 0), 0)}</td>
+                <td>-</td>
+                <td>${formatBRL(topValueRows.reduce((sum, row) => sum + row.value, 0), 0)}</td>
+                <td>${formatKg(topValueRows.reduce((sum, row) => sum + row.demandKg, 0), 0)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </article>
+    </div>
+  `;
+}
+
+// =================== FRETES ===================
+function buildFreightPlanning(filtersInput = state.freightFilters || {}) {
+  const truckCapacityKg = 16000;
+  const weeklyTrips = 2;
+  const weeklyCapacityKg = truckCapacityKg * weeklyTrips;
+  const today = getBacklogReferenceDate();
+  const todayD = new Date(today + "T12:00:00");
+  const minKg = Math.max(0, Number(filtersInput.minKg) || 0);
+  const maxStops = Math.min(5, Math.max(1, Number(filtersInput.maxStops) || 5));
+  const validRouteFilters = new Set(["all", "sp", "nwPr"]);
+  const routeFilter = validRouteFilters.has(filtersInput.route) ? filtersInput.route : "all";
+  const filters = {
+    minKg: String(minKg || ""),
+    maxStops: String(maxStops),
+    route: routeFilter,
+    readiness: filtersInput.readiness || "all"
+  };
+  const allOrders = data.carteiraOrders2026 || [];
+  const activeOrders = allOrders.filter((order) => order.situacao !== "Cancelado" && order.situacao !== "Nota Gerada");
+  const stockAnalysis = buildBacklogStockAnalysis(activeOrders, today);
+  const readyStatuses = new Set(["Produzido", "Autorizado Faturamento", "Gerado Romaneio", "Conferida"]);
+  const northwestParanaCities = new Set([
+    "MARINGA",
+    "SARANDI",
+    "PAICANDU",
+    "UMUARAMA",
+    "DOURADINA",
+    "ARAPONGAS",
+    "APUCARANA",
+    "BELA VISTA DO PARAIS",
+    "LONDRINA",
+    "CAMBE",
+    "ROLANDIA",
+    "MANDAGUARI",
+    "CIANORTE",
+    "PARANAVAI"
+  ]);
+
+  const routeForOrder = (order) => {
+    const state = order.estado || "";
+    const city = normalizeInventoryText(order.cidade || "");
+    const freightType = normalizeInventoryText(order.frete || "");
+
+    if (freightType === "FOB") {
+      return {
+        key: "fob",
+        label: "FOB · retira em Curitiba",
+        note: "Cliente retira diretamente na fábrica da Spunflex; não entra na carreta nem em redespacho."
+      };
+    }
+
+    if (state === "SP") {
+      return {
+        key: "sp",
+        label: "SP / redespacho",
+        note: "Pedido não FOB para entrega no estado ou descarga no redespacho do cliente em SP."
+      };
+    }
+
+    if (state === "PR" && northwestParanaCities.has(city)) {
+      return {
+        key: "nwPr",
+        label: "Noroeste PR",
+        note: "Rota própria para Maringá, Umuarama, Douradina, Arapongas e região."
+      };
+    }
+
+    return {
+      key: "out",
+      label: "Fora da rota",
+      note: "Manter transportadora atual ou avaliar nova rota somente se houver viabilidade comercial."
+    };
+  };
+
+  const readinessForOrder = (order, stock) => {
+    if (readyStatuses.has(order.situacao) || stock?.produceKg <= 0) {
+      return { key: "ready", label: "Pronto para carregar", tone: "green", priority: 0 };
+    }
+    if ((stock?.readyKg || 0) > 0) {
+      return { key: "partial", label: "Parcial pronto", tone: "amber", priority: 1 };
+    }
+    return { key: "produce", label: "Aguardando produção", tone: "red", priority: 2 };
+  };
+
+  const candidates = activeOrders.map((order) => {
+    const route = routeForOrder(order);
+    const stock = stockAnalysis.orderMap.get(order.pedido);
+    const readiness = readinessForOrder(order, stock);
+    const deliveryDate = order.dataEntrega ? new Date(order.dataEntrega + "T12:00:00") : null;
+    const daysToDelivery = deliveryDate ? Math.round((deliveryDate - todayD) / 86400000) : 99;
+    const kg = Number(order.totalKg) || 0;
+    const value = Number(order.totalValor) || 0;
+    return {
+      ...order,
+      route,
+      stock,
+      readiness,
+      daysToDelivery,
+      kg,
+      value
+    };
+  });
+
+  const routeKeys = ["sp", "nwPr"];
+  const ownRouteCandidates = candidates.filter((order) => routeKeys.includes(order.route.key));
+  const fobOrders = candidates
+    .filter((order) => order.route.key === "fob")
+    .sort((a, b) =>
+      a.daysToDelivery - b.daysToDelivery ||
+      b.kg - a.kg ||
+      String(a.cliente || "").localeCompare(String(b.cliente || ""), "pt-BR")
+    );
+  const filterOrder = (order) =>
+    order.kg >= minKg &&
+    (filters.route === "all" || order.route.key === filters.route) &&
+    (filters.readiness === "all" || order.readiness.key === filters.readiness);
+  const filteredCandidates = ownRouteCandidates.filter(filterOrder);
+  const readyRouteCandidates = filteredCandidates.filter((order) => order.readiness.key !== "produce");
+  const spPool = filteredCandidates.filter((order) => order.route.key === "sp");
+  const nwPrPool = filteredCandidates.filter((order) => order.route.key === "nwPr");
+
+  const sumFreight = (items) => items.reduce((acc, item) => {
+    acc.kg += item.kg || 0;
+    acc.value += item.value || 0;
+    acc.readyKg += item.readiness.key !== "produce" ? item.kg || 0 : 0;
+    acc.readyOrders += item.readiness.key !== "produce" ? 1 : 0;
+    acc.orders += 1;
+    return acc;
+  }, { kg: 0, value: 0, readyKg: 0, readyOrders: 0, orders: 0 });
+
+  const fillTrip = (pool) => {
+    const rows = [];
+    let loadedKg = 0;
+    const sorted = [...pool]
+      .filter((order) => order.readiness.key !== "produce")
+      .sort((a, b) =>
+        a.readiness.priority - b.readiness.priority ||
+        a.daysToDelivery - b.daysToDelivery ||
+        b.kg - a.kg
+      );
+
+    sorted.forEach((order) => {
+      if (loadedKg >= truckCapacityKg) return;
+      if (rows.length >= maxStops) return;
+      const remaining = truckCapacityKg - loadedKg;
+      if (order.kg <= remaining) {
+        rows.push({ ...order, plannedKg: order.kg, splitLoad: false });
+        loadedKg += order.kg;
+        return;
+      }
+      if (remaining >= Math.max(minKg, 1) || !rows.length) {
+        rows.push({ ...order, plannedKg: remaining, splitLoad: true });
+        loadedKg += remaining;
+      }
+    });
+
+    return { rows, loadedKg, utilization: loadedKg / truckCapacityKg };
+  };
+
+  const spTrip = fillTrip(spPool);
+  const nwTrip = fillTrip(nwPrPool);
+  const scheduledKg = spTrip.loadedKg + nwTrip.loadedKg;
+  const scheduledUtilization = scheduledKg / weeklyCapacityKg;
+  const eligibleTotals = sumFreight(ownRouteCandidates);
+  const readyTotals = sumFreight(readyRouteCandidates);
+  const filteredTotals = sumFreight(filteredCandidates);
+  const fobTotals = sumFreight(fobOrders);
+  const routeStats = [
+    { key: "sp", label: "SP / redespacho", items: filteredCandidates.filter((order) => order.route.key === "sp"), note: "Pedidos não FOB cujo destino já está no estado de SP." },
+    { key: "nwPr", label: "Noroeste PR", items: nwPrPool, note: "Pedidos não FOB em cidades compatíveis com a rota PR." }
+  ].map((route) => ({ ...route, totals: sumFreight(route.items) }));
+
+  return {
+    filters,
+    today,
+    todayD,
+    truckCapacityKg,
+    weeklyTrips,
+    weeklyCapacityKg,
+    maxStops,
+    minKg,
+    candidates,
+    ownRouteCandidates,
+    fobOrders,
+    filteredCandidates,
+    readyRouteCandidates,
+    spPool,
+    nwPrPool,
+    spTrip,
+    nwTrip,
+    scheduledKg,
+    scheduledUtilization,
+    eligibleTotals,
+    readyTotals,
+    filteredTotals,
+    fobTotals,
+    routeStats,
+    sumFreight
+  };
+}
+
+function freightOrderAction(order) {
+  if (order.route?.key === "fob") return "Não programar na carreta; cliente retira na fábrica em Curitiba.";
+  if (order.readiness.key === "ready") return "Programar na próxima carga.";
+  if (order.readiness.key === "partial") return "Separar saldo pronto e confirmar se aceita embarque parcial.";
+  return "Aguardar PCP liberar para entrar na carreta.";
+}
+
+function freightExportRows(scope, plan) {
+  if (scope === "sp-trip") return plan.spTrip.rows;
+  if (scope === "nw-trip") return plan.nwTrip.rows;
+  if (scope === "candidates") return plan.filteredCandidates;
+  if (scope === "routes") return plan.filteredCandidates;
+  if (scope === "fob") return plan.fobOrders;
+  return [
+    ...plan.spTrip.rows.map((order) => ({ ...order, exportTrip: "Viagem SP / redespacho" })),
+    ...plan.nwTrip.rows.map((order) => ({ ...order, exportTrip: "Viagem noroeste PR" }))
+  ];
+}
+
+function exportFreightPdf(scope = "plan") {
+  const plan = buildFreightPlanning();
+  const rows = freightExportRows(scope, plan);
+  const titles = {
+    "plan": "Plano da carreta para expedição",
+    "sp-trip": "Viagem SP / redespacho para expedição",
+    "nw-trip": "Viagem noroeste PR para expedição",
+    "routes": "Oportunidades de frete por rota",
+    "candidates": "Pedidos candidatos para carreta",
+    "fob": "Pedidos FOB · retirada em Curitiba"
+  };
+  const title = titles[scope] || titles.plan;
+  const total = plan.sumFreight(rows);
+  const routeSummarySource = scope === "fob"
+    ? [{ label: "FOB · retira em Curitiba", note: "Pedidos excluídos da carreta e do redespacho.", totals: plan.fobTotals }]
+    : plan.routeStats;
+  const generatedAt = new Date().toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+  const logoUrl = new URL("./assets/spunflex-logo.png", window.location.href).href;
+  const routeSummaryRows = routeSummarySource.map((route) => `
+    <tr>
+      <td><strong>${escapeHtml(route.label)}</strong><small>${escapeHtml(route.note)}</small></td>
+      <td>${route.totals.orders}</td>
+      <td>${formatKg(route.totals.kg, 0)}</td>
+      <td>${formatKg(route.totals.readyKg, 0)}</td>
+      <td>${formatBRL(route.totals.value, 0)}</td>
+    </tr>
+  `).join("");
+  const tableRows = rows.map((order, index) => {
+    const delivery = order.dataEntrega ? new Date(order.dataEntrega + "T12:00:00").toLocaleDateString("pt-BR") : "-";
+    const plannedKg = Number(order.plannedKg) || order.kg || 0;
+    const trip = order.exportTrip || (scope === "sp-trip" ? "Viagem SP / redespacho" : scope === "nw-trip" ? "Viagem noroeste PR" : order.route?.label || "-");
+    const lines = (order.linhas || []).map((line) => escapeHtml(line.produto || "")).filter(Boolean).slice(0, 3).join("<br>");
+    return `
+      <tr>
+        <td>${index + 1}</td>
+        <td><strong>${escapeHtml(order.pedido)}</strong></td>
+        <td><strong>${escapeHtml(order.cliente || "-")}</strong><small>${escapeHtml(order.cidade || "-")}/${escapeHtml(order.estado || "-")} · ${escapeHtml(order.representante || "-")}</small></td>
+        <td>${escapeHtml(trip)}<small>${escapeHtml(order.route?.note || "")}</small></td>
+        <td>${delivery}</td>
+        <td>${formatKg(plannedKg, 0)}${order.splitLoad ? `<small>fracionar de ${formatKg(order.kg, 0)}</small>` : ""}</td>
+        <td>${formatKg(order.kg || 0, 0)}</td>
+        <td><span class="pill ${order.readiness.key}">${escapeHtml(order.readiness.label)}</span></td>
+        <td>${escapeHtml(order.frete || "-")}</td>
+        <td>${lines || "-"}</td>
+        <td>${escapeHtml(freightOrderAction(order))}</td>
+      </tr>
+    `;
+  }).join("");
+
+  if (!rows.length) {
+    showToast("Sem pedidos", "Nenhum pedido encontrado para exportar com os filtros atuais.", "warning", 3000);
+    return;
+  }
+
+  const reportHtml = `
+    <!doctype html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8">
+        <title>${escapeHtml(title)}</title>
+        <style>
+          @page { size: A4 landscape; margin: 10mm; }
+          * { box-sizing: border-box; }
+          body { margin:0; color:#1f2937; font-family:Arial, Helvetica, sans-serif; font-size:10px; line-height:1.35; }
+          header { display:flex; align-items:center; justify-content:space-between; gap:18px; padding-bottom:10px; border-bottom:2px solid #0ea5c6; }
+          .brand { display:flex; align-items:center; gap:12px; }
+          .brand img { width:118px; height:auto; object-fit:contain; }
+          h1,h2,p { margin:0; }
+          h1 { color:#111827; font-size:21px; line-height:1.05; }
+          h2 { color:#111827; font-size:14px; margin:12px 0 6px; }
+          small { display:block; color:#6b7280; font-size:9px; line-height:1.3; }
+          .meta { text-align:right; color:#4b5563; }
+          .summary { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:12px 0; }
+          .metric { padding:8px 10px; border:1px solid #d1d5db; border-top:4px solid #0ea5c6; border-radius:6px; break-inside:avoid; }
+          .metric span { display:block; color:#6b7280; font-size:8px; font-weight:700; text-transform:uppercase; }
+          .metric strong { display:block; margin-top:4px; color:#111827; font-size:14px; }
+          table { width:100%; border-collapse:collapse; margin-top:8px; }
+          th { background:#e8f7fb; color:#111827; font-size:8px; text-align:left; text-transform:uppercase; }
+          th,td { padding:5px 6px; border:1px solid #d1d5db; vertical-align:top; }
+          td:nth-child(1), td:nth-child(2), td:nth-child(5), td:nth-child(6), td:nth-child(7), td:nth-child(9) { white-space:nowrap; }
+          .pill { display:inline-block; padding:2px 6px; border-radius:999px; font-size:8px; font-weight:700; white-space:nowrap; }
+          .pill.ready { background:#dcfce7; color:#166534; }
+          .pill.partial { background:#fef3c7; color:#92400e; }
+          .pill.produce { background:#fee2e2; color:#991b1b; }
+          .toolbar { position:sticky; top:0; display:flex; justify-content:flex-end; padding:8px 0; background:#fff; z-index:5; }
+          .toolbar button { border:1px solid #0ea5c6; border-radius:6px; background:#0ea5c6; color:#fff; font-weight:700; padding:7px 12px; cursor:pointer; }
+          @media print { .toolbar { display:none; } body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+        </style>
+      </head>
+      <body>
+        <div class="toolbar"><button onclick="window.print()">Imprimir / salvar PDF</button></div>
+        <header>
+          <div class="brand">
+            <img src="${logoUrl}" alt="Spunflex">
+            <div>
+              <h1>${escapeHtml(title)}</h1>
+              <small>${scope === "fob" ? "Pedidos FOB: cliente retira direto na fábrica da Spunflex em Curitiba." : `Filtro: pedidos acima de ${formatKg(plan.minKg, 0)} · máximo ${plan.maxStops} descargas/NFs por viagem · capacidade ${formatKg(plan.truckCapacityKg, 0)}`}</small>
+            </div>
+          </div>
+          <div class="meta">
+            <strong>Ref. ${new Date(plan.today + "T12:00:00").toLocaleDateString("pt-BR")}</strong>
+            <small>Gerado em ${escapeHtml(generatedAt)}</small>
+          </div>
+        </header>
+        <section class="summary">
+          <article class="metric"><span>Pedidos/NFs</span><strong>${rows.length}</strong></article>
+          <article class="metric"><span>${scope === "fob" ? "Kg FOB" : "Kg planejado"}</span><strong>${formatKg(rows.reduce((sum, row) => sum + (Number(row.plannedKg) || row.kg || 0), 0), 0)}</strong></article>
+          <article class="metric"><span>Kg total pedido</span><strong>${formatKg(total.kg, 0)}</strong></article>
+          <article class="metric"><span>Valor</span><strong>${formatBRL(total.value, 0)}</strong></article>
+          <article class="metric"><span>${scope === "fob" ? "Operação" : "Limite operacional"}</span><strong>${scope === "fob" ? "Retira fábrica" : `${plan.maxStops} descargas`}</strong></article>
+        </section>
+        <h2>Resumo por rota</h2>
+        <table>
+          <thead><tr><th>Rota</th><th>Pedidos</th><th>Peso</th><th>Pronto/parcial</th><th>Valor</th></tr></thead>
+          <tbody>${routeSummaryRows}</tbody>
+        </table>
+        <h2>${scope === "fob" ? "Lista FOB para conferência" : "Lista para expedição"}</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Pedido</th><th>Cliente / destino</th><th>Viagem / rota</th><th>Entrega</th><th>Kg carga</th><th>Kg pedido</th><th>Status</th><th>Frete</th><th>Produtos</th><th>Ação</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </body>
+    </html>
+  `;
+
+  const reportWindow = window.open("", "_blank");
+  if (!reportWindow) {
+    showToast("Pop-up bloqueado", "Permita pop-ups para abrir o relatório de fretes.", "warning", 5000);
+    return;
+  }
+  reportWindow.document.open();
+  reportWindow.document.write(displayMachineLabels(reportHtml));
+  reportWindow.document.close();
+  reportWindow.focus();
+  showToast("Relatório pronto", "A janela de impressão foi aberta. Use Salvar como PDF.", "success", 3200);
+  setTimeout(() => reportWindow.print(), 700);
+}
+
+function renderFreights() {
+  const plan = buildFreightPlanning();
+  const {
+    truckCapacityKg,
+    weeklyTrips,
+    weeklyCapacityKg,
+    maxStops,
+    minKg,
+    filteredCandidates,
+    spPool,
+    nwPrPool,
+    spTrip,
+    nwTrip,
+    scheduledUtilization,
+    eligibleTotals,
+    fobOrders,
+    fobTotals,
+    readyTotals,
+    filteredTotals,
+    routeStats,
+    sumFreight
+  } = plan;
+  const filters = plan.filters;
+
+  const routeOptions = [
+    ["all", "Todas as rotas"],
+    ["sp", "SP / redespacho"],
+    ["nwPr", "Noroeste PR"]
+  ].map(([value, label]) => `<option value="${value}" ${filters.route === value ? "selected" : ""}>${label}</option>`).join("");
+  const readinessOptions = [
+    ["all", "Todos os status"],
+    ["ready", "Pronto"],
+    ["partial", "Parcial pronto"],
+    ["produce", "Aguardando produção"]
+  ].map(([value, label]) => `<option value="${value}" ${filters.readiness === value ? "selected" : ""}>${label}</option>`).join("");
+
+  const tripCard = (title, subtitle, trip, pool, tone = "blue", exportKey = "plan") => {
+    const idleKg = Math.max(truckCapacityKg - trip.loadedKg, 0);
+    const rows = trip.rows.map((order) => {
+      const delivery = order.dataEntrega ? new Date(order.dataEntrega + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "-";
+      return `
+        <tr>
+          <td><strong>${escapeHtml(order.pedido)}</strong></td>
+          <td style="text-align:left">${escapeHtml(order.cliente || "-")}<br><small>${escapeHtml(order.cidade || "-")}/${escapeHtml(order.estado || "-")}</small></td>
+          <td>${delivery}</td>
+          <td>${formatKg(order.plannedKg, 0)}${order.splitLoad ? `<br><small>fracionar de ${formatKg(order.kg, 0)}</small>` : ""}</td>
+          <td><span class="status-pill ${order.readiness.tone}">${escapeHtml(order.readiness.label)}</span></td>
+        </tr>
+      `;
+    }).join("");
+
+    return `
+      <article class="freight-trip-card ${tone}">
+        <div class="freight-trip-head">
+          <div>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(subtitle)}</p>
+          </div>
+          <div class="freight-trip-actions">
+            <button class="ghost-button" type="button" data-export-freight="${exportKey}">Exportar expedição</button>
+            <span class="status-pill ${trip.utilization >= 0.85 ? "green" : trip.utilization >= 0.55 ? "amber" : "red"}">${formatPercent(trip.utilization)}</span>
+          </div>
+        </div>
+        <div class="freight-load-bar" aria-hidden="true">
+          <span style="width:${Math.min(trip.utilization * 100, 100).toFixed(1)}%"></span>
+        </div>
+        <div class="freight-trip-stats">
+          <div><span>Carga</span><strong>${formatKg(trip.loadedKg, 0)}</strong></div>
+          <div><span>Descargas/NFs</span><strong>${trip.rows.length}/${maxStops}</strong></div>
+          <div><span>Capacidade</span><strong>${formatKg(truckCapacityKg, 0)}</strong></div>
+          <div><span>Espaço livre</span><strong>${formatKg(idleKg, 0)}</strong></div>
+        </div>
+        <div class="data-table-wrap freight-trip-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Pedido</th>
+                <th style="text-align:left">Cliente / destino</th>
+                <th>Entrega</th>
+                <th>Kg planejado</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:var(--muted)">Sem carga pronta suficiente para esta rota.</td></tr>`}</tbody>
+          </table>
+        </div>
+      </article>
+    `;
+  };
+
+  const routeRows = routeStats.map((route) => `
+    <tr>
+      <td style="text-align:left"><strong>${escapeHtml(route.label)}</strong><br><small>${escapeHtml(route.note)}</small></td>
+      <td>${route.totals.orders}</td>
+      <td>${formatKg(route.totals.kg, 0)}</td>
+      <td>${formatKg(route.totals.readyKg, 0)}</td>
+      <td>${formatBRL(route.totals.value, 0)}</td>
+      <td>${Math.ceil(route.totals.kg / truckCapacityKg) || 0}</td>
+    </tr>
+  `).join("");
+
+  const candidateRows = [...filteredCandidates]
+    .sort((a, b) =>
+      a.route.key.localeCompare(b.route.key) ||
+      a.readiness.priority - b.readiness.priority ||
+      a.daysToDelivery - b.daysToDelivery ||
+      b.kg - a.kg
+    )
+    .map((order) => {
+      const delivery = order.dataEntrega ? new Date(order.dataEntrega + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "-";
+      const urgencyTone = order.daysToDelivery < 0 ? "red" : order.daysToDelivery <= 3 ? "amber" : "blue";
+      const action = freightOrderAction(order);
+      return `
+        <tr>
+          <td><strong>${escapeHtml(order.pedido)}</strong></td>
+          <td style="text-align:left">${escapeHtml(order.cliente || "-")}<br><small>${escapeHtml(order.cidade || "-")}/${escapeHtml(order.estado || "-")} · ${escapeHtml(order.representante || "-")}</small></td>
+          <td style="text-align:left">${escapeHtml(order.route.label)}<br><small>${escapeHtml(order.route.note)}</small></td>
+          <td>${delivery}<br><span class="status-pill ${urgencyTone}">${order.daysToDelivery < 0 ? `${Math.abs(order.daysToDelivery)}d atraso` : `${order.daysToDelivery}d`}</span></td>
+          <td><span class="status-pill ${order.readiness.tone}">${escapeHtml(order.readiness.label)}</span></td>
+          <td>${escapeHtml(order.frete || "-")}</td>
+          <td>${formatKg(order.kg, 0)}</td>
+          <td>${formatBRL(order.value, 0)}</td>
+          <td style="text-align:left">${escapeHtml(action)}</td>
+        </tr>
+      `;
+    }).join("");
+
+  const fobRows = fobOrders.map((order) => {
+    const delivery = order.dataEntrega ? new Date(order.dataEntrega + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "-";
+    const urgencyTone = order.daysToDelivery < 0 ? "red" : order.daysToDelivery <= 3 ? "amber" : "blue";
+    return `
+      <tr>
+        <td><strong>${escapeHtml(order.pedido)}</strong></td>
+        <td style="text-align:left">${escapeHtml(order.cliente || "-")}<br><small>${escapeHtml(order.cidade || "-")}/${escapeHtml(order.estado || "-")} · ${escapeHtml(order.representante || "-")}</small></td>
+        <td>${delivery}<br><span class="status-pill ${urgencyTone}">${order.daysToDelivery < 0 ? `${Math.abs(order.daysToDelivery)}d atraso` : `${order.daysToDelivery}d`}</span></td>
+        <td><span class="status-pill ${order.readiness.tone}">${escapeHtml(order.readiness.label)}</span></td>
+        <td>${formatKg(order.kg, 0)}</td>
+        <td>${formatBRL(order.value, 0)}</td>
+        <td style="text-align:left">${escapeHtml(freightOrderAction(order))}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const weeklyGapKg = Math.max(weeklyCapacityKg - readyTotals.readyKg, 0);
+  const fleetGainNote = readyTotals.readyKg >= weeklyCapacityKg
+    ? "Carteira pronta já ocupa as duas viagens."
+    : `Faltam ${formatKg(weeklyGapKg, 0)} prontos para ocupar 100% da semana.`;
+
+  return `
+    <div class="section-grid freight-dashboard">
+      <article class="panel span-12 freight-hero">
+        <div class="panel-header">
+          <div>
+            <h2>Fretes · carreta própria 16 t</h2>
+            <p>Planejamento para aumentar a utilização da carreta em entregas próprias, redespacho em SP e noroeste do Paraná. Pedidos FOB ficam fora da carreta porque o cliente retira na fábrica em Curitiba.</p>
+          </div>
+          <div class="control-row">
+            <button class="ghost-button" type="button" data-export-freight="plan">Exportar expedição</button>
+            <span class="status-pill blue">Capacidade semanal ${formatKg(weeklyCapacityKg, 0)}</span>
+          </div>
+        </div>
+        <div class="section-grid" style="gap:14px">
+          ${kpiCard("Capacidade por viagem", formatKg(truckCapacityKg, 0), "Carreta completa", "blue")}
+          ${kpiCard("Plano semanal", `${weeklyTrips} viagens`, `Até ${maxStops} descargas/NFs por viagem`, "green")}
+          ${kpiCard("Carteira elegível", formatKg(eligibleTotals.kg, 0), `${eligibleTotals.orders} pedidos não FOB em SP/redespacho ou noroeste PR`, "amber")}
+          ${kpiCard("FOB excluído", `${fobTotals.orders} pedidos`, `${formatKg(fobTotals.kg, 0)} · cliente retira em Curitiba`, fobTotals.orders ? "red" : "green")}
+          ${kpiCard("Pronto para embarcar", formatKg(readyTotals.readyKg, 0), `${readyTotals.readyOrders} pedidos · ${fleetGainNote}`, readyTotals.readyKg >= weeklyCapacityKg ? "green" : "red")}
+        </div>
+      </article>
+
+      <article class="panel span-12 freight-filter-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Filtros operacionais</h2>
+            <p>Use para montar cargas práticas: preferência por pedidos acima de 1.000 kg, até 5 descargas/NFs por viagem e sem considerar FOB.</p>
+          </div>
+          <div class="control-row">
+            <button class="ghost-button" type="button" data-export-freight="plan">Exportar plano</button>
+            <button class="ghost-button" type="button" data-freight-clear>Limpar filtros</button>
+          </div>
+        </div>
+        <div class="freight-filter-grid">
+          <label>
+            <span>Peso mínimo por pedido</span>
+            <input type="number" min="0" step="100" data-freight-filter="minKg" value="${escapeHtml(filters.minKg)}">
+          </label>
+          <label>
+            <span>Máx. descargas/NFs</span>
+            <input type="number" min="1" max="5" step="1" data-freight-filter="maxStops" value="${escapeHtml(filters.maxStops)}">
+          </label>
+          <label>
+            <span>Rota</span>
+            <select data-freight-filter="route">${routeOptions}</select>
+          </label>
+          <label>
+            <span>Status da carga</span>
+            <select data-freight-filter="readiness">${readinessOptions}</select>
+          </label>
+        </div>
+        <div class="freight-filter-summary">
+          <span class="status-pill blue">${filteredCandidates.length} pedidos no filtro</span>
+          <span class="status-pill amber">${formatKg(filteredTotals.kg, 0)} filtrados</span>
+          <span class="status-pill">${formatKg(readyTotals.readyKg, 0)} prontos/parciais</span>
+          <span class="status-pill red">${fobTotals.orders} FOB fora da carreta</span>
+        </div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Plano sugerido das 2 viagens</h2>
+            <p>Prioriza pedidos não FOB, prontos ou parciais, vencidos/curto prazo primeiro, respeitando 16 t e até ${maxStops} descargas/NFs por viagem.</p>
+          </div>
+          <div class="control-row">
+            <button class="ghost-button" type="button" data-export-freight="plan">Exportar expedição</button>
+            <span class="status-pill ${scheduledUtilization >= 0.85 ? "green" : scheduledUtilization >= 0.55 ? "amber" : "red"}">Uso planejado ${formatPercent(scheduledUtilization)}</span>
+          </div>
+        </div>
+        <div class="freight-trip-grid">
+          ${tripCard("Viagem 1 · São Paulo / redespacho", "Saída carregada domingo, descarga segunda em SP ou redespacho do cliente. FOB não entra nesta carga.", spTrip, spPool, "blue", "sp-trip")}
+          ${tripCard("Viagem 2 · Noroeste do Paraná", "Após retorno a Curitiba, carregar pedidos não FOB prontos para a rota PR.", nwTrip, nwPrPool, "green", "nw-trip")}
+        </div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Oportunidade por rota</h2>
+            <p>Mostra somente pedidos não FOB que podem alimentar a carreta própria.</p>
+          </div>
+          <div class="control-row">
+            <button class="ghost-button" type="button" data-export-freight="routes">Exportar rotas</button>
+            <span class="status-pill red">FOB excluído: ${fobTotals.orders} pedidos · ${formatKg(fobTotals.kg, 0)}</span>
+          </div>
+        </div>
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Rota</th>
+                <th>Pedidos</th>
+                <th>Peso carteira</th>
+                <th>Peso pronto/parcial</th>
+                <th>Valor</th>
+                <th>Viagens cheias</th>
+              </tr>
+            </thead>
+            <tbody>${routeRows}</tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Pedidos candidatos para carreta</h2>
+            <p>Lista filtrada para trabalho da expedição. O padrão prioriza pedidos acima de ${formatKg(minKg, 0)} e exclui todos os FOB.</p>
+          </div>
+          <button class="ghost-button" type="button" data-export-freight="candidates">Exportar candidatos</button>
+        </div>
+        <div class="data-table-wrap freight-candidate-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Pedido</th>
+                <th style="text-align:left">Cliente / destino</th>
+                <th style="text-align:left">Rota</th>
+                <th>Entrega</th>
+                <th>Status carga</th>
+                <th>Frete</th>
+                <th>Peso</th>
+                <th>Valor</th>
+                <th style="text-align:left">Ação</th>
+              </tr>
+            </thead>
+            <tbody>${candidateRows || `<tr><td colspan="9" style="text-align:center;color:var(--muted)">Nenhum pedido elegível para a carreta no momento.</td></tr>`}</tbody>
+            <tfoot>
+              <tr>
+                <td colspan="4" style="text-align:left"><strong>Total candidatos filtrados</strong><br><small>Somente pedidos não FOB considerados para a carreta</small></td>
+                <td>${filteredTotals.orders} pedido${filteredTotals.orders !== 1 ? "s" : ""}</td>
+                <td>Não FOB</td>
+                <td>${formatKg(filteredTotals.kg, 0)}</td>
+                <td>${formatBRL(filteredTotals.value, 0)}</td>
+                <td style="text-align:left">Prontos/parciais: ${readyTotals.readyOrders} pedido${readyTotals.readyOrders !== 1 ? "s" : ""} · ${formatKg(readyTotals.readyKg, 0)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel span-12 freight-fob-panel">
+        <div class="panel-header">
+          <div>
+            <h2>Pedidos FOB · cliente retira em Curitiba</h2>
+            <p>Esses pedidos não entram na carreta própria nem no redespacho. Total ativo: ${fobTotals.orders} pedido${fobTotals.orders !== 1 ? "s" : ""} · ${formatKg(fobTotals.kg, 0)} · ${formatBRL(fobTotals.value, 0)}.</p>
+          </div>
+          <button class="ghost-button" type="button" data-export-freight="fob">Exportar FOB</button>
+        </div>
+        <div class="data-table-wrap freight-fob-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Pedido</th>
+                <th style="text-align:left">Cliente / destino</th>
+                <th>Entrega</th>
+                <th>Status carga</th>
+                <th>Peso</th>
+                <th>Valor</th>
+                <th style="text-align:left">Ação</th>
+              </tr>
+            </thead>
+            <tbody>${fobRows || `<tr><td colspan="7" style="text-align:center;color:var(--muted)">Nenhum pedido FOB ativo na carteira.</td></tr>`}</tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Regra operacional proposta</h2>
+            <p>Uso prático para transformar a carreta em rotina de expedição, sem competir com transportadoras dos clientes.</p>
+          </div>
+          <button class="ghost-button" type="button" data-export-freight="plan">Exportar expedição</button>
+        </div>
+        <div class="freight-rule-grid">
+          ${managementCard("Rota SP e redespacho", "Consolidar pedidos não FOB de SP e entregas em redespacho do cliente, registrados como Transportadora Cristalina quando aplicável.", "A carreta descarrega em SP; o cliente segue com a transportadora dele a partir dali.")}
+          ${managementCard("Rota noroeste PR", "Agrupar pedidos não FOB de Maringá, Sarandi, Umuarama, Douradina, Arapongas e região para ocupar a segunda viagem.", "Priorizar pedidos CIF prontos e com entrega mais próxima.")}
+          ${managementCard("Meta de utilização", `Alvo mínimo: ${formatKg(truckCapacityKg * 0.85, 0)} por saída.`, "Abaixo disso, completar com redespacho SP ou aguardar carga pronta de curto prazo.")}
+          ${managementCard("FOB fora da carga", `${fobTotals.orders} pedido${fobTotals.orders !== 1 ? "s" : ""} FOB ficam separados da programação da carreta.`, "Cliente retira direto na fábrica da Spunflex em Curitiba.")}
         </div>
       </article>
     </div>
@@ -3372,134 +6846,384 @@ function renderOperations() {
 
 // =================== CARTEIRA ===================
 function renderBacklog() {
-  const items = getBacklog();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getBacklogReferenceDate();
+  const todayD = new Date(today + "T12:00:00");
+  const todayLabelShort = todayD.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const todayLabelFull = todayD.toLocaleDateString("pt-BR");
+  const allOrders = data.carteiraOrders2026 || [];
 
-  const totals = items.reduce((acc, o) => {
-    acc.revenue += Number(o.revenue) || 0;
-    acc.weightKg += Number(o.weightKg) || 0;
-    if (o.status !== "entregue") {
-      acc.openRevenue += Number(o.revenue) || 0;
-      acc.openWeight += Number(o.weightKg) || 0;
-    }
+  // Classification
+  const isFaturado  = (o) => o.situacao === "Nota Gerada";
+  const isCancelado = (o) => o.situacao === "Cancelado";
+  const isAtrasado  = (o) => !isFaturado(o) && !isCancelado(o) && o.dataEntrega < today;
+  const isAtivo     = (o) => !isFaturado(o) && !isCancelado(o);
+
+  const ativos     = allOrders.filter(isAtivo).sort((a, b) => (a.dataEntrega || "").localeCompare(b.dataEntrega || ""));
+  const atrasados  = ativos.filter(isAtrasado);
+  const faturados  = allOrders.filter(isFaturado);
+  const cancelados = allOrders.filter(isCancelado);
+
+  // Totals
+  const totalAtivo = ativos.reduce((a, o) => ({ val: a.val + o.totalValor, kg: a.kg + o.totalKg }), { val: 0, kg: 0 });
+  const totalAtr   = atrasados.reduce((a, o) => ({ val: a.val + o.totalValor, kg: a.kg + o.totalKg }), { val: 0, kg: 0 });
+  const hoje       = ativos.filter(o => o.dataEntrega === today);
+  const totalHoje  = hoje.reduce((a, o) => ({ val: a.val + o.totalValor, kg: a.kg + o.totalKg }), { val: 0, kg: 0 });
+  const semana     = ativos.filter(o => o.dataEntrega > today && o.dataEntrega <= "2026-05-15");
+  const totalSem   = semana.reduce((a, o) => ({ val: a.val + o.totalValor, kg: a.kg + o.totalKg }), { val: 0, kg: 0 });
+  const stockAnalysis = buildBacklogStockAnalysis(ativos, today);
+  const readyToBillList = stockAnalysis.readyToBill;
+  const readyToBillTotals = readyToBillList.reduce((acc, order) => {
+    acc.orders += 1;
+    acc.kg += order.readyKg || 0;
+    acc.value += order.readyValue || 0;
+    if (order.late) acc.lateOrders += 1;
     return acc;
-  }, { revenue: 0, weightKg: 0, openRevenue: 0, openWeight: 0 });
-
-  const rows = items.map((o) => {
-    const promised = o.promisedDate ? new Date(o.promisedDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "-";
-    const daysToDeliver = o.promisedDate ? Math.round((new Date(o.promisedDate + "T12:00:00") - new Date(today + "T12:00:00")) / 86400000) : null;
-    let statusClass = "";
-    let statusLabel = o.status === "entregue" ? "Entregue" : "Em aberto";
-    if (o.status !== "entregue" && daysToDeliver !== null) {
-      if (daysToDeliver < 0) { statusClass = "red"; statusLabel = `Atrasado ${Math.abs(daysToDeliver)}d`; }
-      else if (daysToDeliver <= 7) { statusClass = "amber"; statusLabel = `Vence em ${daysToDeliver}d`; }
-    }
+  }, { orders: 0, kg: 0, value: 0, lateOrders: 0 });
+  const readyToBillRows = readyToBillList.map((order) => {
+    const delivery = order.delivery ? new Date(order.delivery + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "-";
+    const original = ativos.find((item) => item.pedido === order.pedido);
     return `
-      <tr>
-        <td><strong>${escapeHtml(o.id || "-")}</strong></td>
-        <td>${o.date ? new Date(o.date + "T12:00:00").toLocaleDateString("pt-BR") : "-"}</td>
-        <td>${escapeHtml(o.client || "-")}</td>
-        <td>${escapeHtml(o.representative || "-")}</td>
-        <td>${formatKg(Number(o.weightKg) || 0, 2)}</td>
-        <td>${formatBRL(Number(o.revenue) || 0)}</td>
-        <td>${promised}</td>
-        <td><span class="status-pill ${statusClass}">${statusLabel}</span></td>
-        <td>
-          <button class="ghost-button table-action" type="button" data-toggle-backlog="${o.id}">${o.status === "entregue" ? "Reabrir" : "Marcar entregue"}</button>
-          <button class="ghost-button danger-ghost table-action" type="button" data-delete-backlog="${o.id}">Excluir</button>
-        </td>
+      <tr class="${order.late ? "commercial-row-red" : "commercial-row-blue"}">
+        <td><strong>${order.pedido}</strong></td>
+        <td style="text-align:left">${escapeHtml(order.client || "-")}<br><small>${escapeHtml(original?.representante || "-")}</small></td>
+        <td>${delivery}</td>
+        <td>${formatKg(order.readyKg, 0)}</td>
+        <td>${formatBRL(order.readyValue, 0)}</td>
+        <td><span class="status-pill ${order.late ? "red" : "blue"}">${order.late ? "Atrasado pronto" : "Pronto"}</span></td>
+        <td style="text-align:left">Cobrar faturamento, romaneio e expedição.</td>
       </tr>
     `;
   }).join("");
 
+  const productionRows = stockAnalysis.needsProduction.slice(0, 16).map((line) => `
+    <tr>
+      <td><strong>${line.pedido}</strong></td>
+      <td style="text-align:left">${escapeHtml(line.produto)}<br><small>${escapeHtml(line.maquina)}</small></td>
+      <td>${formatKg(line.requiredKg, 0)}</td>
+      <td>${line.readyKg ? formatKg(line.readyKg, 0) : "-"}</td>
+      <td><strong style="color:var(--red)">${formatKg(line.produceKg, 0)}</strong></td>
+      <td>${formatBRL(line.produceValue, 0)}</td>
+      <td><span class="status-pill ${line.readyKg ? "amber" : "red"}">${line.status}</span></td>
+    </tr>
+  `).join("");
+
+  // Status color map
+  const sitColor = (s) => ({
+    "Nota Gerada": "green", "Gerado Romaneio": "blue", "Autorizado Faturamento": "blue",
+    "Produzido": "amber", "Autorizado Produção": "", "Entrega Parcial": "amber",
+    "Conferida": "green", "Cadastrada": "", "Cancelado": "red"
+  }[s] || "");
+
+  // Pipeline counts (by pedido, ativos only)
+  const pipeline = ["Cadastrada","Autorizado Produção","Produzido","Autorizado Faturamento","Gerado Romaneio"];
+  const pipeCount = {};
+  pipeline.forEach(s => { pipeCount[s] = ativos.filter(o => o.situacao === s).length; });
+
+  // Render one order row
+  const orderRow = (o) => {
+    const orderStock = stockAnalysis.orderMap.get(o.pedido);
+    const deDt = o.dataEntrega ? new Date(o.dataEntrega + "T12:00:00") : null;
+    const diff = deDt ? Math.round((deDt - todayD) / 86400000) : null;
+    let delayBadge = "";
+    if (diff !== null && diff < 0) delayBadge = `<span class="status-pill red" style="font-size:0.65rem;padding:1px 6px">+${Math.abs(diff)}d atraso</span>`;
+    else if (diff === 0) delayBadge = `<span class="status-pill amber" style="font-size:0.65rem;padding:1px 6px">Hoje</span>`;
+    const color = sitColor(o.situacao);
+    const deStr = o.dataEntrega ? new Date(o.dataEntrega + "T12:00:00").toLocaleDateString("pt-BR", { day:"2-digit", month:"2-digit" }) : "-";
+    const linhasHtml = o.linhas.map((l) => {
+      const lineStock = stockAnalysis.lineMap.get(`${o.pedido}|${l.seq}`);
+      const tone = lineStock?.produceKg <= 0 ? "" : lineStock?.readyKg > 0 ? "amber" : "red";
+      const stockText = lineStock
+        ? `Pronto ${formatKg(lineStock.readyKg, 0)} · Produzir ${formatKg(lineStock.produceKg, 0)}`
+        : "Sem leitura de estoque";
+      return `
+        <tr class="subrow backlog-stock-subrow">
+          <td></td>
+          <td colspan="2" style="padding-left:20px;color:var(--text-dim);font-size:0.78rem">↳ ${escapeHtml(l.produto)}<br><small>${escapeHtml(l.maquina || lineStock?.maquina || "-")}</small></td>
+          <td style="text-align:right;color:var(--text-dim);font-size:0.78rem">${formatKg(l.kg,1)}</td>
+          <td style="text-align:right;color:var(--text-dim);font-size:0.78rem">${formatBRL(l.valor)}</td>
+          <td colspan="2" style="text-align:left;font-size:0.78rem">
+            <span class="status-pill ${tone}" style="font-size:0.68rem">${lineStock?.status || "Sem estoque"}</span>
+            <small style="display:block;color:var(--text-dim);margin-top:3px">${stockText}</small>
+          </td>
+          <td style="text-align:left;font-size:0.78rem;color:var(--text-dim)">${lineStock?.produceKg > 0 ? "Programar produção" : "Cobrar expedição/faturamento"}</td>
+        </tr>
+      `;
+    }).join("");
+    const stockPill = orderStock
+      ? `<span class="status-pill ${orderStock.tone}" style="font-size:0.68rem">${orderStock.statusStock}</span><br><small style="color:var(--text-dim)">Pronto ${formatKg(orderStock.readyKg, 0)} · Produzir ${formatKg(orderStock.produceKg, 0)}</small>`
+      : `<span class="status-pill red" style="font-size:0.68rem">Sem estoque</span>`;
+    return `
+      <tr class="carteira-row" data-ped="${o.pedido}">
+        <td><strong>${o.pedido}</strong></td>
+        <td style="text-align:left">${escapeHtml(o.cliente)}<br><span style="font-size:0.75rem;color:var(--text-dim)">${escapeHtml(o.cidade)}/${o.estado}</span></td>
+        <td style="text-align:left;font-size:0.82rem">${escapeHtml(o.representante)}</td>
+        <td style="text-align:right">${formatKg(o.totalKg,1)}</td>
+        <td style="text-align:right">${formatBRL(o.totalValor)}</td>
+        <td style="text-align:center">${deStr} ${delayBadge}</td>
+        <td style="text-align:center"><span class="status-pill ${color}" style="font-size:0.72rem">${escapeHtml(o.situacao)}</span></td>
+        <td style="text-align:left;font-size:0.78rem;color:var(--text-dim)">${escapeHtml(o.frete)} · ${escapeHtml(o.condicaoPgto)}<div style="margin-top:5px">${stockPill}</div></td>
+      </tr>
+      ${linhasHtml}
+    `;
+  };
+
+  // Group by delivery date
+  const byDate = {};
+  ativos.filter(o => !isAtrasado(o)).forEach(o => {
+    const k = o.dataEntrega || "sem-data";
+    if (!byDate[k]) byDate[k] = [];
+    byDate[k].push(o);
+  });
+
+  const dateLabel = (d) => {
+    if (d === today) return `<strong style="color:var(--cyan)">${todayLabelShort} — HOJE</strong>`;
+    const dt = new Date(d + "T12:00:00");
+    const dias = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+    const wday = dias[dt.getDay()];
+    const str = dt.toLocaleDateString("pt-BR", { day:"2-digit", month:"2-digit" });
+    return `<strong>${str} · ${wday}</strong>`;
+  };
+
+  const tableHeader = `
+    <thead><tr>
+      <th style="text-align:left;width:60px">Pedido</th>
+      <th style="text-align:left">Cliente</th>
+      <th style="text-align:left">Representante</th>
+      <th>Peso</th><th>Valor</th>
+      <th style="text-align:center">Entrega</th>
+      <th style="text-align:center">Situação</th>
+      <th style="text-align:left">Frete/Pgto</th>
+    </tr></thead>`;
+
+  const atrasadosSection = atrasados.length ? `
+    <article class="panel span-12" style="border-top:2px solid var(--red,#e55)">
+      <div class="panel-header">
+        <div>
+          <h2 style="color:var(--red,#e55)">Pedidos atrasados</h2>
+          <p>Entrega prometida já venceu — analisar motivo do não faturamento.</p>
+        </div>
+        <div class="control-row">
+          <button class="ghost-button" type="button" data-export-late-backlog>Exportar PDF expedição</button>
+          <span class="status-pill red">${atrasados.length} atrasado${atrasados.length>1?"s":""} · ${formatKg(totalAtr.kg,0)} kg · ${formatBRL(totalAtr.val)}</span>
+        </div>
+      </div>
+      <div class="data-table-wrap">
+        <table>${tableHeader}<tbody>${atrasados.map(orderRow).join("")}</tbody></table>
+      </div>
+      <div style="margin-top:14px;padding:12px 16px;background:rgba(229,85,85,.08);border-radius:8px;font-size:0.83rem;line-height:1.6">
+        <strong>Análise:</strong>
+        <ul style="margin:6px 0 0 18px">
+          <li><strong>Ped 7790 ZEFLEX</strong> (23.215 kg / R$ 412.899) — Situação <em>Entrega Parcial</em>: maior pedido da carteira, parcialmente entregue. Verificar saldo em produção e romaneio pendente para o restante.</li>
+          <li><strong>Ped 7703 CRISTALFLEX</strong> (2.797 kg / R$ 52.720) — Situação <em>Cadastrada</em>: ainda não autorizado para produção. Urgente aprovar e agendar corte.</li>
+          <li><strong>Ped 7809 ANTUARTE</strong> (2.352 kg / R$ 43.042) — Situação <em>Autorizado Produção</em>: em produção mas não faturado. Verificar disponibilidade de máquina.</li>
+        </ul>
+      </div>
+    </article>` : "";
+
+  const stockReadinessPanel = `
+    <article class="panel span-12 backlog-readiness-panel">
+      <div class="panel-header">
+        <div>
+          <h2>Carteira x estoque acabado</h2>
+          <p>Alocação conservadora do estoque pronto: atrasados primeiro, depois entrega de hoje e próximas datas.</p>
+        </div>
+        <span class="status-pill ${stockAnalysis.totals.produceKg ? "amber" : ""}">${formatPercent(stockAnalysis.totals.readyKg / Math.max(stockAnalysis.totals.kg, 1))} pronto</span>
+      </div>
+      <div class="commercial-kpi-grid">
+        <article class="commercial-kpi green"><span>Pronto para faturar</span><strong>${formatKg(stockAnalysis.totals.readyKg, 0)}</strong><small>${formatBRL(stockAnalysis.totals.readyValue, 0)} · ${stockAnalysis.totals.readyOrders} pedidos 100% prontos</small></article>
+        <article class="commercial-kpi red"><span>A produzir</span><strong>${formatKg(stockAnalysis.totals.produceKg, 0)}</strong><small>${formatBRL(stockAnalysis.totals.produceValue, 0)} ainda sem estoque alocado</small></article>
+        <article class="commercial-kpi amber"><span>Pedidos parciais</span><strong>${stockAnalysis.totals.partialOrders}</strong><small>Parte pronta e parte pendente de produção</small></article>
+        <article class="commercial-kpi ${stockAnalysis.totals.readyLateOrders ? "red" : "green"}"><span>Atrasados já prontos</span><strong>${stockAnalysis.totals.readyLateOrders}</strong><small>${formatKg(stockAnalysis.totals.readyLateKg, 0)} · ${formatBRL(stockAnalysis.totals.readyLateValue, 0)} para cobrar expedição</small></article>
+      </div>
+    </article>
+
+    <article class="panel span-7">
+      <div class="panel-header">
+        <div>
+          <h2>Pedidos com estoque pronto</h2>
+          <p>Fila para cobrar faturamento, romaneio e expedição imediatamente.</p>
+        </div>
+      </div>
+      <div class="data-table-wrap backlog-stock-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Pedido</th>
+              <th style="text-align:left">Cliente</th>
+              <th>Entrega</th>
+              <th>Kg pronto</th>
+              <th>Valor</th>
+              <th>Status</th>
+              <th style="text-align:left">Ação</th>
+            </tr>
+          </thead>
+          <tbody>${readyToBillRows || `<tr><td colspan="7" style="text-align:center;color:var(--muted)">Nenhum pedido 100% pronto com a alocação atual.</td></tr>`}</tbody>
+          <tfoot>
+            <tr>
+              <td style="text-align:left"><strong>Total para faturar</strong></td>
+              <td style="text-align:left">${readyToBillTotals.orders} pedido${readyToBillTotals.orders === 1 ? "" : "s"}</td>
+              <td>${readyToBillTotals.lateOrders ? `${readyToBillTotals.lateOrders} atrasado${readyToBillTotals.lateOrders === 1 ? "" : "s"}` : "-"}</td>
+              <td>${formatKg(readyToBillTotals.kg, 0)}</td>
+              <td>${formatBRL(readyToBillTotals.value, 0)}</td>
+              <td>${readyToBillTotals.orders ? "Pronto" : "-"}</td>
+              <td style="text-align:left">Cobrar faturamento e expedição.</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </article>
+
+    <article class="panel span-5">
+      <div class="panel-header">
+        <div>
+          <h2>Itens que faltam produzir</h2>
+          <p>Maiores gargalos por linha de pedido.</p>
+        </div>
+      </div>
+      <div class="data-table-wrap backlog-stock-table compact">
+        <table>
+          <thead>
+            <tr>
+              <th>Pedido</th>
+              <th style="text-align:left">Produto</th>
+              <th>Kg pedido</th>
+              <th>Pronto</th>
+              <th>Produzir</th>
+              <th>Valor</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>${productionRows || `<tr><td colspan="7" style="text-align:center;color:var(--muted)">Carteira coberta pelo estoque alocado.</td></tr>`}</tbody>
+        </table>
+      </div>
+    </article>
+  `;
+
+  const dateGroups = Object.keys(byDate).sort().map(d => {
+    const group = byDate[d];
+    const gVal = group.reduce((a, o) => a + o.totalValor, 0);
+    const gKg  = group.reduce((a, o) => a + o.totalKg, 0);
+    return `
+      <article class="panel span-12">
+        <div class="panel-header" style="border-bottom:1px solid rgba(255,255,255,.06);padding-bottom:10px;margin-bottom:0">
+          <div>${dateLabel(d)}<p style="font-size:0.8rem;color:var(--text-dim);margin-top:2px">${group.length} pedido${group.length>1?"s":""} · ${formatKg(gKg,0)} kg · ${formatBRL(gVal)}</p></div>
+        </div>
+        <div class="data-table-wrap" style="margin-top:0">
+          <table>${tableHeader}<tbody>${group.map(orderRow).join("")}</tbody></table>
+        </div>
+      </article>`;
+  }).join("");
+
+  // Status pipeline visual
+  const pipelineHtml = `
+    <div style="display:flex;gap:0;align-items:stretch;overflow:hidden;border-radius:10px;border:1px solid rgba(255,255,255,.08);margin-bottom:0">
+      ${pipeline.map((s, i) => {
+        const cnt = pipeCount[s] || 0;
+        const colors = ["rgba(255,255,255,.06)","rgba(16,183,220,.12)","rgba(245,166,35,.12)","rgba(16,183,220,.2)","rgba(16,183,220,.3)"];
+        return `<div style="flex:1;padding:12px 14px;background:${colors[i]};border-right:1px solid rgba(255,255,255,.06)">
+          <div style="font-size:1.5rem;font-weight:700;color:var(--cyan)">${cnt}</div>
+          <div style="font-size:0.72rem;color:var(--text-dim);margin-top:2px">${s}</div>
+        </div>`;
+      }).join("")}
+      <div style="flex:1;padding:12px 14px;background:rgba(40,200,120,.15)">
+        <div style="font-size:1.5rem;font-weight:700;color:#2bc87a">${faturados.length}</div>
+        <div style="font-size:0.72rem;color:var(--text-dim);margin-top:2px">Nota Gerada</div>
+      </div>
+      <div style="flex:1;padding:12px 14px;background:rgba(229,85,85,.1)">
+        <div style="font-size:1.5rem;font-weight:700;color:#e55">${cancelados.length}</div>
+        <div style="font-size:0.72rem;color:var(--text-dim);margin-top:2px">Cancelado</div>
+      </div>
+    </div>`;
+
+  // Faturados collapsible
+  const faturadosRows = faturados.map(o => `
+    <tr>
+      <td><strong>${o.pedido}</strong></td>
+      <td style="text-align:left">${escapeHtml(o.cliente)}</td>
+      <td style="text-align:left;font-size:0.82rem">${escapeHtml(o.representante)}</td>
+      <td style="text-align:right">${formatKg(o.totalKg,1)}</td>
+      <td style="text-align:right">${formatBRL(o.totalValor)}</td>
+      <td style="text-align:center">${o.dataEntrega ? new Date(o.dataEntrega+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}) : "-"}</td>
+      <td style="text-align:center"><span class="status-pill green" style="font-size:0.72rem">Nota Gerada</span></td>
+      <td style="text-align:left;font-size:0.78rem;color:var(--text-dim)">${escapeHtml(o.frete)} · ${escapeHtml(o.condicaoPgto)}</td>
+    </tr>`).join("");
+
+  const canceladosRows = cancelados.map(o => `
+    <tr>
+      <td><strong>${o.pedido}</strong></td>
+      <td style="text-align:left">${escapeHtml(o.cliente)}</td>
+      <td style="text-align:left;font-size:0.82rem">${escapeHtml(o.representante)}</td>
+      <td style="text-align:right">${formatKg(o.totalKg,1)}</td>
+      <td style="text-align:right">${formatBRL(o.totalValor)}</td>
+      <td style="text-align:center">${o.dataEntrega ? new Date(o.dataEntrega+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}) : "-"}</td>
+      <td style="text-align:center"><span class="status-pill red" style="font-size:0.72rem">Cancelado</span></td>
+      <td style="text-align:left;font-size:0.78rem;color:var(--text-dim)">${escapeHtml(o.frete)} · ${escapeHtml(o.condicaoPgto)}</td>
+    </tr>`).join("");
+
   return `
     <div class="section-grid">
-      <article class="panel span-12 current-tracker">
+
+      <!-- KPIs -->
+      ${kpiCard("Carteira em aberto", formatBRL(totalAtivo.val), `${formatKg(totalAtivo.kg,0)} kg · ${ativos.length} pedidos`, "green")}
+      ${kpiCard("Atrasados", atrasados.length ? formatBRL(totalAtr.val) : "Sem atrasos", atrasados.length ? `${atrasados.length} pedidos · ${formatKg(totalAtr.kg,0)} kg` : "Carteira dentro do prazo", atrasados.length ? "red" : "green")}
+      ${kpiCard(`Entrega hoje (${todayLabelShort})`, formatBRL(totalHoje.val), `${hoje.length} pedidos · ${formatKg(totalHoje.kg,0)} kg`, "amber")}
+      ${kpiCard("Entrega esta semana", formatBRL(totalSem.val + totalHoje.val), `Até 15/05 · ${semana.length + hoje.length} pedidos · ${formatKg(totalSem.kg + totalHoje.kg,0)} kg`, "blue")}
+      ${kpiCard("Pronto no estoque", formatKg(stockAnalysis.totals.readyKg, 0), `${formatBRL(stockAnalysis.totals.readyValue, 0)} já pode seguir para faturamento`, "green")}
+      ${kpiCard("Falta produzir", formatKg(stockAnalysis.totals.produceKg, 0), `${formatBRL(stockAnalysis.totals.produceValue, 0)} sem estoque pronto`, stockAnalysis.totals.produceKg ? "red" : "green")}
+
+      <!-- Pipeline de status -->
+      <article class="panel span-12">
         <div class="panel-header">
           <div>
-            <h2>Carteira · pedidos em aberto</h2>
-            <p>Cadastre manualmente cada pedido captado para acompanhar saldo, prazo e responsável. Em uma próxima fase, isso virá direto do ERP.</p>
+            <h2>Pipeline de status · maio 2026</h2>
+            <p>Fluxo dos ${allOrders.length} pedidos da carteira geral — da captação ao faturamento.</p>
           </div>
-          <span class="status-pill blue">${items.filter(i => i.status !== "entregue").length} em aberto</span>
+          <span class="status-pill blue">Ref. ${todayLabelFull}</span>
         </div>
-        <div class="section-grid" style="gap:14px">
-          ${kpiCard("Pedidos em aberto", formatBRL(totals.openRevenue), `${formatKg(totals.openWeight, 2)} para entregar`, "green")}
-          ${kpiCard("Total cadastrado", formatBRL(totals.revenue), `${items.length} pedido${items.length !== 1 ? "s" : ""}`, "blue")}
-          ${kpiCard("Já entregue", formatBRL(totals.revenue - totals.openRevenue), `${formatKg(totals.weightKg - totals.openWeight, 2)} concluído`, "amber")}
-          ${kpiCard("Saldo médio por pedido", formatBRL(items.length ? totals.openRevenue / Math.max(items.filter(i => i.status !== "entregue").length, 1) : 0), "Ticket médio em aberto", "red")}
-        </div>
+        ${pipelineHtml}
+        <p style="font-size:0.78rem;color:var(--text-dim);margin-top:10px">
+          <strong>Faturamento previsto (ativos):</strong> ${formatBRL(totalAtivo.val)} · ${formatKg(totalAtivo.kg,0)} kg
+          &nbsp;|&nbsp; <strong>Cancelados:</strong> ${formatBRL(cancelados.reduce((a,o)=>a+o.totalValor,0))} perdidos
+          &nbsp;|&nbsp; <strong>Faturados:</strong> ${formatBRL(faturados.reduce((a,o)=>a+o.totalValor,0))}
+        </p>
       </article>
 
-      <article class="panel span-5 admin-form-panel">
-        <div class="panel-header">
-          <div>
-            <h2>Cadastrar pedido</h2>
-            <p>Adicione um pedido captado para entrar na carteira.</p>
-          </div>
-        </div>
-        <div class="admin-form">
-          <label>Cliente
-            <input id="backlog-client" type="text" placeholder="Razão social">
-          </label>
-          <label>Representante
-            <input id="backlog-rep" type="text" placeholder="Nome do representante">
-          </label>
-          <label>Peso (kg)
-            <input id="backlog-weight" type="number" min="0" step="0.01" placeholder="Ex.: 5000">
-          </label>
-          <label>Valor (R$)
-            <input id="backlog-revenue" type="number" min="0" step="0.01" placeholder="Ex.: 100000">
-          </label>
-          <label>Data de captação
-            <input id="backlog-date" type="date" value="${today}">
-          </label>
-          <label>Data prometida
-            <input id="backlog-promised" type="date">
-          </label>
-          <label>Observações
-            <input id="backlog-notes" type="text" placeholder="Ex.: produto, urgência, etc">
-          </label>
-          <button class="primary-button" id="add-backlog" type="button">Adicionar à carteira</button>
-        </div>
-      </article>
+      ${stockReadinessPanel}
 
-      <article class="panel span-7">
+      <!-- Atrasados -->
+      ${atrasadosSection}
+
+      <!-- Por data de entrega -->
+      ${dateGroups}
+
+      <!-- Faturados (Nota Gerada) -->
+      <article class="panel span-12">
         <div class="panel-header">
           <div>
-            <h2>Pedidos cadastrados</h2>
-            <p>Todos os pedidos na carteira local deste navegador.</p>
+            <h2>Já faturados — Nota Gerada (${faturados.length})</h2>
+            <p>Pedidos com nota emitida. Total: ${formatBRL(faturados.reduce((a,o)=>a+o.totalValor,0))} · ${formatKg(faturados.reduce((a,o)=>a+o.totalKg,0),0)} kg</p>
           </div>
+          <span class="status-pill green">Faturado</span>
         </div>
-        ${items.length ? `
         <div class="data-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th style="text-align:left" data-sort-key="id">ID</th>
-                <th data-sort-key="date">Captado</th>
-                <th style="text-align:left" data-sort-key="client">Cliente</th>
-                <th style="text-align:left" data-sort-key="rep">Representante</th>
-                <th data-sort-key="weight" data-sort-type="number">Peso</th>
-                <th data-sort-key="revenue" data-sort-type="number">Valor</th>
-                <th data-sort-key="promised">Prometida</th>
-                <th data-sort-key="status">Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>` : `
-        <div class="empty-state-rich">
-          <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 5h6l2 3h10v10a2 2 0 0 1-2 2H3z"></path>
-              <path d="M3 11h18"></path>
-            </svg>
-          </div>
-          <h3>Nenhum pedido na carteira ainda</h3>
-          <p>Use o formulário ao lado para cadastrar pedidos captados e acompanhar o saldo a entregar dentro do mês.</p>
-        </div>`}
+          <table>${tableHeader}<tbody>${faturadosRows}</tbody></table>
+        </div>
       </article>
+
+      <!-- Cancelados -->
+      <article class="panel span-12">
+        <div class="panel-header">
+          <div>
+            <h2>Cancelados (${cancelados.length})</h2>
+            <p>Pedidos cancelados. Valor perdido: ${formatBRL(cancelados.reduce((a,o)=>a+o.totalValor,0))} · ${formatKg(cancelados.reduce((a,o)=>a+o.totalKg,0),0)} kg</p>
+          </div>
+          <span class="status-pill red">Cancelado</span>
+        </div>
+        <div class="data-table-wrap">
+          <table>${tableHeader}<tbody>${canceladosRows}</tbody></table>
+        </div>
+      </article>
+
     </div>
   `;
 }
@@ -3827,7 +7551,8 @@ function accessLogsTable(logs) {
 function renderRepresentativesList() {
   const list = document.querySelector("#rep-list");
   if (list) {
-    list.innerHTML = representativesTable();
+    list.innerHTML = representativesPeriodTables();
+    applyMachineDisplayLabels(list);
   }
 }
 
@@ -3994,57 +7719,130 @@ function representativesBars() {
   return rows.length ? barList(rows) : `<div class="empty-state">Nenhum representante encontrado.</div>`;
 }
 
-function representativesTable() {
-  const rows = filteredRepresentatives().map((rep, index) => {
-    const avg = rep.revenue / rep.weightKg;
+function representativesPeriodTables() {
+  const currentRows = filteredRepresentativeRows(representativeCurrentRows());
+  const previousRows = filteredRepresentativeRows(representativePreviousRows());
+  const period = data.mayInvoices2026?.period || {};
+  const periodStart = period.startDate ? new Date(period.startDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "";
+  const periodEnd = period.endDate ? new Date(period.endDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "";
+
+  return `
+    ${representativesTable(currentRows, {
+      title: `Mês vigente atualizado · maio ${periodStart}–${periodEnd}`,
+      note: "Somente NFs emitidas dentro do período vigente já carregado.",
+      empty: "Nenhum representante encontrado em maio."
+    })}
+    ${representativesTable(previousRows, {
+      title: "Mês anterior executado · abril fechado",
+      note: "Fechamento executado do mês anterior para comparação e referência.",
+      empty: "Nenhum representante encontrado em abril."
+    })}
+  `;
+}
+
+function representativesTable(rows, options = {}) {
+  const totals = representativesTotals(rows);
+  const tableRows = rows.map((rep, index) => {
+    const avg = rep.weightKg ? rep.revenue / rep.weightKg : 0;
     return `
       <tr>
         <td>${index + 1}</td>
-        <td>${escapeHtml(rep.name)}</td>
-        <td>${formatKg(rep.weightKg)}</td>
+        <td style="text-align:left">${escapeHtml(rep.name)}${rep.notes ? `<br><small>${escapeHtml(rep.notes)}</small>` : ""}</td>
+        <td>${formatKg(rep.weightKg, 0)}</td>
         <td>${formatBRL(rep.revenue, 0)}</td>
-        <td>${formatBRL(avg)}</td>
+        <td>${rep.weightKg ? formatBRL(avg) : "-"}</td>
+        <td>${rep.invoiceCount ? `${rep.invoiceCount} NF${rep.invoiceCount === 1 ? "" : "s"}` : "-"}</td>
       </tr>
     `;
   }).join("");
 
-  if (!rows) {
-    return `<div class="empty-state">Nenhum representante encontrado.</div>`;
-  }
-
   return `
+    <div class="representatives-period-head">
+      <div>
+        <h3>${escapeHtml(options.title || "Representantes")}</h3>
+        <p>${escapeHtml(options.note || "")}</p>
+      </div>
+      <span class="status-pill blue">${rows.length} representante${rows.length === 1 ? "" : "s"}</span>
+    </div>
     <div class="data-table-wrap representatives-table goals-table">
       <table>
         <thead>
           <tr>
             <th>#</th>
-            <th>Representante</th>
+            <th style="text-align:left">Representante</th>
             <th>Peso</th>
             <th>Faturamento</th>
             <th>R$/kg</th>
+            <th>NFs</th>
           </tr>
         </thead>
-        <tbody>${rows}</tbody>
+        <tbody>${tableRows || `<tr><td colspan="6" style="text-align:center;color:var(--muted)">${escapeHtml(options.empty || "Nenhum representante encontrado.")}</td></tr>`}</tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2" style="text-align:left"><strong>Total</strong></td>
+            <td>${formatKg(totals.weightKg, 0)}</td>
+            <td>${formatBRL(totals.revenue, 0)}</td>
+            <td>${totals.weightKg ? formatBRL(totals.revenue / totals.weightKg) : "-"}</td>
+            <td>${totals.invoiceCount ? `${totals.invoiceCount} NFs` : "-"}</td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   `;
 }
 
 function mayGoalTable(plan, targetKg) {
-  const rows = plan.map((row, index) => `
-    <tr>
-      <td>${index + 1}</td>
-      <td>${escapeHtml(row.name)}</td>
-      <td>${formatPercent(row.share)}</td>
-      <td>${formatKg(row.aprilKg)}</td>
-      <td>${formatTon(row.targetKg)}</td>
-      <td>${formatKg(row.targetKg / 20)}</td>
-      <td>${formatBRL(row.avgPrice)}</td>
-      <td>${formatBRL(row.targetRevenue, 0)}</td>
-    </tr>
-  `).join("");
+  // Faturado em maio por representante
+  const fatByRep = {};
+  (data.mayInvoices2026?.invoices || []).forEach(nf => {
+    const key = (nf.representative || "").trim();
+    if (!fatByRep[key]) fatByRep[key] = { kg: 0, val: 0 };
+    fatByRep[key].kg  += nf.weightKg || 0;
+    fatByRep[key].val += nf.revenue  || 0;
+  });
 
-  const totalRevenue = plan.reduce((sum, row) => sum + row.targetRevenue, 0);
+  // Carteira ativa por representante
+  const cartByRep = {};
+  (data.carteiraOrders2026 || [])
+    .filter(o => o.situacao !== "Cancelado" && o.situacao !== "Nota Gerada")
+    .forEach(o => {
+      const key = (o.representante || "").trim();
+      if (!cartByRep[key]) cartByRep[key] = { kg: 0, val: 0, pedidos: 0 };
+      cartByRep[key].kg     += o.totalKg    || 0;
+      cartByRep[key].val    += o.totalValor || 0;
+      cartByRep[key].pedidos++;
+    });
+
+  const rows = plan.map((row, index) => {
+    const fat  = fatByRep[row.name]  || { kg: 0, val: 0 };
+    const cart = cartByRep[row.name] || { kg: 0, val: 0, pedidos: 0 };
+    const realizado = fat.kg + cart.kg;
+    const pct    = row.targetKg > 0 ? realizado / row.targetKg : 0;
+    const saldo  = Math.max(0, row.targetKg - realizado);
+    const pill   = pct >= 1 ? "" : pct >= 0.5 ? "amber" : "red";
+
+    return `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${escapeHtml(row.name)}</td>
+        <td>${formatTon(row.targetKg)}<br><small style="color:var(--muted)">${formatBRL(row.targetRevenue, 0)}</small></td>
+        <td>${fat.kg > 0 ? `${formatKg(fat.kg, 0)}<br><small style="color:var(--muted)">${formatBRL(fat.val, 0)}</small>` : `<span style="color:var(--muted)">—</span>`}</td>
+        <td>${cart.kg > 0 ? `${formatKg(cart.kg, 0)}<br><small style="color:var(--muted)">${cart.pedidos} ped. · ${formatBRL(cart.val, 0)}</small>` : `<span style="color:var(--muted)">—</span>`}</td>
+        <td style="text-align:center">
+          <span class="status-pill ${pill}">${formatPercent(pct)}</span>
+          <div style="background:var(--border);border-radius:4px;height:6px;margin-top:6px;overflow:hidden">
+            <div style="width:${Math.min(pct * 100, 100).toFixed(1)}%;height:100%;background:${pct >= 1 ? "var(--green)" : pct >= 0.5 ? "var(--amber)" : "var(--red)"}"></div>
+          </div>
+        </td>
+        <td>${saldo > 0 ? `<strong style="color:var(--red)">${formatKg(saldo, 0)}</strong>` : `<span style="color:var(--green)">✓ Meta coberta</span>`}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const totalFat  = plan.reduce((s, r) => s + (fatByRep[r.name]?.kg  || 0), 0);
+  const totalCart = plan.reduce((s, r) => s + (cartByRep[r.name]?.kg || 0), 0);
+  const totalReal = totalFat + totalCart;
+  const totalPct  = targetKg > 0 ? totalReal / targetKg : 0;
 
   return `
     <div class="data-table-wrap representatives-table">
@@ -4052,26 +7850,23 @@ function mayGoalTable(plan, targetKg) {
         <thead>
           <tr>
             <th>#</th>
-            <th>Representante / Canal</th>
-            <th>Part. abril</th>
-            <th>Kg abril</th>
+            <th style="text-align:left">Representante / Canal</th>
             <th>Meta maio</th>
-            <th>Meta/dia</th>
-            <th>R$/kg abril</th>
-            <th>Faturamento simulado</th>
+            <th>Faturado maio</th>
+            <th>Carteira ativa</th>
+            <th>Progresso</th>
+            <th>Saldo</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
         <tfoot>
           <tr>
-            <td>Total</td>
-            <td>Meta maio</td>
-            <td>100,0%</td>
-            <td>${formatKg(plan.reduce((sum, row) => sum + row.aprilKg, 0))}</td>
+            <td colspan="2"><strong>Total</strong></td>
             <td>${formatTon(targetKg)}</td>
-            <td>${formatKg(targetKg / 20)}</td>
-            <td>${formatBRL(totalRevenue / targetKg)}</td>
-            <td>${formatBRL(totalRevenue, 0)}</td>
+            <td>${formatKg(totalFat, 0)}</td>
+            <td>${formatKg(totalCart, 0)}</td>
+            <td style="text-align:center"><span class="status-pill ${totalPct >= 1 ? "" : "red"}">${formatPercent(totalPct)}</span></td>
+            <td>${formatKg(Math.max(0, targetKg - totalReal), 0)}</td>
           </tr>
         </tfoot>
       </table>
@@ -4360,6 +8155,36 @@ function goalProgress(currentRevenue) {
 function filteredRepresentatives() {
   const query = normalize(state.repQuery);
   return sortedRepresentatives("revenue").filter((rep) => normalize(rep.name).includes(query));
+}
+
+function representativeCurrentRows() {
+  return (data.mayInvoices2026?.representatives || []).map((row) => ({ ...row }));
+}
+
+function representativePreviousRows() {
+  return (data.representativesApril2026 || []).map((row) => ({ ...row, invoiceCount: row.invoiceCount || null }));
+}
+
+function sortRepresentativeRows(rows, sortKey = state.repSort) {
+  return [...rows].sort((a, b) => {
+    const aValue = sortKey === "avg" ? (a.weightKg ? a.revenue / a.weightKg : 0) : (a[sortKey] || 0);
+    const bValue = sortKey === "avg" ? (b.weightKg ? b.revenue / b.weightKg : 0) : (b[sortKey] || 0);
+    return bValue - aValue;
+  });
+}
+
+function filteredRepresentativeRows(rows) {
+  const query = normalize(state.repQuery);
+  return sortRepresentativeRows(rows).filter((rep) => normalize(rep.name).includes(query));
+}
+
+function representativesTotals(rows) {
+  return rows.reduce((acc, row) => {
+    acc.weightKg += Number(row.weightKg) || 0;
+    acc.revenue += Number(row.revenue) || 0;
+    acc.invoiceCount += Number(row.invoiceCount) || 0;
+    return acc;
+  }, { weightKg: 0, revenue: 0, invoiceCount: 0 });
 }
 
 function sortedRepresentatives(sortKey) {

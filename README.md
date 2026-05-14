@@ -1,6 +1,14 @@
 # Spunflex - Sistema de Gestão Comercial
 
-Sistema web local criado a partir das 5 imagens desta pasta. Ele roda sem dependências externas: abra `index.html` no navegador.
+Sistema web criado a partir das imagens e planilhas desta pasta. Por conter dados comerciais sensíveis, o projeto agora deve ser publicado somente por um build protegido com autenticação no host.
+
+## Acesso online fixo
+
+Link único do projeto:
+
+https://spunflex-gestor-comercial.netlify.app
+
+Use sempre esse endereço para acessar a versão online. A barreira de autenticação do Netlify fica configurada na variável `SPUNFLEX_BASIC_AUTH`.
 
 ## Módulos
 
@@ -9,6 +17,7 @@ Sistema web local criado a partir das 5 imagens desta pasta. Ele roda sem depend
 - Representantes: ranking de abril/2026 por reais, peso e R$/kg.
 - Metas: simulação de maio com 450t, rateio por representante/canal e faturamento projetado.
 - Entradas: acompanhamento diário de abril/2026 por Corte 1, Corte 2 e Rebo.
+- Fretes: planejamento da carreta própria de 16 t para SP, redespacho e noroeste do Paraná.
 - Financeiro: histórico de faturamento, meta 2026 e comparação entre vendas e entradas.
 - Fontes: auditoria das imagens revisadas e pontos extraídos de cada documento.
 
@@ -34,25 +43,30 @@ A personalização usa referências do site oficial da Spunflex:
 
 ## Acesso
 
-Login de demonstração para o app estático:
+O login local do front-end não é uma barreira de segurança suficiente para produção. O build protegido usa autenticação do host antes de servir `index.html`, `app.js`, `data.js`, imagens e planilhas.
 
-- Usuário: `spunflex`
-- Senha: `2026`
+### Deploy seguro no Netlify
 
-Para publicação pública na internet, use autenticação do servidor/hosting além desta tela de login do front-end.
+1. Configure a variável de ambiente `SPUNFLEX_BASIC_AUTH` no Netlify no formato `usuario:senha-forte`.
+2. Publique usando o `netlify.toml`; ele executa `scripts/build-static.sh` e publica apenas `dist/`.
+3. Sem `SPUNFLEX_BASIC_AUTH`, o build falha por segurança.
+
+### Teste local
+
+Para gerar uma versão local sem dados reais:
+
+```bash
+ALLOW_UNPROTECTED_BUILD=1 bash scripts/build-static.sh
+```
+
+Depois abra `dist/index.html`. Não use esse modo para publicação.
 
 ## Publicação
 
-O projeto está preparado para hospedagem estática.
-
 ### GitHub Pages
 
-O arquivo `.github/workflows/pages.yml` publica automaticamente a branch `main` no GitHub Pages quando houver push.
-
-Link esperado depois da publicação:
-
-`https://jpladeia-mac.github.io/spunflex-gestor-comercial/`
+O deploy por GitHub Pages está bloqueado. Este painel precisa de headers/autenticação antes de servir arquivos estáticos, e esse fluxo deve ser feito por Netlify, proxy/edge ou backend equivalente.
 
 ### Netlify
 
-O arquivo `netlify.toml` permite publicar a pasta raiz diretamente no Netlify.
+O arquivo `netlify.toml` publica `dist/` e depende de `SPUNFLEX_BASIC_AUTH`. Não faça drag-and-drop da raiz do repositório.

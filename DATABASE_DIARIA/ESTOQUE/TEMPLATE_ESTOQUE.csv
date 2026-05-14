@@ -1,0 +1,4 @@
+Produto,Quantidade,Unidade,Warehouse,Estoque Mínimo,Estoque Máximo,Status
+FITA POLIAMIDA,1500,kg,PRINCIPAL,500,3000,ok
+FITA POLIPROPILENO,2200,kg,PRINCIPAL,400,2500,ok
+FITA PVC,800,kg,PRINCIPAL,300,1500,ok

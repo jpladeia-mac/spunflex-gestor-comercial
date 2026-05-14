@@ -1,0 +1,33 @@
+{
+  "data": "2026-05-12",
+  "descricao": "Vendas e Notas Fiscais do dia",
+  "invoices": [
+    {
+      "nf": "NF-001234",
+      "client": "CLIENTE A LTDA",
+      "product": "FITA POLIAMIDA",
+      "quantity": 100,
+      "unit": "kg",
+      "unitPrice": 15.50,
+      "totalPrice": 1550.00,
+      "date": "2026-05-12",
+      "status": "entregue"
+    },
+    {
+      "nf": "NF-001235",
+      "client": "CLIENTE B IND",
+      "product": "FITA POLIPROPILENO",
+      "quantity": 250,
+      "unit": "kg",
+      "unitPrice": 12.00,
+      "totalPrice": 3000.00,
+      "date": "2026-05-12",
+      "status": "entregue"
+    }
+  ],
+  "totais": {
+    "quantidade_total_kg": 350,
+    "valor_total": 4550.00,
+    "numero_nf": 2
+  }
+}

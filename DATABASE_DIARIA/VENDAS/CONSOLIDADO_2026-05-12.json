@@ -1,0 +1,118 @@
+{
+  "data": "2026-05-12",
+  "descricao": "Fechamento consolidado do dia 12 de maio de 2026",
+  "atualizacao_hora": "15:45",
+  "resumo_executivo": {
+    "total_pedidos": 242,
+    "total_kg": 324368,
+    "total_valor_pedidos": 6009769.26,
+    "situacoes": {
+      "nota_gerada": {
+        "pedidos": 84,
+        "kg": 40608,
+        "valor": 813706.99,
+        "percentual_pedidos": 34.7,
+        "percentual_valor": 13.5,
+        "status": "✅ Faturado"
+      },
+      "cancelado": {
+        "pedidos": 28,
+        "kg": 75846,
+        "valor": 1262869.98,
+        "percentual_pedidos": 11.6,
+        "percentual_valor": 21.0,
+        "status": "❌ Cancelado"
+      },
+      "entrega_parcial": {
+        "pedidos": 6,
+        "kg": 23337,
+        "valor": 415545.48,
+        "percentual_pedidos": 2.5,
+        "percentual_valor": 6.9,
+        "status": "⚠️ Parcial"
+      },
+      "autorizado_producao": {
+        "pedidos": 59,
+        "kg": 72906,
+        "valor": 1440456.03,
+        "percentual_pedidos": 24.4,
+        "percentual_valor": 24.0,
+        "status": "🔄 Em Produção"
+      },
+      "produzido": {
+        "pedidos": 15,
+        "kg": 30156,
+        "valor": 568151.67,
+        "percentual_pedidos": 6.2,
+        "percentual_valor": 9.5,
+        "status": "📦 Produzido"
+      },
+      "autorizado_faturamento": {
+        "pedidos": 20,
+        "kg": 7058,
+        "valor": 140434.45,
+        "percentual_pedidos": 8.3,
+        "percentual_valor": 2.3,
+        "status": "💼 Faturamento"
+      },
+      "gerado_romaneio": {
+        "pedidos": 6,
+        "kg": 4315,
+        "valor": 92965.15,
+        "percentual_pedidos": 2.5,
+        "percentual_valor": 1.5,
+        "status": "📋 Romaneio"
+      },
+      "conferida": {
+        "pedidos": 3,
+        "kg": 2472,
+        "valor": 51845.81,
+        "percentual_pedidos": 1.2,
+        "percentual_valor": 0.9,
+        "status": "✔️ Conferido"
+      },
+      "cadastrada": {
+        "pedidos": 21,
+        "kg": 67670,
+        "valor": 1223793.70,
+        "percentual_pedidos": 8.7,
+        "percentual_valor": 20.4,
+        "status": "📝 Novo"
+      }
+    }
+  },
+  "analise_financeira": {
+    "valor_total_pedidos": 6009769.26,
+    "valor_cancelado": 1262869.98,
+    "valor_ativo": 4746899.28,
+    "valor_entregue": 813706.99,
+    "valor_em_producao": 1513411.70,
+    "valor_pendente_processamento": 2419781.59,
+    "valor_medio_pedido": 24831.01,
+    "valor_minimo_pedido": 1610.54,
+    "valor_maximo_pedido": 392000.00
+  },
+  "analise_operacional": {
+    "volume_total_kg": 324368,
+    "volume_cancelado_kg": 75846,
+    "volume_ativo_kg": 248522,
+    "volume_entregue_kg": 40608,
+    "volume_em_producao_kg": 103062,
+    "volume_pendente_kg": 104852,
+    "peso_medio_pedido_kg": 1340.30,
+    "peso_minimo_kg": 85.44,
+    "peso_maximo_kg": 22400
+  },
+  "indicadores_chave": {
+    "taxa_cancelamento_valor": 21.0,
+    "taxa_cancelamento_quantidade": 11.6,
+    "taxa_finalizacao": 13.5,
+    "taxa_em_processamento": 24.0,
+    "taxa_aguardando": 20.4,
+    "eficiencia_pedidos_finalizados": 90,
+    "pedidos_problema": 28,
+    "prazo_medio_dias": 7
+  },
+  "dados_consolidados": true,
+  "pronto_para_sincronizar": true
+}
