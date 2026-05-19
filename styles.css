@@ -1560,6 +1560,36 @@ h3 {
   white-space: nowrap;
 }
 
+.bar-total-row {
+  display: grid;
+  gap: 3px;
+  margin-top: 2px;
+  padding: 12px 14px;
+  border: 1px solid rgba(16, 183, 220, 0.18);
+  border-radius: 8px;
+  background: #F6FBFD;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-total-row span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.bar-total-row strong {
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+.bar-total-row small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
 .representatives-ranking-panel #rep-bars {
   margin-top: 14px;
 }

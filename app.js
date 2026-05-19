@@ -101,17 +101,105 @@ function customerGroup(name) {
   return name;
 }
 
-function customerAggregates() {
-  // Consolida vendas (mayInvoices2026) por cliente: kg, revenue, NFs, dias, R$/kg
-  const may = data.mayInvoices2026;
-  if (!may?.invoices) return [];
+function getInvoiceReferenceDate() {
+  return data.mayInvoices2026?.period?.endDate || data.currentMayBilling2026?.endDate || data.baseDate || getBacklogReferenceDate();
+}
+
+function getActiveBacklogOrders() {
+  return (data.carteiraOrders2026 || [])
+    .filter((order) => order && order.situacao !== "Cancelado" && order.situacao !== "Nota Gerada");
+}
+
+function getBacklogTotals(orders = getActiveBacklogOrders()) {
+  return orders.reduce((acc, order) => {
+    acc.orders += 1;
+    acc.weightKg += Number(order.totalKg) || 0;
+    acc.revenue += Number(order.totalValor) || 0;
+    acc.lineCount += Array.isArray(order.linhas) ? order.linhas.length : 0;
+    return acc;
+  }, { orders: 0, weightKg: 0, revenue: 0, lineCount: 0 });
+}
+
+function countBusinessDaysInclusive(startIso, endIso) {
+  if (!startIso || !endIso || startIso > endIso) return 0;
+  const date = new Date(startIso + "T12:00:00");
+  const end = new Date(endIso + "T12:00:00");
+  let count = 0;
+  while (date <= end) {
+    const day = date.getDay();
+    if (day !== 0 && day !== 6) count += 1;
+    date.setDate(date.getDate() + 1);
+  }
+  return count;
+}
+
+function remainingBusinessDaysInMonth(iso = getBacklogReferenceDate()) {
+  return Math.max(1, countBusinessDaysInclusive(iso, monthEndIso(iso)));
+}
+
+function aggregateActiveBacklogByRepresentative(orders = getActiveBacklogOrders()) {
   const map = new Map();
-  may.invoices.forEach((inv) => {
-    const group = customerGroup(inv.client);
-    const key = group;
+  orders.forEach((order) => {
+    const name = (order.representante || "Sem representante").trim() || "Sem representante";
+    if (!map.has(name)) map.set(name, { name, weightKg: 0, revenue: 0, invoiceCount: 0 });
+    const row = map.get(name);
+    row.weightKg += Number(order.totalKg) || 0;
+    row.revenue += Number(order.totalValor) || 0;
+    row.invoiceCount += 1;
+  });
+  return [...map.values()].sort((a, b) => b.revenue - a.revenue);
+}
+
+function aggregateActiveBacklogProducts(orders = getActiveBacklogOrders()) {
+  const map = new Map();
+  const colors = inventoryColorCatalog(window.finishedGoodsStock2026?.records || []);
+  orders.forEach((order) => {
+    (order.linhas || []).forEach((line) => {
+      const description = line.produto || "Produto sem descrição";
+      const sig = inventorySignatureFromText(description, colors);
+      const key = normalizeInventoryText(description);
+      if (!map.has(key)) {
+        map.set(key, {
+          description,
+          line: sig.line || "—",
+          width: sig.widthMm || "—",
+          color: sig.color || "—",
+          grammage: sig.grammage || "—",
+          weightKg: 0,
+          revenue: 0,
+          orders: new Set(),
+          representatives: new Set(),
+          machines: new Set()
+        });
+      }
+      const row = map.get(key);
+      row.weightKg += Number(line.kg) || 0;
+      row.revenue += Number(line.valor) || 0;
+      row.orders.add(order.pedido);
+      if (order.representante) row.representatives.add(order.representante);
+      if (line.maquina) row.machines.add(machineForProductionFocus(line.maquina));
+    });
+  });
+  return [...map.values()]
+    .map((row) => ({
+      ...row,
+      orderCount: row.orders.size,
+      representativeCount: row.representatives.size,
+      machineList: [...row.machines]
+    }))
+    .sort((a, b) => b.revenue - a.revenue);
+}
+
+function customerAggregates() {
+  // Consolida NFs emitidas e carteira ativa por grupo econômico.
+  const may = data.mayInvoices2026;
+  const map = new Map();
+
+  const ensureAgg = (group) => {
+    const key = group || "—";
     if (!map.has(key)) {
       map.set(key, {
-        group,
+        group: key,
         members: new Set(),
         weightKg: 0,
         revenue: 0,
@@ -120,20 +208,43 @@ function customerAggregates() {
         representatives: new Set(),
         states: new Set(),
         cities: new Set(),
-        lastDate: null
+        lastDate: null,
+        backlogWeightKg: 0,
+        backlogRevenue: 0,
+        backlogOrders: 0,
+        backlogLines: 0,
+        nextDeliveryDate: null
       });
     }
-    const agg = map.get(key);
+    return map.get(key);
+  };
+
+  (may?.invoices || []).forEach((inv) => {
+    const agg = ensureAgg(customerGroup(inv.client));
     agg.members.add(inv.client);
-    agg.weightKg += inv.weightKg;
-    agg.revenue += inv.revenue;
+    agg.weightKg += Number(inv.weightKg) || 0;
+    agg.revenue += Number(inv.revenue) || 0;
     agg.invoices += 1;
-    agg.days.add(inv.date);
-    agg.representatives.add(inv.representative);
-    agg.states.add(inv.state);
-    agg.cities.add(`${inv.city}/${inv.state}`);
-    if (!agg.lastDate || inv.date > agg.lastDate) agg.lastDate = inv.date;
+    if (inv.date) agg.days.add(inv.date);
+    if (inv.representative) agg.representatives.add(inv.representative);
+    if (inv.state) agg.states.add(inv.state);
+    if (inv.city || inv.state) agg.cities.add(`${inv.city || "-"}/${inv.state || "-"}`);
+    if (inv.date && (!agg.lastDate || inv.date > agg.lastDate)) agg.lastDate = inv.date;
   });
+
+  getActiveBacklogOrders().forEach((order) => {
+    const agg = ensureAgg(customerGroup(order.cliente));
+    agg.members.add(order.cliente || agg.group);
+    agg.backlogWeightKg += Number(order.totalKg) || 0;
+    agg.backlogRevenue += Number(order.totalValor) || 0;
+    agg.backlogOrders += 1;
+    agg.backlogLines += Array.isArray(order.linhas) ? order.linhas.length : 0;
+    if (order.representante) agg.representatives.add(order.representante);
+    if (order.dataEntrega && (!agg.nextDeliveryDate || order.dataEntrega < agg.nextDeliveryDate)) {
+      agg.nextDeliveryDate = order.dataEntrega;
+    }
+  });
+
   return [...map.values()].map((agg) => ({
     ...agg,
     members: [...agg.members],
@@ -142,8 +253,14 @@ function customerAggregates() {
     states: [...agg.states],
     cities: [...agg.cities],
     pricePerKg: agg.weightKg ? agg.revenue / agg.weightKg : 0,
-    avgTicket: agg.invoices ? agg.revenue / agg.invoices : 0
-  })).sort((a, b) => b.revenue - a.revenue);
+    avgTicket: agg.invoices ? agg.revenue / agg.invoices : 0,
+    backlogPricePerKg: agg.backlogWeightKg ? agg.backlogRevenue / agg.backlogWeightKg : 0,
+    commercialRevenue: agg.revenue + agg.backlogRevenue,
+    commercialWeightKg: agg.weightKg + agg.backlogWeightKg,
+    commercialPricePerKg: (agg.weightKg + agg.backlogWeightKg)
+      ? (agg.revenue + agg.backlogRevenue) / (agg.weightKg + agg.backlogWeightKg)
+      : 0
+  })).sort((a, b) => b.commercialRevenue - a.commercialRevenue);
 }
 
 function abcClassify(items, key = "revenue") {
@@ -223,6 +340,16 @@ const months = [
   { id: 12, short: "dez", name: "Dezembro" }
 ];
 
+const FREIGHT_DEFAULT_FILTERS = Object.freeze({
+  minKg: "1000",
+  maxStops: "5",
+  route: "all",
+  readiness: "all"
+});
+const FREIGHT_ROUTE_FILTERS = new Set(["all", "sp", "nwPr"]);
+const FREIGHT_READINESS_FILTERS = new Set(["all", "ready", "partial", "produce"]);
+const FREIGHT_NUMERIC_FILTERS = new Set(["minKg", "maxStops"]);
+
 const state = {
   view: "overview",
   year: 2026,
@@ -245,12 +372,7 @@ const state = {
     machine: "all",
     minKg: ""
   },
-  freightFilters: {
-    minKg: "1000",
-    maxStops: "5",
-    route: "all",
-    readiness: "all"
-  }
+  freightFilters: { ...FREIGHT_DEFAULT_FILTERS }
 };
 
 const app = document.querySelector("#app");
@@ -269,9 +391,15 @@ const appShell = document.querySelector("#app-shell");
 const activationCodeInput = document.querySelector("#activation-code");
 const activationCodeButton = document.querySelector("#activate-access-code");
 
-const defaultRevenueTarget = totalSales(2025).revenue * 1.15;
+const defaultRevenueTarget = 70_000_000;
 let appBooted = false;
 let loginControlsBooted = false;
+
+// Reset único da meta financeira para o padrão de 2026 (R$ 70MM)
+if (localStorage.getItem("spunflex.revenueTarget2026.reset.v2") !== "true") {
+  localStorage.setItem("spunflex.revenueTarget2026", String(defaultRevenueTarget));
+  localStorage.setItem("spunflex.revenueTarget2026.reset.v2", "true");
+}
 
 init();
 
@@ -489,6 +617,67 @@ function getBacklogReferenceDate() {
 
 function formatIsoShort(iso) {
   return iso ? new Date(iso + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "";
+}
+
+function addIsoDays(iso, days) {
+  const date = new Date(iso + "T12:00:00");
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function monthEndIso(iso) {
+  const date = new Date(iso + "T12:00:00");
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 12).toISOString().slice(0, 10);
+}
+
+function minIsoDate(...dates) {
+  return dates.filter(Boolean).sort()[0] || "";
+}
+
+function formatIsoRange(startIso, endIso) {
+  if (!startIso || !endIso) return "";
+  return startIso === endIso ? formatIsoShort(startIso) : `${formatIsoShort(startIso)}-${formatIsoShort(endIso)}`;
+}
+
+function buildBacklogDeliveryBuckets(today = getBacklogReferenceDate()) {
+  const monthEnd = monthEndIso(today);
+  const nearStart = addIsoDays(today, 1);
+  const nearEnd = minIsoDate(addIsoDays(today, 4), monthEnd);
+  const monthEndStart = addIsoDays(nearEnd, 1);
+  const buckets = [
+    { key: "late", label: "Atrasados", helper: "Entrega vencida", tone: "red", filter: (order) => order.dataEntrega < today },
+    { key: "today", label: `Hoje · ${formatIsoShort(today)}`, helper: "Faturar e expedir", tone: "blue", filter: (order) => order.dataEntrega === today }
+  ];
+
+  if (nearStart <= nearEnd) {
+    buckets.push({
+      key: "near",
+      label: formatIsoRange(nearStart, nearEnd),
+      helper: "Próximos dias",
+      tone: "",
+      filter: (order) => order.dataEntrega > today && order.dataEntrega <= nearEnd
+    });
+  }
+
+  if (monthEndStart <= monthEnd) {
+    buckets.push({
+      key: "monthEnd",
+      label: formatIsoRange(monthEndStart, monthEnd),
+      helper: "Fim do mês",
+      tone: "amber",
+      filter: (order) => order.dataEntrega >= monthEndStart && order.dataEntrega <= monthEnd
+    });
+  }
+
+  buckets.push({
+    key: "future",
+    label: "Junho+",
+    helper: "Depois do mês atual",
+    tone: "amber",
+    filter: (order) => order.dataEntrega > monthEnd
+  });
+
+  return buckets;
 }
 
 function machineForProductionFocus(machine) {
@@ -1440,7 +1629,7 @@ function handleClick(event) {
 
   const clearFreightFilters = event.target.closest("[data-freight-clear]");
   if (clearFreightFilters) {
-    state.freightFilters = { minKg: "1000", maxStops: "5", route: "all", readiness: "all" };
+    state.freightFilters = { ...FREIGHT_DEFAULT_FILTERS };
     render();
     return;
   }
@@ -1681,7 +1870,8 @@ function handleInput(event) {
       ...state.freightFilters,
       [key]: freightFilter.value
     };
-    render();
+    if (FREIGHT_NUMERIC_FILTERS.has(key)) debouncedRender();
+    else render();
     return;
   }
 
@@ -1920,11 +2110,14 @@ function renderOverview() {
   const carteiraAll = data.carteiraOrders2026 || [];
   const isActiveOrder = (order) => order.situacao !== "Cancelado" && order.situacao !== "Nota Gerada";
   const carteiraAtivos = carteiraAll.filter(isActiveOrder);
-  const carteiraAtrasados = carteiraAtivos.filter((order) => order.dataEntrega < dashboardToday);
-  const carteiraHoje = carteiraAtivos.filter((order) => order.dataEntrega === dashboardToday);
-  const carteiraSem1 = carteiraAtivos.filter((order) => order.dataEntrega > dashboardToday && order.dataEntrega <= "2026-05-15");
-  const carteiraSem2 = carteiraAtivos.filter((order) => order.dataEntrega >= "2026-05-18" && order.dataEntrega <= "2026-05-22");
-  const carteiraFim = carteiraAtivos.filter((order) => order.dataEntrega >= "2026-05-23");
+  const deliveryBuckets = buildBacklogDeliveryBuckets(dashboardToday);
+  const bucketByKey = Object.fromEntries(deliveryBuckets.map((bucket) => [bucket.key, bucket]));
+  const bucketOrders = Object.fromEntries(deliveryBuckets.map((bucket) => [bucket.key, carteiraAtivos.filter(bucket.filter)]));
+  const carteiraAtrasados = bucketOrders.late || [];
+  const carteiraHoje = bucketOrders.today || [];
+  const carteiraSem1 = bucketOrders.near || [];
+  const carteiraSem2 = bucketOrders.monthEnd || [];
+  const carteiraFim = bucketOrders.future || [];
   const sumCart = (orders) => orders.reduce((acc, order) => ({
     val: acc.val + (Number(order.totalValor) || 0),
     kg: acc.kg + (Number(order.totalKg) || 0)
@@ -1972,13 +2165,12 @@ function renderOverview() {
       color: row.month === 4 ? "amber" : (row.partial ? "blue" : "")
     }));
 
-  const currentWeekLabel = `Até ${formatIsoShort("2026-05-15")}`;
   const pipelineRows = [
-    { label: "Atrasados", helper: "Entrega vencida", orders: carteiraAtrasados, total: ctAtr, tone: "red" },
-    { label: `Hoje · ${dashboardTodayLabel}`, helper: "Faturar e expedir", orders: carteiraHoje, total: ctHoje, tone: "blue" },
-    { label: currentWeekLabel, helper: "Semana corrente", orders: carteiraSem1, total: ctSem1, tone: "" },
-    { label: "18-22/05", helper: "Próxima semana", orders: carteiraSem2, total: ctSem2, tone: "" },
-    { label: "23-31/05", helper: "Fim do mês", orders: carteiraFim, total: ctFim, tone: "amber" }
+    { label: bucketByKey.late?.label || "Atrasados", helper: bucketByKey.late?.helper || "Entrega vencida", orders: carteiraAtrasados, total: ctAtr, tone: bucketByKey.late?.tone || "red" },
+    { label: bucketByKey.today?.label || `Hoje · ${dashboardTodayLabel}`, helper: bucketByKey.today?.helper || "Faturar e expedir", orders: carteiraHoje, total: ctHoje, tone: bucketByKey.today?.tone || "blue" },
+    { label: bucketByKey.near?.label || "Próximos dias", helper: bucketByKey.near?.helper || "Próximos dias", orders: carteiraSem1, total: ctSem1, tone: bucketByKey.near?.tone || "" },
+    { label: bucketByKey.monthEnd?.label || "Fim do mês", helper: bucketByKey.monthEnd?.helper || "Fim do mês", orders: carteiraSem2, total: ctSem2, tone: bucketByKey.monthEnd?.tone || "" },
+    { label: bucketByKey.future?.label || "Junho+", helper: bucketByKey.future?.helper || "Depois do mês atual", orders: carteiraFim, total: ctFim, tone: bucketByKey.future?.tone || "amber" }
   ];
 
   const pipelineTableRows = pipelineRows.map((bucket) => {
@@ -2481,6 +2673,7 @@ function renderInvoices() {
     return acc;
   }, { revenue: 0, weightKg: 0, invoiceCount: 0 });
   const filteredAvgPrice = filteredTotals.weightKg ? filteredTotals.revenue / filteredTotals.weightKg : 0;
+  const totalsLabel = hasActiveInvoiceFilters ? "Total filtrado" : "Total";
 
   const invoicesByDate = new Map();
   filteredInvoices.forEach((inv) => {
@@ -2608,6 +2801,20 @@ function renderInvoices() {
   const representativeSource = hasActiveInvoiceFilters
     ? aggregateRepresentatives(filteredInvoices)
     : [...may.representatives];
+  const representativeTotals = representativeSource.reduce((acc, rep) => {
+    acc.revenue += Number(rep.revenue) || 0;
+    acc.weightKg += Number(rep.weightKg) || 0;
+    acc.invoiceCount += Number(rep.invoiceCount) || 0;
+    return acc;
+  }, { revenue: 0, weightKg: 0, invoiceCount: 0 });
+  const representativeAvgPrice = representativeTotals.weightKg ? representativeTotals.revenue / representativeTotals.weightKg : 0;
+  const representativeTotalSummary = representativeSource.length ? `
+    <div class="bar-total-row">
+      <span>${totalsLabel} representantes</span>
+      <strong>${formatBRL(representativeTotals.revenue)}</strong>
+      <small>${formatKg(representativeTotals.weightKg, 2)} · ${representativeTotals.invoiceCount} NF${representativeTotals.invoiceCount !== 1 ? "s" : ""} · ${representativeAvgPrice ? `${formatBRL(representativeAvgPrice)}/kg` : "-"}</small>
+    </div>
+  ` : "";
   const repRows = representativeSource.length ? representativeSource
     .sort((a, b) => b.revenue - a.revenue)
     .map((rep) => {
@@ -2625,6 +2832,19 @@ function renderInvoices() {
   const machineSource = hasActiveInvoiceFilters
     ? aggregateMachines(filteredInvoices)
     : [...may.machines];
+  const machineTotals = machineSource.reduce((acc, mac) => {
+    acc.revenue += Number(mac.revenue) || 0;
+    acc.weightKg += Number(mac.weightKg) || 0;
+    return acc;
+  }, { revenue: 0, weightKg: 0 });
+  const machineAvgPrice = machineTotals.weightKg ? machineTotals.revenue / machineTotals.weightKg : 0;
+  const machineTotalSummary = machineSource.length ? `
+    <div class="bar-total-row">
+      <span>${totalsLabel} máquinas</span>
+      <strong>${formatBRL(machineTotals.revenue)}</strong>
+      <small>${formatKg(machineTotals.weightKg, 2)} · ${machineAvgPrice ? `${formatBRL(machineAvgPrice)}/kg` : "-"}${hasActiveInvoiceFilters ? " · recorte atual" : ""}</small>
+    </div>
+  ` : "";
   const machineRows = machineSource.length ? machineSource
     .sort((a, b) => b.revenue - a.revenue)
     .map((mac) => {
@@ -2648,14 +2868,61 @@ function renderInvoices() {
   const dateOptions = availableDates
     .map((date) => `<option value="${escapeHtml(date)}">${formatDay(date)}</option>`)
     .join("");
+  const invoiceRefDate = getInvoiceReferenceDate();
+  const backlogRefDate = getBacklogReferenceDate();
+  const invoiceRefLabel = formatIsoShort(invoiceRefDate);
+  const backlogRefLabel = formatIsoShort(backlogRefDate);
+  const activeBacklog = getActiveBacklogOrders();
+  const backlogTotals = getBacklogTotals(activeBacklog);
+  const stockAnalysis = buildBacklogStockAnalysis(activeBacklog, backlogRefDate);
+  const readyToBillRows = stockAnalysis.readyToBill.slice(0, 8).map((order) => `
+    <tr>
+      <td><strong>${escapeHtml(String(order.pedido))}</strong></td>
+      <td style="text-align:left">${escapeHtml(order.client || "-")}<br><small style="color:var(--muted)">Entrega ${formatIsoShort(order.delivery)}${order.late ? " · atrasado" : ""}</small></td>
+      <td>${formatKg(order.readyKg, 2)}</td>
+      <td>${formatBRL(order.readyValue)}</td>
+      <td><span class="status-pill ${order.late ? "red" : "blue"}">${order.late ? "Faturar atrasado" : "Pronto"}</span></td>
+    </tr>
+  `).join("");
 
   return `
     <div class="section-grid">
       <article class="panel span-12 current-tracker">
         <div class="panel-header">
           <div>
+            <h2>Atualização comercial · NF x carteira</h2>
+            <p>NF/faturamento real está carregado até ${invoiceRefLabel}. A pasta 18.05 não trouxe nova planilha de NF; por isso o avanço de ${backlogRefLabel} entra como carteira ativa e estoque pronto para converter.</p>
+          </div>
+          <span class="status-pill blue">Carteira/estoque ${backlogRefLabel}</span>
+        </div>
+        <div class="section-grid" style="gap:14px">
+          ${kpiCard(`Faturado NF até ${invoiceRefLabel}`, formatBRL(may.totals?.revenue || 0), `${formatKg(may.totals?.weightKg || 0, 2)} · ${may.totals?.invoiceCount || allInvoices.length} NFs`, "green")}
+          ${kpiCard(`Carteira ativa ${backlogRefLabel}`, formatBRL(backlogTotals.revenue), `${formatKg(backlogTotals.weightKg, 2)} · ${backlogTotals.orders} pedidos`, "blue")}
+          ${kpiCard("Pronto para faturar", formatBRL(stockAnalysis.totals.readyValue), `${formatKg(stockAnalysis.totals.readyKg, 2)} · ${stockAnalysis.totals.readyOrders} pedidos`, "amber")}
+          ${kpiCard("A produzir", formatKg(stockAnalysis.totals.produceKg, 2), `${formatBRL(stockAnalysis.totals.produceValue)} em carteira`, stockAnalysis.totals.produceKg ? "red" : "green")}
+        </div>
+        ${readyToBillRows ? `
+        <div class="data-table-wrap" style="margin-top:14px">
+          <table>
+            <thead>
+              <tr>
+                <th>Pedido</th>
+                <th style="text-align:left">Cliente / prazo</th>
+                <th>Kg pronto</th>
+                <th>Valor pronto</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>${readyToBillRows}</tbody>
+          </table>
+        </div>` : ""}
+      </article>
+
+      <article class="panel span-12 current-tracker">
+        <div class="panel-header">
+          <div>
             <h2>Notas fiscais · ${dateLabel}</h2>
-            <p>${filteredInvoices.length} NF${filteredInvoices.length !== 1 ? "s" : ""} no recorte, ${lineCountLabel} linhas de itens. Fonte: planilhas xlsx revisadas.</p>
+            <p>${filteredInvoices.length} NF${filteredInvoices.length !== 1 ? "s" : ""} no recorte, ${lineCountLabel} linhas de itens. Fonte: planilha de NF revisada até ${invoiceRefLabel}; use a carteira acima para acompanhar o que ainda falta faturar.</p>
           </div>
           <span class="status-pill blue">${formatBRL(filteredTotals.revenue)} · ${formatKg(filteredTotals.weightKg, 2)}</span>
         </div>
@@ -2729,6 +2996,16 @@ function renderInvoices() {
                 </tr>
               `).join("")}
             </tbody>
+            <tfoot>
+              <tr>
+                <td style="text-align:left"><strong>${totalsLabel}</strong></td>
+                <td>${filteredTotals.invoiceCount}</td>
+                <td>${formatKg(filteredTotals.weightKg, 2)}</td>
+                <td>${formatBRL(filteredTotals.revenue)}</td>
+                <td>${filteredTotals.weightKg ? formatBRL(filteredTotals.revenue / filteredTotals.weightKg) : "-"}/kg</td>
+                <td>${filteredTotals.revenue ? "100,0%" : "-"}</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </article>` : ""}
@@ -2757,7 +3034,7 @@ function renderInvoices() {
             <tbody>${invoiceRows}</tbody>
             <tfoot>
               <tr>
-                <td colspan="5"><strong>${hasActiveInvoiceFilters ? "Total filtrado / Média" : "Total / Média"}</strong></td>
+                <td colspan="5"><strong>${totalsLabel} / Média</strong></td>
                 <td>${formatKg(filteredTotals.weightKg, 2)}</td>
                 <td>${formatBRL(filteredTotals.revenue)}</td>
                 <td>${filteredTotals.weightKg ? formatBRL(filteredTotals.revenue / filteredTotals.weightKg) : "-"}/kg</td>
@@ -2778,7 +3055,7 @@ function renderInvoices() {
             <p>Participação no faturamento do recorte.</p>
           </div>
         </div>
-        <div class="bar-list">${repRows}</div>
+        <div class="bar-list">${repRows}${representativeTotalSummary}</div>
       </article>
 
       <article class="panel span-5">
@@ -2788,7 +3065,7 @@ function renderInvoices() {
             <p>${hasActiveInvoiceFilters ? "Distribuição no recorte; NFs com mais de uma máquina são rateadas igualmente." : "Distribuição entre Corte 1, Corte 2 e Rebobinadeira."}</p>
           </div>
         </div>
-        <div class="bar-list">${machineRows}</div>
+        <div class="bar-list">${machineRows}${machineTotalSummary}</div>
       </article>
 
       <article class="panel span-12">
@@ -2813,7 +3090,7 @@ function renderInvoices() {
             <tbody>${dailyRows}</tbody>
             <tfoot>
               <tr>
-                <td style="text-align:left"><strong>${hasActiveInvoiceFilters ? "Total filtrado" : "Total"}</strong></td>
+                <td style="text-align:left"><strong>${totalsLabel}</strong></td>
                 <td>${filteredTotals.invoiceCount}</td>
                 <td>${lineCountLabel}</td>
                 <td>${formatKg(filteredTotals.weightKg, 2)}</td>
@@ -2837,8 +3114,9 @@ function renderSales() {
     return acc;
   }, { revenue: 0, weightKg: 0 });
   const avgPrice = totals.weightKg ? totals.revenue / totals.weightKg : 0;
-  const today = new Date().toISOString().slice(0, 10);
-  const config = getConfig();
+  const today = getBacklogReferenceDate();
+  const todayLabel = formatIsoShort(today);
+  const todayOrder = orders.find((o) => o.date === today);
 
   // Filtra por mês atual
   const currentMonth = today.slice(0, 7);
@@ -2888,15 +3166,15 @@ function renderSales() {
         <div class="panel-header">
           <div>
             <h2>Vendas · entrada diária de pedidos</h2>
-            <p>Pedidos captados por dia (não confundir com faturamento, que mostra NFs emitidas, nem com carteira, que mostra o saldo total a faturar).</p>
+            <p>Pedidos captados por dia (não confundir com faturamento, que mostra NFs emitidas, nem com carteira, que mostra o saldo total a faturar). Base mais recente: ${todayLabel}.</p>
           </div>
-          <span class="status-pill blue">${orders.length} dia${orders.length !== 1 ? "s" : ""} com captação</span>
+          <span class="status-pill blue">Atualizado em ${todayLabel}</span>
         </div>
         <div class="section-grid" style="gap:14px">
           ${kpiCard("Pedidos no mês", formatBRL(monthTotals.revenue), `${formatKg(monthTotals.weightKg, 2)} em ${monthOrders.length} dia${monthOrders.length !== 1 ? "s" : ""}`, "green")}
+          ${kpiCard(`Captação ${todayLabel}`, todayOrder ? formatBRL(todayOrder.revenue) : "Sem registro", todayOrder ? `${formatKg(todayOrder.weightKg, 2)} · ${todayOrder.orderCount || 0} pedidos` : "Nenhuma entrada para a data-base", "blue")}
           ${kpiCard("Ticket médio diário", formatBRL(orders.length ? totals.revenue / orders.length : 0), `Média de captação por dia`, "blue")}
           ${kpiCard("R$/kg médio captado", formatBRL(avgPrice), `Preço médio dos pedidos`, avgPrice >= (salesRecord(2026, 4)?.revenue / salesRecord(2026, 4)?.weightKg || 0) ? "green" : "amber")}
-          ${kpiCard("Meta diária", formatKg(config.monthlyTargetKg / 20, 0), `${formatKg(config.monthlyTargetKg)} ÷ 20 dias úteis`, "amber")}
         </div>
       </article>
 
@@ -3495,12 +3773,10 @@ function renderGoals() {
 
   // Carteira por semana
   const weekGroups = [
-    { label: "Atrasados",  filter: o => o.dataEntrega < TODAY },
-    { label: "Hoje " + carteiraRefLabel, filter: o => o.dataEntrega === TODAY },
-    { label: "Até 15/05",   filter: o => o.dataEntrega > TODAY && o.dataEntrega <= "2026-05-15" },
-    { label: "18–22/05",   filter: o => o.dataEntrega >= "2026-05-18" && o.dataEntrega <= "2026-05-22" },
-    { label: "23–31/05",   filter: o => o.dataEntrega >= "2026-05-23" && o.dataEntrega <= "2026-05-31" },
-    { label: "Junho+",     filter: o => o.dataEntrega >= "2026-06-01" },
+    ...buildBacklogDeliveryBuckets(TODAY).map((bucket) => ({
+      label: bucket.key === "today" ? "Hoje " + carteiraRefLabel : bucket.label,
+      filter: bucket.filter
+    })),
   ];
   const weekRows = weekGroups.map(w => {
     const orders = carteiraAtivos.filter(w.filter);
@@ -3635,19 +3911,19 @@ function renderGoals() {
         <div class="panel-header">
           <div>
             <h2>Progresso para 450 t</h2>
-            <p>Faturado (verde) + carteira pipeline maio (âmbar) + saldo descoberto (cinza).</p>
+            <p>Faturado (verde) + carteira pipeline maio (âmbar) + saldo descoberto (laranja cítrico).</p>
           </div>
           <span class="status-pill ${totalCobertoKg >= targetKg ? "" : "red"}">${formatPercent(totalCobertoKg / targetKg)} coberto</span>
         </div>
         <div style="display:flex;height:34px;border-radius:8px;overflow:hidden;gap:2px;margin:10px 0">
           <div style="width:${pctFat.toFixed(1)}%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:0.74rem;color:#fff;font-weight:700">${pctFat >= 7 ? formatPercent(faturadoKg / targetKg) : ""}</div>
           <div style="width:${pctPipe.toFixed(1)}%;background:var(--amber);display:flex;align-items:center;justify-content:center;font-size:0.74rem;color:#fff;font-weight:700">${pctPipe >= 7 ? formatPercent(pipelineKg / targetKg) : ""}</div>
-          <div style="width:${pctGap.toFixed(1)}%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:0.74rem;color:var(--muted);font-weight:700">${pctGap >= 7 ? formatPercent(saldoKg / targetKg) : ""}</div>
+          <div style="width:${pctGap.toFixed(1)}%;background:#ff9f1c;display:flex;align-items:center;justify-content:center;font-size:0.74rem;color:#3a2300;font-weight:800">${pctGap >= 7 ? formatPercent(saldoKg / targetKg) : ""}</div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:0.8rem;color:var(--muted)">
           <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:4px"></span>Faturado ${formatKg(faturadoKg, 0)}</span>
           <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--amber);margin-right:4px"></span>Carteira ${formatKg(pipelineKg, 0)}</span>
-          <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--border);margin-right:4px"></span>Saldo ${formatKg(saldoKg, 0)}</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#ff9f1c;margin-right:4px"></span>Saldo ${formatKg(saldoKg, 0)}</span>
         </div>
       </article>
 
@@ -3932,38 +4208,55 @@ function renderCustomers() {
     acc.revenue += c.revenue;
     acc.weightKg += c.weightKg;
     acc.invoices += c.invoices;
+    acc.backlogRevenue += c.backlogRevenue;
+    acc.backlogWeightKg += c.backlogWeightKg;
+    acc.backlogOrders += c.backlogOrders;
+    acc.commercialRevenue += c.commercialRevenue;
+    acc.commercialWeightKg += c.commercialWeightKg;
     return acc;
-  }, { revenue: 0, weightKg: 0, invoices: 0 });
+  }, { revenue: 0, weightKg: 0, invoices: 0, backlogRevenue: 0, backlogWeightKg: 0, backlogOrders: 0, commercialRevenue: 0, commercialWeightKg: 0 });
 
-  const classified = abcClassify(customers, "revenue");
+  const classified = abcClassify(customers, "commercialRevenue");
   const aCount = classified.filter((c) => c.abc === "A").length;
   const bCount = classified.filter((c) => c.abc === "B").length;
   const cCount = classified.filter((c) => c.abc === "C").length;
   const top = classified[0];
-  const topShare = top.revenue / totals.revenue;
+  const topShare = totals.commercialRevenue ? top.commercialRevenue / totals.commercialRevenue : 0;
+  const invoiceRefDate = getInvoiceReferenceDate();
+  const backlogRefDate = getBacklogReferenceDate();
+  const invoiceRefLabel = formatIsoShort(invoiceRefDate);
+  const backlogRefLabel = formatIsoShort(backlogRefDate);
 
   // Por estado
   const byState = new Map();
   customers.forEach((c) => {
-    c.states.forEach((uf) => {
+    const customerStates = c.states.length ? c.states : ["—"];
+    customerStates.forEach((uf) => {
       if (!byState.has(uf)) byState.set(uf, { uf, revenue: 0, weightKg: 0, customers: 0 });
       const agg = byState.get(uf);
-      agg.revenue += c.revenue / c.states.length;
-      agg.weightKg += c.weightKg / c.states.length;
+      agg.revenue += c.commercialRevenue / customerStates.length;
+      agg.weightKg += c.commercialWeightKg / customerStates.length;
       agg.customers += 1;
     });
   });
   const stateRows = [...byState.values()].sort((a, b) => b.revenue - a.revenue);
 
-  const refDate = data.mayInvoices2026?.period?.endDate || new Date().toISOString().slice(0, 10);
+  const refDate = invoiceRefDate;
   const refDateObj = new Date(refDate + "T12:00:00");
 
   const tableRows = classified.map((c) => {
     const daysSince = c.lastDate
       ? Math.round((refDateObj - new Date(c.lastDate + "T12:00:00")) / 86400000)
-      : "-";
-    const statusLabel = daysSince <= 3 ? "Ativo" : daysSince <= 14 ? "Acompanhar" : "Inativo";
-    const statusClass = daysSince <= 3 ? "" : daysSince <= 14 ? "amber" : "red";
+      : null;
+    const statusLabel = daysSince === null
+      ? (c.backlogOrders ? "Carteira" : "Sem NF")
+      : daysSince <= 3 ? "Ativo" : daysSince <= 14 ? "Acompanhar" : "Inativo";
+    const statusClass = daysSince === null
+      ? (c.backlogOrders ? "blue" : "red")
+      : daysSince <= 3 ? "" : daysSince <= 14 ? "amber" : "red";
+    const statusDetail = daysSince === null
+      ? (c.nextDeliveryDate ? `entrega ${formatIsoShort(c.nextDeliveryDate)}` : "sem NF")
+      : `${daysSince}d`;
     return `
       <tr>
         <td>
@@ -3973,21 +4266,21 @@ function renderCustomers() {
           <strong>${escapeHtml(c.group)}</strong>
           ${c.members.length > 1 ? `<br><small style="color:var(--muted)">${c.members.length} razões sociais</small>` : ""}
         </td>
-        <td>${escapeHtml(c.states.join(", "))}</td>
+        <td>${escapeHtml(c.states.length ? c.states.join(", ") : "—")}</td>
         <td>${escapeHtml(c.representatives.join(", "))}</td>
         <td>${c.invoices}</td>
-        <td>${formatKg(c.weightKg, 2)}</td>
-        <td>${formatBRL(c.revenue)}</td>
-        <td>${formatBRL(c.pricePerKg)}/kg</td>
-        <td>${formatBRL(c.avgTicket)}</td>
+        <td>${formatBRL(c.revenue)}<br><small style="color:var(--muted)">${formatKg(c.weightKg, 2)}</small></td>
+        <td>${formatBRL(c.backlogRevenue)}<br><small style="color:var(--muted)">${formatKg(c.backlogWeightKg, 2)} · ${c.backlogOrders} pedido${c.backlogOrders !== 1 ? "s" : ""}</small></td>
+        <td>${formatBRL(c.commercialRevenue)}<br><small style="color:var(--muted)">${formatKg(c.commercialWeightKg, 2)}</small></td>
+        <td>${formatBRL(c.commercialPricePerKg)}/kg</td>
         <td>${formatPercent(c.share)}<br><small style="color:var(--muted)">${formatPercent(c.cumShare)} acum.</small></td>
-        <td><span class="status-pill ${statusClass}">${statusLabel} (${daysSince}d)</span></td>
+        <td><span class="status-pill ${statusClass}">${statusLabel} (${statusDetail})</span></td>
       </tr>
     `;
   }).join("");
 
   const stateBars = stateRows.map((s) => {
-    const w = Math.max(2, Math.round((s.revenue / totals.revenue) * 100));
+    const w = Math.max(2, Math.round((s.revenue / Math.max(totals.commercialRevenue, 1)) * 100));
     return `
       <div class="bar-row">
         <div class="bar-label">${escapeHtml(stateName(s.uf))} (${s.uf})<br><small style="color:var(--muted)">${s.customers} cliente${s.customers > 1 ? "s" : ""}</small></div>
@@ -4948,14 +5241,7 @@ function buildGoalSalesFocusData(targetKg = 450000) {
   }).sort((a, b) => b.overloadKg - a.overloadKg || b.captureTargetKg - a.captureTargetKg || b.produceKg - a.produceKg);
 
   const captureAllocatedKg = machineRows.reduce((sum, row) => sum + row.captureTargetKg, 0);
-  const weekGroups = [
-    { label: "Atrasados", filter: (order) => order.dataEntrega < today },
-    { label: `Hoje ${formatIsoShort(today)}`, filter: (order) => order.dataEntrega === today },
-    { label: "Até 15/05", filter: (order) => order.dataEntrega > today && order.dataEntrega <= "2026-05-15" },
-    { label: "18-22/05", filter: (order) => order.dataEntrega >= "2026-05-18" && order.dataEntrega <= "2026-05-22" },
-    { label: "23-31/05", filter: (order) => order.dataEntrega >= "2026-05-23" && order.dataEntrega <= "2026-05-31" },
-    { label: "Junho+", filter: (order) => order.dataEntrega >= "2026-06-01" }
-  ].map((bucket) => {
+  const weekGroups = buildBacklogDeliveryBuckets(today).map((bucket) => {
     const orders = pipelineOrders.filter(bucket.filter);
     return { ...bucket, orders, count: orders.length, kg: sumKg(orders), value: sumValue(orders) };
   }).filter((bucket) => bucket.count);
@@ -6142,22 +6428,72 @@ function renderInventory() {
 }
 
 // =================== FRETES ===================
+function parseLocalizedNumber(value, fallback = 0) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : fallback;
+  }
+
+  const compact = String(value ?? "")
+    .trim()
+    .replace(/\s/g, "")
+    .replace(/[^\d,.\-+]/g, "");
+  const sign = compact.startsWith("-") ? "-" : "";
+  const unsigned = compact.replace(/^[-+]/, "");
+
+  if (!/\d/.test(unsigned)) return fallback;
+
+  const commaIndex = unsigned.lastIndexOf(",");
+  const dotIndex = unsigned.lastIndexOf(".");
+  let normalized = unsigned;
+
+  if (commaIndex > -1 && dotIndex > -1) {
+    const decimalSeparator = commaIndex > dotIndex ? "," : ".";
+    const thousandsSeparator = decimalSeparator === "," ? "." : ",";
+    normalized = unsigned.split(thousandsSeparator).join("").replace(decimalSeparator, ".");
+  } else if (commaIndex > -1) {
+    normalized = unsigned.replace(/\./g, "").replace(",", ".");
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(unsigned)) {
+    normalized = unsigned.replace(/\./g, "");
+  } else {
+    normalized = unsigned.replace(/,/g, "");
+  }
+
+  const parsed = Number(`${sign}${normalized}`);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeFreightFilters(filtersInput = {}) {
+  const minRaw = String(filtersInput.minKg ?? "").trim();
+  const hasMinNumber = /\d/.test(minRaw);
+  const minKg = hasMinNumber ? Math.max(0, Math.round(parseLocalizedNumber(minRaw, 0))) : 0;
+  const maxStopsRaw = String(filtersInput.maxStops ?? FREIGHT_DEFAULT_FILTERS.maxStops).trim();
+  const parsedMaxStops = parseLocalizedNumber(maxStopsRaw, Number(FREIGHT_DEFAULT_FILTERS.maxStops));
+  const maxStops = Math.min(5, Math.max(1, Math.trunc(parsedMaxStops)));
+  const route = FREIGHT_ROUTE_FILTERS.has(filtersInput.route) ? filtersInput.route : FREIGHT_DEFAULT_FILTERS.route;
+  const readiness = FREIGHT_READINESS_FILTERS.has(filtersInput.readiness) ? filtersInput.readiness : FREIGHT_DEFAULT_FILTERS.readiness;
+
+  return {
+    minKg,
+    maxStops,
+    route,
+    readiness,
+    filters: {
+      minKg: hasMinNumber ? String(minKg) : "",
+      maxStops: String(maxStops),
+      route,
+      readiness
+    }
+  };
+}
+
 function buildFreightPlanning(filtersInput = state.freightFilters || {}) {
   const truckCapacityKg = 16000;
   const weeklyTrips = 2;
   const weeklyCapacityKg = truckCapacityKg * weeklyTrips;
   const today = getBacklogReferenceDate();
   const todayD = new Date(today + "T12:00:00");
-  const minKg = Math.max(0, Number(filtersInput.minKg) || 0);
-  const maxStops = Math.min(5, Math.max(1, Number(filtersInput.maxStops) || 5));
-  const validRouteFilters = new Set(["all", "sp", "nwPr"]);
-  const routeFilter = validRouteFilters.has(filtersInput.route) ? filtersInput.route : "all";
-  const filters = {
-    minKg: String(minKg || ""),
-    maxStops: String(maxStops),
-    route: routeFilter,
-    readiness: filtersInput.readiness || "all"
-  };
+  const normalizedFilters = normalizeFreightFilters(filtersInput);
+  const { minKg, maxStops, filters } = normalizedFilters;
   const allOrders = data.carteiraOrders2026 || [];
   const activeOrders = allOrders.filter((order) => order.situacao !== "Cancelado" && order.situacao !== "Nota Gerada");
   const stockAnalysis = buildBacklogStockAnalysis(activeOrders, today);
@@ -6693,19 +7029,19 @@ function renderFreights() {
         <div class="freight-filter-grid">
           <label>
             <span>Peso mínimo por pedido</span>
-            <input type="number" min="0" step="100" data-freight-filter="minKg" value="${escapeHtml(filters.minKg)}">
+            <input id="freight-filter-min-kg" type="text" inputmode="numeric" pattern="[0-9.,]*" data-freight-filter="minKg" aria-label="Peso mínimo por pedido" value="${escapeHtml(filters.minKg)}">
           </label>
           <label>
             <span>Máx. descargas/NFs</span>
-            <input type="number" min="1" max="5" step="1" data-freight-filter="maxStops" value="${escapeHtml(filters.maxStops)}">
+            <input id="freight-filter-max-stops" type="number" min="1" max="5" step="1" data-freight-filter="maxStops" aria-label="Máximo de descargas ou NFs" value="${escapeHtml(filters.maxStops)}">
           </label>
           <label>
             <span>Rota</span>
-            <select data-freight-filter="route">${routeOptions}</select>
+            <select id="freight-filter-route" data-freight-filter="route" aria-label="Rota">${routeOptions}</select>
           </label>
           <label>
             <span>Status da carga</span>
-            <select data-freight-filter="readiness">${readinessOptions}</select>
+            <select id="freight-filter-readiness" data-freight-filter="readiness" aria-label="Status da carga">${readinessOptions}</select>
           </label>
         </div>
         <div class="freight-filter-summary">
@@ -6868,7 +7204,10 @@ function renderBacklog() {
   const totalAtr   = atrasados.reduce((a, o) => ({ val: a.val + o.totalValor, kg: a.kg + o.totalKg }), { val: 0, kg: 0 });
   const hoje       = ativos.filter(o => o.dataEntrega === today);
   const totalHoje  = hoje.reduce((a, o) => ({ val: a.val + o.totalValor, kg: a.kg + o.totalKg }), { val: 0, kg: 0 });
-  const semana     = ativos.filter(o => o.dataEntrega > today && o.dataEntrega <= "2026-05-15");
+  const backlogBuckets = buildBacklogDeliveryBuckets(today);
+  const nearBucket = backlogBuckets.find((bucket) => bucket.key === "near");
+  const semanaLabel = nearBucket?.label || "Próximos dias";
+  const semana     = nearBucket ? ativos.filter(nearBucket.filter) : [];
   const totalSem   = semana.reduce((a, o) => ({ val: a.val + o.totalValor, kg: a.kg + o.totalKg }), { val: 0, kg: 0 });
   const stockAnalysis = buildBacklogStockAnalysis(ativos, today);
   const readyToBillList = stockAnalysis.readyToBill;
@@ -7167,7 +7506,7 @@ function renderBacklog() {
       ${kpiCard("Carteira em aberto", formatBRL(totalAtivo.val), `${formatKg(totalAtivo.kg,0)} kg · ${ativos.length} pedidos`, "green")}
       ${kpiCard("Atrasados", atrasados.length ? formatBRL(totalAtr.val) : "Sem atrasos", atrasados.length ? `${atrasados.length} pedidos · ${formatKg(totalAtr.kg,0)} kg` : "Carteira dentro do prazo", atrasados.length ? "red" : "green")}
       ${kpiCard(`Entrega hoje (${todayLabelShort})`, formatBRL(totalHoje.val), `${hoje.length} pedidos · ${formatKg(totalHoje.kg,0)} kg`, "amber")}
-      ${kpiCard("Entrega esta semana", formatBRL(totalSem.val + totalHoje.val), `Até 15/05 · ${semana.length + hoje.length} pedidos · ${formatKg(totalSem.kg + totalHoje.kg,0)} kg`, "blue")}
+      ${kpiCard("Entrega próxima", formatBRL(totalSem.val + totalHoje.val), `${semanaLabel} · ${semana.length + hoje.length} pedidos · ${formatKg(totalSem.kg + totalHoje.kg,0)} kg`, "blue")}
       ${kpiCard("Pronto no estoque", formatKg(stockAnalysis.totals.readyKg, 0), `${formatBRL(stockAnalysis.totals.readyValue, 0)} já pode seguir para faturamento`, "green")}
       ${kpiCard("Falta produzir", formatKg(stockAnalysis.totals.produceKg, 0), `${formatBRL(stockAnalysis.totals.produceValue, 0)} sem estoque pronto`, stockAnalysis.totals.produceKg ? "red" : "green")}
 
