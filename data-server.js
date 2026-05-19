@@ -1503,6 +1503,15 @@ module.exports = {
       "sourceId": "src-pedidos-14-05"
     },
     {
+      "date": "2026-05-15",
+      "weightKg": 3737.602,
+      "revenue": 77733.75,
+      "avgPrice": 20.7984,
+      "orderCount": 4,
+      "notes": "Pedidos 7861 (ERBUS), 7862 (FJR), 7863 (SH ARTIGOS), 7865 (MAXFLEX) — 133 bobinas",
+      "sourceId": "src-pedidos-15-05"
+    },
+    {
       "date": "2026-05-18",
       "weightKg": 48276.147,
       "revenue": 902152.01,
